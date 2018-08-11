@@ -1,0 +1,9 @@
+# 以'#'开始的行，被视为注释.                                                                                                                          
+node_modules
+node_log
+.sass-cache
+package-lock.json
+.vscode
+.svn
+~*
+.gitattributes
