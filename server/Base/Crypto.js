@@ -83,7 +83,7 @@ module.exports = {
         this.hash(pwd))
       let decrypted = decipher.update(data, inputEncoding, outputEncoding)
       decrypted += decipher.final(outputEncoding) // 但是 Buffer + Buffer 还是会变成string
-      if (option.outputType==='json') { // 如果用户输入错误密码，deciper也能返回结果。为了判断是否正确结果，对应当是 json 格式的原文做解析来验证。
+      if (option.format==='json') { // 如果用户输入错误密码，deciper也能返回结果。为了判断是否正确结果，对应当是 json 格式的原文做解析来验证。
         try{
           JSON.parse(decrypted)
         }catch(exception){
