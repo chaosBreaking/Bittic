@@ -14,7 +14,7 @@ my.HASHER_LIST=crypto.getHashes()
 my.CIPHER='aes-256-cfb' // 默认的加解密算法
 my.CIPHER_LIST=crypto.getCiphers()
 my.CURVE='secp256k1' // 默认的ECDH曲线，用于把私钥转成公钥。
-my.CURVE_LIST=crypto.getCurves()
+my.CURVE_LIST=['secp256k1'] // crypto.getCurves() 引入到浏览器里后出错，不支持 getCurves.
 my.OUTPUT='hex' // 默认的哈希或加密的输入格式
 my.OUTPUT_LIST=['hex','latin1','base64'] // or 'buf' to Buffer explicitly
 my.INPUT='utf8' // 默认的加密方法的明文格式。utf8 能够兼容 latin1, ascii 的情形
@@ -83,6 +83,13 @@ module.exports = {
         this.hash(pwd))
       let decrypted = decipher.update(data, inputEncoding, outputEncoding)
       decrypted += decipher.final(outputEncoding) // 但是 Buffer + Buffer 还是会变成string
+      if (option.format==='json') { // 如果用户输入错误密码，deciper也能返回结果。为了判断是否正确结果，对应当是 json 格式的原文做解析来验证。
+        try{
+          JSON.parse(decrypted)
+        }catch(exception){
+          return null
+        }
+      }
       return decrypted
     }
     return null
