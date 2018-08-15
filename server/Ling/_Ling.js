@@ -1,5 +1,7 @@
 /* 所有对象实例的原型。 Ling=Logical Thing 逻辑对象，或 Living Thing 生物体 */
 
+const Tool=new (require('../Base/Egg.js'))() // 用以解除对 wo.Tool 的依赖
+
 const DAD=module.exports=function Ling(){  // 一定要这样写，才能得到 Ling.name==='Ling'。不要写 var Ling=function()...，这样会 Ling.name===''。
   /** 1 private members of object 每个实例对象的私有成员：var ???; function ???(){} **/
   // var self = this
@@ -35,9 +37,9 @@ MOM.setProp= function(prop) { // 设置参数 prop 给自身。参数优先。
       // 必须完全重置数组或对象，因为 prototype._model里的 default:[]或{} 将是一个固定的地址，指向的空间存值后会一直保留，再把default赋给下一个，将会错误的携带这些值。
       let defaultValue=this._model[key].default
       if (Array.isArray(defaultValue)) {
-        this[key]=wo.Tool.extend([], defaultValue, {deep:true})
+        this[key]=Tool.extend([], defaultValue, {deep:true}) // 深度拷贝，保证获得全新的对象或数组
       }else if (defaultValue && typeof defaultValue==='object'){ // 注意排除 defaultValue=null 的情况
-        this[key]=wo.Tool.extend({}, defaultValue, {deep:true})
+        this[key]=Tool.extend({}, defaultValue, {deep:true})
       }else{
         this[key]=defaultValue
       }

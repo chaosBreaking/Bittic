@@ -1,6 +1,6 @@
 'use strict'
 
-function config(){
+function config(){ // 准备配置参数： 命令行参数 > ConfigUser.js > ConfigSys.js
   const commander = require('commander')
   const fs = require('fs')
   const path = require('path')
@@ -42,7 +42,7 @@ try {
 //  }
   Config.dbType = commander.dbType || Config.dbType
   Config.dbName = commander.dbName || Config.dbName
-  Config.host=commander.host || Config.host || require('./Base/Tool4Node.js').getMyIp()
+  Config.host=commander.host || Config.host || require('./Base/Network.js').getMyIp()
   Config.netType = commander.netType || Config.netType || 'devnet'
   Config.ownerSecword = commander.ownerSecword || Config.ownerSecword
   Config.protocol=commander.protocol || Config.protocol || 'http'
@@ -58,13 +58,14 @@ try {
   return Config
 }
 
-async function init(){  /*** 设置全局对象 ***/
+async function init(){  /*** 设置全局对象，启动时光链 ***/
 
   global.mylog=require('./Base/Logger.js') // 简写 console.log，为了少敲几个字母
 
   global.wo={} // wo 代表 world或‘我’，是当前的命名空间，把各种类都放在这里，防止和其他库的冲突。
   wo.Config=config() // 依次载入系统默认配置、用户配置文件、命令行参数
-  wo.Tool=require('./Base/Tool4Node.js')
+  wo.Tool=new (require('./Base/Egg.js'))().extendMe(require('./Base/Webtoken.js'))
+
   wo.Crypto=require('./Base/Crypto.js')
 
   mylog.info('Initializing database......')
@@ -88,18 +89,17 @@ async function init(){  /*** 设置全局对象 ***/
   // if (wo.Config.consensus==='ConsPow') {
   //   wo.Block=await require('./Ling/Blockpow.js')._init()  
   //   wo.Consensus=require('./Ling/ConsPow.js')
-  //   wo.Chain=require('./Ling/ChainPow.js')
+  //   wo.Chain=await require('./Ling/ChainPow.js')._init()
   //   wo.NetUDP = require('./Base/NetUDP.js')._init()
   // }
   // else {
   wo.Block=await require('./Ling/Block.js')._init()
-  wo.Consensus=require('./Ling/'+wo.Config.consensus+'.js')
-  wo.Chain=require('./Ling/Chain.js')
+  wo.Consensus=require('./Ling/'+wo.Config.consensus+'.js') // todo: 目前的 wo.Chain 对 wo.Consensus 有依赖，只能把 wo.Consensus 放在前面
+  wo.Chain=await require('./Ling/Chain.js')._init() // 用await，完成同步后，并且在赋值wo.Chain后才开始服务
   // }
-  await wo.Chain._init() // 用await，完成同步后，并且在赋值wo.Chain后才开始服务
 }
 
-(async function start(){
+(async function start(){ // 配置并启动 Web 服务
 
   await init()
 

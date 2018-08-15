@@ -8,6 +8,8 @@ const Secword = require('bitcore-mnemonic') // https://bitcore.io/api/mnemonic/ 
 
 // 全部以hex为默认输入输出格式，方便人的阅读，以及方便函数之间统一接口
 
+const Tool = new (require('./Egg.js'))()
+
 var my={}
 my.HASHER='sha256' // 默认的哈希算法。could be md5, sha1, sha256, sha512, ripemd160。 可用 Crypto.getHashes/Ciphers/Curves() 查看支持的种类。
 my.HASHER_LIST=crypto.getHashes()
@@ -444,26 +446,26 @@ module.exports = {
   ,
   /* 用户登录所需的 UID 和 PWD 方法 */
   typeofUid : function(uid) { // 越底层，越通用、基础、广泛。例如，逻辑层允许各种电话格式，但本应用中，只允许中国11位手机号。
-    if (uid) {
-      if (uid.match(/^[_\w\-\.]+@[\w\-]+(\.[\w\-]+)*\.[a-zA-Z]{2,4}$/))
-        return 'email'
-      else if (uid.match(/^\+\d{1,3}-\d{11}$/))
-        return 'phone'
-      else if (uid.match(/^\*\d{1,12}$/)) // 注意，在前端的sid包含开头的 * 符号，以和省略了国家码的手机号区分。送到后台前，要删除该 * 符号。
-        return 'aiid'
-      else if (uid.match(/^\d{11}$/))
-      	return 'callNumber'
-    }
-    return null
+    if (/^[_\w\-\.]+@[\w\-]+(\.[\w\-]+)*\.[a-zA-Z]{2,4}$/.test(uid))
+      return 'email'
+    else if (/^\+\d{1,3}-\d{11}$/.test(uid))
+      return 'phone'
+    else if (/^\*\d{1,12}$/.test(uid)) // 注意，在前端的sid包含开头的 * 符号，以和省略了国家码的手机号区分。送到后台前，要删除该 * 符号。
+      return 'aiid'
+    else if (/^\d{11}$/.test(uid))
+    	return 'callNumber'
+    else
+      return null
   }
   ,
   isPwd: function(pwd){
-    return /^.{6,}$/.test(pwd)
+    return /^[^\s]{6,}$/.test(pwd) // 非空格，6个字符及以上
   }
   ,
-  hash4Server:function(source) {
-    if (source && (typeof source==='string' || typeof source==='number'))
-      return crypto.createHash('md5').update(source+wo.Config.HASH_SALT).digest('hex')
+  hash4Server:function(source, salt) {
+    salt=salt||Tool.readPath('wo.Config.HASH_SALT')||''
+    if (source && typeof(source)==='string' && typeof(salt)==='string')
+      return crypto.createHash('md5').update(source+salt).digest('hex')
     return null
   }
 }

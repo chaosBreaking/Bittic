@@ -1,17 +1,18 @@
-function Egg() {}
-const CLASS=module.exports=Egg
-const PROTO=CLASS.prototype
+/** 最原始、基本的语言级别的功能 */
 
-PROTO.extendMe = function(more, option){
-  return PROTO.extend(this,more,option)
+const DAD=module.exports=function Egg() {}
+const MOM=DAD.prototype
+
+MOM.extendMe = function(more, option){
+  return MOM.extend(this,more,option)
 }
 
-PROTO.cloneMe = function(){
-  var objClone;
+MOM.cloneMe = function(){
+  var objClone
   if (this.constructor == Object)  {
-    objClone = new this.constructor();
+    objClone = new this.constructor()
   } else  {
-    objClone = new this.constructor(this.valueOf());
+    objClone = new this.constructor(this.valueOf())
   }
   for ( var key in this)  {
     if (objClone[key] != this[key]) {
@@ -27,10 +28,11 @@ PROTO.cloneMe = function(){
   return objClone
 }
 
-PROTO.extend = function(dest, more, option) { // 给 dest 添加 more 里的属性。option决定是否继承、是否深度拷贝
+MOM.extend = function(dest, more, option) { // 给 dest 添加 more 里的属性。option决定是否继承、是否深度拷贝
   if (dest && more && typeof(dest)==='object' && typeof(more)==='object'){
+    option=option||{}
     for (var key in more) {
-      if (!option || (!option.inherit && !option.deep)){ // 默认只拷贝more对象的自有成员
+      if (!option.inherit && !option.deep){ // 默认只拷贝more对象的自有成员
         if (Array.isArray(dest) && more.hasOwnProperty(key)) {
           dest.push(more[key]) // 对数组元素是添加到dest上，而不是替换掉原来的。
         }else if (more.hasOwnProperty(key)) {
@@ -64,7 +66,7 @@ PROTO.extend = function(dest, more, option) { // 给 dest 添加 more 里的属�
 
 // 从数据库来：取出的JSON字符串，转换成对象。
 // 从前端来：经过Node过滤后，value=req.param(...) 要么是string要么是对象/数组。如果前端预先 stringify 了，就全是 string。
-PROTO.json2obj=function (value, from){
+MOM.json2obj=function (value, from){
   from = ['database', 'http'].indexOf(from)>=0 ? from : 'http'
 //    if (value==='NaN' || value==='Infinity') { // 如果前端做了stringify，那么不可能收到这两者（NaN/Infinity会变成"null"，parse后成 null；'NaN/Infinity'会变成'"NaN/Infinity"'）。如果前端没有stringify，那么前端的 NaN/Infinity 将变成 'NaN'/'Infinity'，在此手动过滤成 null；也有微弱的可能性，用户输入了'NaN/Infinity'！保留哪种都可以。
 //      value=null;
@@ -90,7 +92,7 @@ try {
   return Date.iso2Date(value)
 }
 
-PROTO.isEmpty = function(value){
+MOM.isEmpty = function(value){
   switch (typeof value){
     case 'number': if (value===0 || value!==value) return true; return false;
     case 'object': 
@@ -111,11 +113,40 @@ PROTO.isEmpty = function(value){
   return true
 }
 
-PROTO.getJsType = function(o){ // 返回：一个字符串，表示标量类型 undefined,boolean,number,string 以及对象类型 Null, Object, Array, String, Boolean, Number, Function
+MOM.getJsType = function(o){ // 返回：一个字符串，表示标量类型 undefined,boolean,number,string 以及对象类型 Null, Object, Array, String, Boolean, Number, Function
   var t = typeof(o)
   return ((t==="object" || t==="function") // function是特殊的，typeof 结果是function, 但 Object.prototype.toString.call 结果是 [object Function]。我选用大写形式。
     ? Object.prototype.toString.call(o).slice(8,-1) // 可以是 Null, Object, Function, Boolean, String, Number, Array (如果 o===undefined, 那就是Undefined), 还可能是 Date, Math, Uint8Array(如果是个Buffer)
     : t) // 可以是 undefined, boolean, number, string
+}
+
+MOM.readPath = function(path, root) {
+  var parent = root || global || window || {}
+  var names = path.split('.')
+  for (var i in names) {
+    if (typeof parent === 'object' && names[i].match(/^\w+\(\)$/) && typeof parent[names[i].substring(0,names[i].length-2)] === 'function') { // 支持 xxx.myfunc().yyy 的函数形式作为一个路径节点。
+      parent = parent[names[i].substring(0,names[i].length-2)]()
+    }else if (typeof parent === 'object'  && names[i].match(/^\w+$/) && typeof parent[names[i]] != 'undefined' && parent[names[i]] != null) {
+      parent = parent[names[i]]
+    }else {
+      return null
+    }
+  }
+  return (parent===null || parent===undefined) ? null : parent
+}
+
+MOM.setPath = function(path, root, value) {
+  var parent=root || global || window || {}
+  var names=path.split('.')
+  for (var i=0; i<names.length-1; i++) {
+    if (typeof parent === 'object' && names[i].match(/^\w+$/)) {
+      if (typeof parent[names[i]] !== 'object') parent[names[i]]={};
+      parent = parent[names[i]]
+    }else {
+      return null
+    }
+  }
+  return parent[names[names.length-1]]=value
 }
 
 // https://segmentfault.com/a/1190000006150186#articleHeader1
@@ -142,3 +173,5 @@ Array.keysort=function(key,sortType) {
       return sortType ? ~~(a[key] < b[key]) : ~~(a[key] > b[key]);
   }
 }
+
+require('./Date.js')

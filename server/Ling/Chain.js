@@ -23,7 +23,7 @@ DAD._init=async function(){
 
   await DAD.createGenesis()
   await DAD.verifyChainFromDb()
-  await DAD.updateChainFromPeer()
+  await DAD.updateChainFromPeer() // todo: 里面多处用到了 wo.Consensus 里的共识特定的方法，导致 Chain 对共识方法产生依赖，这不好。
 
   wo.Consensus._init()
   

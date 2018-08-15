@@ -1,8 +1,8 @@
 //const Bluebird=require('bluebird'); // http://bluebirdjs.com/
 const util=require('util')
-const RequestPromise=require('request-promise-native'); // request-promise/-native。https://www.npmjs.com/package/request-promise. 还看到一个方法：Bluebird.promisifyAll(require("request"));
-const NodeMailer=require('nodemailer'); // 或者 const smtpTransporter=require('nodemailer').createTransport({host:'', port:25, auth:{user:'',pass:''}})
-var smtpTransporter;
+const RequestPromise=require('request-promise-native') // request-promise/-native。https://www.npmjs.com/package/request-promise. 还看到一个方法：Bluebird.promisifyAll(require("request"));
+const NodeMailer=require('nodemailer') // 或者 const smtpTransporter=require('nodemailer').createTransport({host:'', port:25, auth:{user:'',pass:''}})
+var smtpTransporter
 
 module.exports={
   sendMail: async function(option){ // 或者如果smtp参数已经确定，就可以直接定义 sendMail: Bluebird.promisify(Smtp.sendMail).bind(Smtp)
@@ -27,14 +27,14 @@ http://www.dxton.com/help_detail/2.html
 120 系统升级
 */
 //    if (wo.Tool.typeofUid(phone)==='phone'){
-      var matches=phone.match(/\d+/g);
-      var smsNumber, smsUrl; 
+      var matches=phone.match(/\d+/g)
+      var smsNumber, smsUrl
       if (matches[0]==='86'){
-        smsUrl = wo.Config.SMS.urlChina;
-        smsNumber=matches[1];
+        smsUrl = wo.Config.SMS.urlChina
+        smsNumber=matches[1]
       }else{
-        smsUrl = wo.Config.SMS.urlWorld;
-        smsNumber=matches[0]+matches[1];
+        smsUrl = wo.Config.SMS.urlWorld
+        smsNumber=matches[0]+matches[1]
       }
 //      return Bluebird.promisify(Http.get)(smsUrl+'&mobile='+smsNumber+"&content="+encodeURIComponent(msg));
       return await RequestPromise.get(smsUrl+'&mobile='+smsNumber+"&content="+encodeURIComponent(msg));
