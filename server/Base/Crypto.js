@@ -198,7 +198,7 @@ module.exports = {
       let compress = ['compressed', 'uncompressed'].indexOf(option.compress)>=0?option.compress:'compressed' // 默认为压缩格式的公钥
       return new crypto.ECDH(curve).setPrivateKey(seckey,'hex').getPublicKey('hex',compress).toString('hex') // ecdh.getPublicKey(不加参数) 默认为 'uncompressed'
       // 从 nodejs 10.0 开始，还有 crypto.ECDH.convertKey 方法，更直接。
-      // 或者 require('secp256k1').publicKeyCreate(Buffer.from(seckey, 'hex'),compress).hexSlice()
+      // 或者 require('secp256k1').publicKeyCreate(Buffer.from(seckey, 'hex'),compress).toString('hex')
       // 或者 require('bitcore-lib').PublicKey.fromPrivateKey(new Btc.PrivateKey(seckey)).toString('hex')
       // 注意，Buffer.from(nacl.box.keyPair.fromSecretKey(Buffer.from(seckey,'hex')).publicKey).toString('hex') 得到的公钥与上面的不同
     }
@@ -280,7 +280,7 @@ module.exports = {
   ,
   secword2seed:function(secword, pass) { // 遵循bip39的算法。和 ether.HDNode.mnemonic2Seed 结果一样，是64字节的种子。
     if (Secword.isValid(secword)) { //  bip39.validateMnemonic(secword)) {
-      return new Secword(secword).toSeed(pass).hexSlice() // 结果一致于 bip39.mnemonicToSeedHex(secword) 或 ethers.HDNode.mnemonic2Seed(secword)
+      return new Secword(secword).toSeed(pass).toString('hex') // 结果一致于 bip39.mnemonicToSeedHex(secword) 或 ethers.HDNode.mnemonic2Seed(secword)
     }
     return null
   }
