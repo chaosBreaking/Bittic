@@ -233,6 +233,10 @@ module.exports = {
     return null
   }
   ,
+  isSecword:function(secword){
+    return Secword.isValid(secword)
+  }
+  ,
   isSeckey:function(seckey){
     // 比特币、以太坊的私钥：64 hex
     // nacl.sign 的私钥 128 hex, nacl.box 的私钥 64 hex
