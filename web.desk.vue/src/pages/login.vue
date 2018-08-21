@@ -1,13 +1,13 @@
 <template>
     
     <div class="mainLogin">
-        <Card  class="card">
+        <div  class="card">
             <div class="divStyle" >
                 <img  style="margin-top:10px" src="../assets/login/u4.png">
                 <p style="font-size:20px;font-weight:bold;margin:10px">TICNode 全节点管理中心</p>
             </div>
             <div class="divStyle">
-                <el-input placeholder="请输入密语，例如：skill loyal dove price spirit illegal bulk rose tattoo congress few amount" v-model="input23">
+                <el-input v-model="secword" placeholder="请输入密语，例如：skill loyal dove price spirit illegal bulk rose tattoo congress few amount">
                 <i slot="prefix" class="el-input__icon el-icon-search"></i>
                 </el-input>
             </div>
@@ -25,25 +25,27 @@
 
                 
             </div>
-        </Card>
+        </div>
         <div v-if="show" style="height:100%;width:100%;background-color:rgba(16,123,67,0.6)">
-            <Card  class="card">
-                <div style="margin:2% 0 2% 10%">
+            <div  class="card">
+                <div style="margin:15px 0 15px 10%">
                     <p>创建新密语</p>
                 </div>
-                <div style="margin:2% 0 2% 10%;height:100px">
-                    <p style="border-style: solid;float:left;height:100px;width:80%;border-color:#d5ccbd;margin:0px"  >betray alcohol gaze give label crush girl sea capable scissors quantum feel</p>  
-                    <el-button style="width:10%;float:rigt;margin-left:10px;top:118px;position:absolute" type="primary" class="button" >复制</el-button> 
+                <div style="margin:15px 0 15px 10%;height:100px">
+                    <p style="border-style: solid;float:left;height:100px;width:80%;border-color:#d5ccbd;margin:0px"  >{{secword}}</p>  
                 </div>
-                <div style="margin:2% 0 2% 10%;height:40px">
-                    <p style="border-style: solid;float:left;height:25px;width:80%;border-color:rgba(239,153,10,0.61);margin:0px;background-color: cornsilk;color:#aea188;"  ><span><i class="el-icon-warning"></i></span>系统为您生成了足够安全的新密语，请保持在安全，私密的地方。</p>  
+                <div style="margin:15px 0 15px 10%;height:40px">
+                    <p style="border-style: solid;float:left;height:50px;width:80%;border-color:rgba(239,153,10,0.61);margin:0px;background-color: cornsilk;color:#aea188;"  >
+                        <span><i class="el-icon-warning"></i> 系统为您生成了足够安全的新密语，请保持在安全，私密的地方。</span><br>
+                        <span><i class="el-icon-warning"></i> 新密语已自动添加到输入框，点击确认返回后可直接登陆。</span>
+                    </p>
                  
                 </div>
                 <div class="divStyle">
-                    <el-button style="margin-right:10%" type="primary" class="button" plain @click="backLogin">确认</el-button>
+                    <el-button style="margin:15px 10% 0 0" type="primary" class="button" plain @click="backLogin">确认</el-button>
                 </div>
             
-            </Card>
+            </div>
         </div>
         
     </div>
@@ -51,22 +53,50 @@
 </template>
 
 <script>
+
+
 export default {
     name:'login',
     data(){
+        
+
         return{
-            show:false
+            show:false,
+            secword:"",
+            
 
         }
 
     },
     methods:{
-        logIn: function(){
-            this.$router.push({path:'/owner'})
+        logIn(){
+            var self = this;
+            self.$ajax({
+                url:'http://localhost:6842/api/Account/getAccount',
+                method:'post',
+                data:{Account:{address:wo.Crypto.secword2address(self.secword)}}
+            }).then(function (response) {
+                if(response.data || wo.Crypto.isSecword(self.secword)){
+                    self.$router.push('/owner');
+                    var userEntity = {
+                        secword: self.secword,
+                        pubkey: wo.Crypto.secword2keypair(self.secword).pubkey,
+                        seckey: wo.Crypto.secword2keypair(self.secword).seckey,
+                        address: wo.Crypto.secword2address(self.secword)
+                    };
+                    
+                    sessionStorage.setItem("user",JSON.stringify(userEntity));
+                }
+                else{
+                     alert("登陆异常");
+                }
+            })
         },
 
         buildNewlang(){
-         this.show = true
+         this.show = true,
+         this.secword=wo.Crypto.randomSecword()
+
           
         },
         backLogin(){

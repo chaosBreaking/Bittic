@@ -5,8 +5,26 @@
 </template>
 
 <script>
+
 export default {
-  name: 'App'
+  name: 'App',
+ // watch:{
+  //  "$route" : "checkLogin"
+  //},
+
+ //created() {
+ //   this.checkLogin();
+ // },
+ // mounted() {
+    
+ // },
+  //methods:{
+   // checkLogin:function(){
+    //  if(!sessionStorage.getItem('web')){
+    //    this.$router.push('/')
+   //   }
+   // }
+ // }
 }
 </script>
 

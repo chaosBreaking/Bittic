@@ -4,7 +4,7 @@
             <el-row type="flex">
             <el-col :span="24">
                 <div >
-                    <img style="vertical-align: middle; margin: 20px;" src='../assets/owner/o1.png'>地址：Tkr8reV6FEySsgFPud29TGmBG4i2xW37Dw
+                    <img style="vertical-align: middle; margin: 20px;" src='../assets/owner/o1.png'>地址: {{address}}
                     <el-button type="primary" @click="changeOwner">更换主人</el-button>
                 </div>
 
@@ -44,13 +44,13 @@
             <el-row style="height:50px;">
                 <div style="margin:5px 20px 0 20px;display:flex;align-items:center;justify-content:space-between" >
                     <p style="font-weight:bold;margin:0">我的交易</p>  
-                    <el-input style="width:40%" placeholder="可输入账户地址、交易ID、区块ID" v-model="input5" class="input-with-select">
+                    <el-input style="width:40%" placeholder="可输入账户地址、交易ID、区块ID"  class="input-with-select">
                         <el-button slot="append" icon="el-icon-search"></el-button>
                     </el-input>
                 </div>
             </el-row>
             <el-row>
-                <el-table :data="tableData" border style="width: 100%">
+                <el-table  border style="width: 100%">
                     <el-table-column prop="transID" label="交易ID" width="180">
                     </el-table-column>
                     <el-table-column prop="type" label="类型" width="124">
@@ -71,9 +71,8 @@
             </el-row>
             <div class="block" style="float:right;margin-top:20px">
                 <el-pagination
-                    @size-change="handleSizeChange"
-                    @current-change="handleCurrentChange"
-                    :current-page.sync="currentPage1"
+                    
+                    
                     :page-size="13"
                     layout="total, prev, pager, next"
                     :total="85"
@@ -83,12 +82,12 @@
         </div>
     
         <div v-if="view" class="layel">
-            <Card  class="card" style="width:75%;margin:5%;">
+            <div  class="card" style="width:75%;margin:5%;">
                 <div style="margin:2% 10% 2% 5%">
-                    <p style="float:left;margin:0;width:90px">原主人密语:</p><p style="border-style:solid;height:10%;width:80%;border-color:#d5ccbd;margin-left:90px">skill loyal dove price spirit illegal bulk rose tattoo congress few amount</p>
+                    <p style="float:left;margin:0;width:90px">原主人密语:</p><p style="border-style:solid;width:80%;border-color:#d5ccbd;margin-left:90px">{{preSecword}}</p>
                 </div>
                 <div style="margin:2% 10% 2% 5%">
-                    <p style="float:left;margin:0 0 0 30px;width:60px">新密语:</p><p style="border-style:solid;height:10%;width:80%;border-color:#d5ccbd;margin-left:90px">betray alcohol gaze give label crush girl sea capable scissors quantum feel</p>
+                    <p style="float:left;margin:0 0 0 30px;width:60px">新密语:</p><input v-model="newSecword" placeholder="请输入新密语，例如：skill loyal dove price spirit illegal bulk rose tattoo congress few amount" style="border-style:solid;height:25px;width:80%;border-color:#d5ccbd">
                 </div>
                 <div style="margin:2% 10% 2% 5%;height:40px">
                     <p style="border-style: solid;width:80%;border-color:rgba(253,124,176,0.61);margin:0 0 0 90px;background-color:#e3987c40;color:#aea188;"  ><span><i class="el-icon-error"></i></span>系统为您生成了足够安全的新密语，请保持在安全，私密的地方。</p>  
@@ -98,7 +97,7 @@
                     <el-button style="margin-right:10%" type="primary" class="button" plain @click="backOwner">更换主人</el-button>
                 </div>
             
-            </Card>
+            </div>
         
         </div>
     
@@ -108,23 +107,55 @@
 <script>
 export default {
     name:'login',
+    
     data(){
         return{
-            view:false
+            view:false,
+            address:'',
+            preSecword:'',
+            newSecword:''
+            
 
         }
 
     },
+    
+    mounted() {
+         this.address = JSON.parse(sessionStorage.getItem('user')).address
+    },
     methods:{
        
         changeOwner(){
-         this.view = true
-          
+         this.view = true;
+         this.preSecword = JSON.parse(sessionStorage.getItem('user')).secword
         },
+
         backOwner(){
-         this.view = false
+         var self = this;
+         if(wo.Crypto.isSecword(self.newSecword)){
+             sessionStorage.removeItem("user");
+             var userEntity = {
+                        secword: self.newSecword,
+                        pubkey: wo.Crypto.secword2keypair(self.newSecword).pubkey,
+                        seckey: wo.Crypto.secword2keypair(self.newSecword).seckey,
+                        address: wo.Crypto.secword2address(self.newSecword)
+                    };
+                    sessionStorage.setItem("user",JSON.stringify(userEntity));
+                    this.address = JSON.parse(sessionStorage.getItem('user')).address;
+                    self.newSecword = '';
+                    
+
+         }
+         else{
+             alert("您输入的密语不正确");
+             self.newSecword = '';
+         };
+         self.view = false;
+         
+       
           
         },
+
         transCoin: function(){
             this.$router.push({path:'/transfer'})
         },

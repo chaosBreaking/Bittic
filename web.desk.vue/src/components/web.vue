@@ -23,13 +23,13 @@
         <el-row style="height:50px;">
             <div style="margin:5px 20px 0 20px;display:flex;align-items:center;justify-content:space-between" >
                     <p style="font-weight:bold;margin:0">我的交易</p>  
-                    <el-input style="width:40%" placeholder="可输入账户地址、交易ID、区块ID" v-model="input5" class="input-with-select">
+                    <el-input style="width:40%" placeholder="可输入账户地址、交易ID、区块ID"  class="input-with-select">
                         <el-button slot="append" icon="el-icon-search"></el-button>
                     </el-input>
             </div>
         </el-row>
         <el-row>
-            <el-table :data="tableData" border style="width: 100%">
+            <el-table border style="width: 100%">
                     <el-table-column prop="serial" label="序号" width="100">
                     </el-table-column>
                     <el-table-column prop="linkAdress" label="链接地址" width="400">
@@ -42,9 +42,8 @@
         </el-row>
         <div class="block" style="float:right;margin-top:20px">
             <el-pagination
-                @size-change="handleSizeChange"
-                @current-change="handleCurrentChange"
-                :current-page.sync="currentPage1"
+               
+                
                 :page-size="15"
                 layout="total, prev, pager, next"
                 :total="20"
