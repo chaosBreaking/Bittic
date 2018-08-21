@@ -43,7 +43,7 @@ DAD.api.getAccount = async function(option){ // 根据 address 返回已有账�
 */
   if (option && option.Account && wo.Crypto.isAddress(option.Account.address)){ // 检查一些在通用的 Ling.getOne() 里不能检查的东西
     option.TokenAccount = option.Account
-    return account= await DAD.getOne(option)
+    return await DAD.getOne(option)
   }
   return null
 }
@@ -63,7 +63,7 @@ DAD.api.getAccount = async function(option){ // 根据 address 返回已有账�
 // }
 
 
-DAD.api.getBalance=async function(option){
+DAD.getBalance=DAD.api.getBalance=async function(option){
   if (option && option.Account && option.Account.address){
     let account=await DAD.getAll({TokenAccount:{ address: option.Account.address }})
     if (account){
@@ -77,29 +77,6 @@ DAD.api.getBalance=async function(option){
   return null
 }
 
-DAD.api.getAddress = function(option){
-  if (option && option.Account && option.Account.pubkey){
-    if (wo.Crypto.isPubkey(option.Account.pubkey)){
-      return wo.Crypto.pubkey2address(option.Account.pubkey)
-    }
-  }
-  return null
-}
-
-
-DAD.getBalance=async function(option){
-  if (option && option.Account && option.Account.address){
-    let account=await DAD.getOne({TokenAccount:{ address: option.Account.address }})
-    if (account){
-      return account.balance||0
-    }
-//    let received=await wo.Action.getSum({Action:{toAddress: option.Account.address}, field:'amount'})
-//    let sent=await wo.Action.getSum({Action:{actorAddress: option.Account.address}, field:'amount'})
-//    return received.sum - sent.sum
-    return 0
-  }
-  return null
-}
 /********************** Private in class *******************/
 
 const my = {

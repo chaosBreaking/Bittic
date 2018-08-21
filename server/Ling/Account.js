@@ -24,7 +24,7 @@ MOM._model={
   secondSignature:{ default:undefined, sqlite:'TEXT',   mysql:'BigInt' },
   balance:        { default:0,         sqlite:'NUMERIC',   mysql:'BigInt' },
   multisignatures:{ default:undefined, sqlite:'TEXT',   mysql:'Text' },
-  blockHash:      { default:undefined, sqlite:'TEXT UNIQUE',   mysql:'String(64)' },
+  blockHash:      { default:undefined, sqlite:'TEXT UNIQUE',   mysql:'String(64)' }, // luk.lu: 这是什么？
   producedblocks: { default:undefined, sqlite:'INTEGER',mysql:'BigInt' },
   missedblocks:   { default:undefined, sqlite:'INTEGER',mysql:'BigInt' },
   fees:           { default:0,         sqlite:'NUMERIC',   mysql:'BigInt' },
@@ -39,7 +39,7 @@ DAD.api={} // 面向前端应用的API
 
 DAD.api.getAccount = async function(option){ // 根据 address 返回已有账户。用于查询。
   if (option && option.Account && wo.Crypto.isAddress(option.Account.address)){ // 检查一些在通用的 Ling.getOne() 里不能检查的东西
-    return account= await DAD.getOne(option)
+    return await DAD.getOne(option)
   }
   return null
 }
@@ -59,7 +59,7 @@ DAD.api.openAccount=async function(option){ // 根据 pubkey 返回已有账户�
 }
 
 
-DAD.api.getBalance=async function(option){
+DAD.getBalance=DAD.api.getBalance=async function(option){
   if (option && option.Account && option.Account.address){
     let account=await DAD.getOne({Account:{ address: option.Account.address }})
     if (account){
@@ -73,29 +73,6 @@ DAD.api.getBalance=async function(option){
   return null
 }
 
-DAD.api.getAddress = function(option){
-  if (option && option.Account && option.Account.pubkey){
-    if (wo.Crypto.isPubkey(option.Account.pubkey)){
-      return wo.Crypto.pubkey2address(option.Account.pubkey)
-    }
-  }
-  return null
-}
-
-
-DAD.getBalance=async function(option){
-  if (option && option.Account && option.Account.address){
-    let account=await DAD.getOne({Account:{ address: option.Account.address }})
-    if (account){
-      return account.balance||0
-    }
-//    let received=await wo.Action.getSum({Action:{toAddress: option.Account.address}, field:'amount'})
-//    let sent=await wo.Action.getSum({Action:{actorAddress: option.Account.address}, field:'amount'})
-//    return received.sum - sent.sum
-    return 0
-  }
-  return null
-}
 /********************** Private in class *******************/
 
 const my = {
