@@ -239,14 +239,14 @@ async function init(){  /*** 设置全局对象，启动时光链 ***/
       mylog.info('Server listening on %s:%d for %s environment', wo.Config.protocol, wo.Config.port, server.settings.env)
     })
   }else if ('httpall'===wo.Config.protocol) { // 同时启用 http 和 https
-    let portHttp=wo.Config.port?wo.Config.port:80 // 如果port参数已设置，使用它；否则默认为80
+    let portHttp=parseInt(wo.Config.port)?parseInt(wo.Config.port):80 // 如果port参数已设置，使用它；否则默认为80
     let httpServer=require('http').createServer(server)
     // wo.Chat.init(httpServer)
     httpServer.listen(portHttp, function(err) {
       mylog.info('Server listening on %s:%d for %s environment', wo.Config.protocol, portHttp, server.settings.env)
     })
 
-    let portHttps=(wo.Config.port!==80)?wo.Config.port+443:443 // 如果port参数已设置，使用它+443；否则默认为443
+    let portHttps=(wo.Config.port && wo.Config.port!==80)?wo.Config.port+443:443 // 如果port参数已设置，使用它+443；否则默认为443
     const fs = require('fs')
     let httpsServer = require('https').createServer({
       key: fs.readFileSync(wo.Config.sslKey), cert: fs.readFileSync(wo.Config.sslCert) // , ca: [ fs.readFileSync(wo.Config.sslCA) ] // only for self-signed certificate: https://nodejs.org/api/tls.html#tls_tls_createserver_options_secureconnectionlistener

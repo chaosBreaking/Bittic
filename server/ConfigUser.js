@@ -24,7 +24,7 @@ module.exports={ // 全节点主人的个性化配置。做成 module.exports �
   // 每个全节点有一个主人，和终端用户一样有密钥
   ownerSecword:'window air repeat sense bring smoke legend shed accuse loan spy fringe' // 默认为和INITIAL_ACCOUNT一样
   ,
-  consensus:null  // 共识机制。默认为单机出块模式。可选设为 ConsPot, ConsPotHard。
+  consensus:null  // 共识机制。默认为单机出块模式。可选设为 ConsPot, ConsAlone。
   ,
   mysql:{
     host:'localhost',
