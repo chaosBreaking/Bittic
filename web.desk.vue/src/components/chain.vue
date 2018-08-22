@@ -9,13 +9,13 @@
         <el-row style="height:50px;">
             <div style="margin:5px 20px 0 20px;display:flex;align-items:center;justify-content:space-between" >
                     <p style="font-weight:bold;margin:0">区块链信息</p>  
-                    <el-input style="width:40%" placeholder="可输入账户地址、交易ID、区块ID" v-model="input5" class="input-with-select">
+                    <el-input style="width:40%" placeholder="可输入账户地址、交易ID、区块ID" class="input-with-select">
                         <el-button slot="append" icon="el-icon-search"></el-button>
                     </el-input>
                 </div>
         </el-row>
         <el-row>
-            <el-table :data="tableData" border style="width: 100%">
+            <el-table  border style="width: 100%">
                 <el-table-column prop="height" label="高度" width="56">
                 </el-table-column>
                 <el-table-column prop="timeStamp" label="时间戳" width="70">
@@ -44,9 +44,6 @@
         </el-row>
         <div class="block" style="float:right;margin-top:20px;">
             <el-pagination
-                @size-change="handleSizeChange"
-                @current-change="handleCurrentChange"
-                :current-page.sync="currentPage4"
                 :page-sizes="[10, 20, 30, 40]"
                 :page-size="10"
                 :total="90"
