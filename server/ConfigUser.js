@@ -1,6 +1,6 @@
 module.exports={ // 全节点主人的个性化配置。做成 module.exports 的 js，而不是 json文件，这样就可以写得更自由，可以添加注释
   root:"./",
-  netType:"mainnet",
+  netType:"testnet",
   protocol:'http',
 //  host:'', // IP or Hostname
 //  port:6842,

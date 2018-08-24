@@ -1,6 +1,7 @@
 
 module.exports={ // 全大写字母的，代表系统常量，不要在 userConfig 或命令行参数里覆盖。小写驼峰的，是用户可以覆盖的。
   root:'./',
+  netType:"testnet", // 默认进入测试网
   protocol:'http',
 //  host: '', // IP or Hostname
 //  port:6842,
@@ -26,7 +27,8 @@ module.exports={ // 全大写字母的，代表系统常量，不要在 userConf
   PEER_CHECKING_TIMEOUT: 5, // *60*1000, // 5分钟没有响应就认为邻居节点死了
   PEER_POOL_CAPACITY:12, // 保持几个邻居节点
 
-  GENESIS_EPOCHE:new Date('2018-03-18T09:20:00.000Z'), //1515341898018
+  GENESIS_EPOCHE:new Date('2018-09-01T00:00:00.000Z'), // 主网的创世时刻。1515341898018
+  GENESIS_EPOCHE_TESTNET:new Date('2018-08-25T00:00:00.000Z'), // 测试网的创世时刻。
   GENESIS_HEIGHT:0,
   COIN_INIT_AMOUNT: 6*Math.pow(10,9), // 原始发行60亿个币。应该命名为 baseAmount，因为这不是全部的，还会挖出新的来
   COIN_PRECISION:6, // 每个币可细分到小数点后第几位

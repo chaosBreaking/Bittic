@@ -18,7 +18,13 @@ DAD.api={} // 面向前端应用的API
 DAD._init=async function(){
 
   if (wo.Config.consensus==='ConsPot'){
-    wo.Config.GENESIS_EPOCHE= Date.time2epoche({type:'prevHour'}) // nextMin: 下一分钟（单机测试）， prevHour: 前一小时（多机测试），或 new Date('2018-07-03T10:15:00.000Z') // 为了方便开发，暂不使用固定的创世时间，而是生成当前时刻之后的第一个0秒，作为创世时间
+    switch (wo.Config.netType){
+      case 'testnet':
+        wo.Config.GENESIS_EPOCHE=wo.Config.GENESIS_EPOCHE_TESTNET
+        break
+      case 'devnet': default: 
+        wo.Config.GENESIS_EPOCHE= Date.time2epoche({type:'prevHour'}) // nextMin: 下一分钟（单机测试）， prevHour: 前一小时（多机测试），或 new Date('2018-07-03T10:15:00.000Z') // 为了方便开发，暂不使用固定的创世时间，而是生成当前时刻之后的第一个0秒，作为创世时间
+    }
   }
 
   await DAD.createGenesis()
