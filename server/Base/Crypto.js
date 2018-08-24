@@ -31,7 +31,7 @@ module.exports = {
       if (typeof(data)!=='string' && !(data instanceof Buffer) && !(data instanceof DataView)) 
         data=JSON.stringify(data)
       if (option.salt && typeof(option.salt)==='string')
-        data=data+option.salt
+        data=data+this.hash(option.salt)
       let hasher= my.HASHER_LIST.indexOf(option.hasher)>=0?option.hasher:my.HASHER // 默认为 sha256.      
       let inputEncoding=my.INPUT_LIST.indexOf(option.input)>=0?option.input:my.INPUT // 'utf8', 'ascii' or 'latin1' for string data, default to utf8 if not specified; ignored for Buffer, TypedArray, or DataView.
       let outputEncoding=(option.output==='buf')?undefined:(my.OUTPUT_LIST.indexOf(option.output)>=0?option.output:my.OUTPUT)  // option.output: 留空=》默认输出hex格式；或者手动指定 'buf', hex', 'latin1' or 'base64'
