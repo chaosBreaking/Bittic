@@ -51,19 +51,19 @@ MOM.checkMultiSig=function(account){
     let json = this.getJson(({exclude:['hash','blockHash','actorSignature','json']}))
     let sigers = Object.keys(this.json) //公钥列表
     //交易发起人的签名在prepare的verifySig里已经检查过合法性，
-    if(account.multisignatures.keysgroup.indexOf(this.actorPubkey)===-1) {
+    if(account.multiSignatures.keysgroup.indexOf(this.actorPubkey)===-1) {
         let M = 1   //如果不在keysgroup里，可以把交易发起人算一个有效的签名，因此M从1算起
     }else {
         let M = 0   //如果发起人已经在keysgroup里则从0算起
     }
     for(let i of sigers)    //该交易内已签名的每一个公钥
     {
-        if(account.multisignatures.keysgroup.indexOf(i)!==-1 && wo.Crypto.verify(json, this.json[i], i))
+        if(account.multiSignatures.keysgroup.indexOf(i)!==-1 && wo.Crypto.verify(json, this.json[i], i))
         {
             M++
         }
     }
-    return M >= account.multisignatures.min
+    return M >= account.multiSignatures.min
 }
 /******************** Shared by instances ********************/
 
@@ -167,7 +167,7 @@ MOM.execute=async function(){
             if(actor && actor.type !== 'multisig'){ 
                 //检查账户类型，只有不是多重签名账户的才可以执行
                 //todo:类型检查，安全操作
-                await actor.setMe({Account:{ multisignatures : {
+                await actor.setMe({Account:{ multiSignatures : {
                     min: this.json.min,
                     ttl: this.json.ttl, //该账户交易的最大挂起时间
                     keysgroup:this.json.keysgroup

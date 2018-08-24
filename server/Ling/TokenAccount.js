@@ -20,7 +20,7 @@ MOM._model={
   symbol:         { default:undefined, sqlite:'TEXT',           mysql:'VARCHAR(256)' }, 
   address:        { default:undefined, sqlite:'TEXT',           mysql:'String(50)' },
   balance:        { default:0,         sqlite:'NUMERIC',        mysql:'BigInt' },
-  multisignatures:{ default:undefined, sqlite:'TEXT',           mysql:'Text' },
+  multiSignatures:{ default:undefined, sqlite:'TEXT',           mysql:'Text' },
   lockHeight:     { default:undefined, sqlite:'INTEGER',        mysql:'BigInt' },
   json:           { default:{},        sqlite:'TEXT' } // 开发者自定义字段，可以用json格式添加任意数据，而不破坏整体结构
 }
