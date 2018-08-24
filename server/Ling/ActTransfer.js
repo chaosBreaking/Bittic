@@ -3,9 +3,9 @@ const Action = require('./Action.js')
 /******************** Public of instance ********************/
 
 const DAD=module.exports=function ActTransfer(prop) {
-  this._class=this.constructor.name
+  this._class='ActTransfer'
   this.setProp(prop) // 没有定义 ActTransfer.prototype._model，因此继承了上级Action.prototype._model，因此通过this.setProp，继承了上级Action定义的实例自有数据。另一个方案是，调用 Action.call(this, prop)
-  this.type=this.constructor.name
+  this.type='ActTransfer'
 }
 DAD.__proto__= Action
 // DAD._table=DAD.name // 注释掉，从而继承父类Action的数据库表格名

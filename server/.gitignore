@@ -6,4 +6,5 @@ package-lock.json
 .vscode
 .svn
 ~*
+/Data/sqlite/*
 .gitattributes
