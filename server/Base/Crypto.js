@@ -26,13 +26,15 @@ my.COIN_LIST=['TIC','BTC','ETH']
 
 module.exports = {
   hash:function(data, option){ // data can be anything, but converts to string or remains be Buffer/TypedArray/DataView
-    if (this.isHashable(data)) { // 即使 data 是 null, false, '', 等等，也返回哈希。
+    if (this.isHashable(data)) {
       option=option||{}
       if (typeof(data)!=='string' && !(data instanceof Buffer) && !(data instanceof DataView)) 
         data=JSON.stringify(data)
-      var inputEncoding=my.INPUT_LIST.indexOf(option.input)>=0?option.input:my.INPUT // 'utf8', 'ascii' or 'latin1' for string data, default to utf8 if not specified; ignored for Buffer, TypedArray, or DataView.
-      var outputEncoding= (option.output==='buf')?undefined:(my.OUTPUT_LIST.indexOf(option.output)>=0?option.output:my.OUTPUT)  // option.output: 留空=》默认输出hex格式；或者手动指定 'buf', hex', 'latin1' or 'base64'
-      var hasher= my.HASHER_LIST.indexOf(option.hasher)>=0?option.hasher:my.HASHER // 默认为 sha256. 
+      if (option.salt && typeof(option.salt)==='string')
+        data=data+option.salt
+      let hasher= my.HASHER_LIST.indexOf(option.hasher)>=0?option.hasher:my.HASHER // 默认为 sha256.      
+      let inputEncoding=my.INPUT_LIST.indexOf(option.input)>=0?option.input:my.INPUT // 'utf8', 'ascii' or 'latin1' for string data, default to utf8 if not specified; ignored for Buffer, TypedArray, or DataView.
+      let outputEncoding=(option.output==='buf')?undefined:(my.OUTPUT_LIST.indexOf(option.output)>=0?option.output:my.OUTPUT)  // option.output: 留空=》默认输出hex格式；或者手动指定 'buf', hex', 'latin1' or 'base64'
       return crypto.createHash(hasher).update(data, inputEncoding).digest(outputEncoding)
     }
     return null
@@ -446,30 +448,5 @@ module.exports = {
     signType=signType||'RSA-SHA1' // could be RSA-SHA256, RSA-SHA1 or more
     let verifier=crypto.createVerify(signType)
     return verifier.update(string2Verify).verify(pubkey, sign, 'base64')
-  }
-  ,
-  /* 用户登录所需的 UID 和 PWD 方法 */
-  typeofUid : function(uid) { // 越底层，越通用、基础、广泛。例如，逻辑层允许各种电话格式，但本应用中，只允许中国11位手机号。
-    if (/^[_\w\-\.]+@[\w\-]+(\.[\w\-]+)*\.[a-zA-Z]{2,4}$/.test(uid))
-      return 'email'
-    else if (/^\+\d{1,3}-\d{11}$/.test(uid))
-      return 'phone'
-    else if (/^\*\d{1,12}$/.test(uid)) // 注意，在前端的sid包含开头的 * 符号，以和省略了国家码的手机号区分。送到后台前，要删除该 * 符号。
-      return 'aiid'
-    else if (/^\d{11}$/.test(uid))
-    	return 'callNumber'
-    else
-      return null
-  }
-  ,
-  isPwd: function(pwd){
-    return /^[^\s]{6,}$/.test(pwd) // 非空格，6个字符及以上
-  }
-  ,
-  hash4Server:function(source, salt) {
-    salt=salt||Tool.readPath('wo.Config.HASH_SALT')||''
-    if (source && typeof(source)==='string' && typeof(salt)==='string')
-      return crypto.createHash('md5').update(source+salt).digest('hex')
-    return null
   }
 }
