@@ -61,7 +61,7 @@ module.exports = {
   }
   ,
   encrypt: function(data, pwd, option){
-    if (this.isHashable(data) && this.isPwd(pwd)) {
+    if (this.isHashable(data) && typeof(pwd)==='string') {
       option=option||{}
       let inputEncoding=my.INPUT_LIST.indexOf(option.input)>=0?option.input:my.INPUT // 'utf8' by default, 'ascii', 'latin1' for string  or ignored for Buffer/TypedArray/DataView
       let outputEncoding=(option.output==='buf')?undefined:(my.OUTPUT_LIST.indexOf(option.output)>=0?option.output:my.OUTPUT) // 'latin1', 'base64', 'hex' by default or 'buf' to Buffer explicitly
@@ -78,7 +78,7 @@ module.exports = {
   }
   ,
   decrypt: function(data, pwd, option){ // data 应当是 encrypt 输出的数据类型
-    if (data && (typeof(data)==='string' || data instanceof Buffer) && this.isPwd(pwd)) {
+    if (data && (typeof(data)==='string' || data instanceof Buffer) && typeof(pwd)==='string') {
       option=option||{}
       let inputEncoding=my.OUTPUT_LIST.indexOf(option.input)>=0?option.input:my.OUTPUT  // input (=output of encrypt) could be 'latin1', 'base64', 'hex' by default for string or ignored for Buffer
       let outputEncoding=(option.output==='buf')?undefined:(my.INPUT_LIST.indexOf(option.output)>=0?option.output:my.INPUT) // output (=input of encrypt) could be 'latin1', 'ascii', 'utf8' by default or  'buf' to Buffer explicitly
