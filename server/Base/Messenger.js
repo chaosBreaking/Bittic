@@ -2,13 +2,13 @@
 const util=require('util')
 const RequestPromise=require('request-promise-native') // request-promise/-native。https://www.npmjs.com/package/request-promise. 还看到一个方法：Bluebird.promisifyAll(require("request"));
 const NodeMailer=require('nodemailer') // 或者 const smtpTransporter=require('nodemailer').createTransport({host:'', port:25, auth:{user:'',pass:''}})
-const SMSClient = require('@alicloud/sms-sdk')
-var smtpTransporter
+let smtpTransporter
 
 // ACCESS_KEY_ID/ACCESS_KEY_SECRET 根据实际申请的账号信息进行替换
 const accessKeyId = 'LTAII9jEbhlTY2wn'
 const secretAccessKey = 'WYqZmfcn2YQAgIBsdqUTQABL8azUJk'
 
+const SMSClient = require('@alicloud/sms-sdk')
 let smsClient = new SMSClient({accessKeyId, secretAccessKey})
 
 module.exports={
