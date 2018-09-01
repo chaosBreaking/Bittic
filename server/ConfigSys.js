@@ -9,7 +9,7 @@ module.exports={ // 全大写字母的，代表系统常量，不要在 userConf
 //  seedSet:["https://node1.bittic.net:6842"],
   
   dbType:'sqlite',
-  dbName:'Data/sqlite/ticdata.sqlite',
+  dbName:'Data_sqlite/ticdata.sqlite',
 
   NET_TYPE:['mainnet','testnet','devnet'],
   NET_MAGIC:{ mainnet:'1m1', testnet:'2t2', devnet:'3d3' },

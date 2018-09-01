@@ -45,9 +45,9 @@
   },
   "scripts": {
     "setup": "npm install",
-    "start": "cross-env NODE_ENV=development supervisor -i node_log,node_modules,Data/sqlite --harmony server.js",
-    "inspect": "cross-env NODE_ENV=development supervisor -i node_log,node_modules,Data/sqlite --inspect --harmony server.js",
-    "service": "cross-env NODE_ENV=production supervisor -i node_log,node_modules,Data/sqlite --harmony server.js -P https > node_log/service.log"
+    "start": "cross-env NODE_ENV=development supervisor -i node_log,node_modules,Data_sqlite --harmony server.js",
+    "inspect": "cross-env NODE_ENV=development supervisor -i node_log,node_modules,Data_sqlite --inspect --harmony server.js",
+    "service": "cross-env NODE_ENV=production supervisor -i node_log,node_modules,Data_sqlite --harmony server.js -P https > node_log/service.log"
   },
   "author": ""
 }

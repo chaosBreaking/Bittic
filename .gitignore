@@ -1,3 +1,5 @@
-/server/Data/sqlite/ticdata.sqlite-wal
-/server/Data/sqlite/ticdata.sqlite
-/server/Data/sqlite/ticdata.sqlite-shm
+Data/sqlite/*.sqlite*
+Data_sqlite/*.sqlite*
+node_modules
+node_log/*.log*
+.svn

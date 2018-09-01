@@ -58,7 +58,7 @@ module.exports={ // 全节点主人的个性化配置。做成 module.exports �
     secure:true, // use tls
     tls:{rejectUnauthorized: false},
     auth:{
-      user:'postmaster@localhost',
+      user:'',
       pass:''
     }
   }
