@@ -1,6 +1,10 @@
 'use strict'
 
-function config(){ // 准备配置参数： 命令行参数 > ConfigUser.js > ConfigSys.js
+// 配置参数： 命令行参数 > ConfigSecret.js > ConfigUser.js > ConfigSys.js
+// ConfigSys: 系统常量（全大写） 以及 默认参数（小写开头驼峰式）
+// ConfigUser: 用户或应用自定义参数。本文件不纳入版本管理。
+// ConfigSecret: 机密参数，例如哈希盐，webtoken密钥，等等。本文件绝对不纳入版本管理。
+function config(){
   const commander = require('commander')
   const fs = require('fs')
   const path = require('path')
@@ -8,11 +12,22 @@ function config(){ // 准备配置参数： 命令行参数 > ConfigUser.js > Co
 
   var Config={}
 
+  // 读取配置文件
 try {
-  Config=deepmerge(require('./ConfigSys.js'), require('./ConfigUser.js')) // 注意，objectMerge后，产生了一个新的对象，而不是在原来的Config里添加
-  mylog.info('Config files loaded')
+  if (fs.existsSync('./ConfigSys.js')) {
+    Config=require('./ConfigSys.js')
+    mylog.info('ConfigSys loaded')
+  }
+  if (fs.existsSync('./ConfigUser.js')) { // 如果存在，覆盖掉 ConfigSys 里的默认参数
+    Config=deepmerge(Config, require('./ConfigUser.js')) // 注意，objectMerge后，产生了一个新的对象，而不是在原来的Config里添加
+    mylog.info('ConfigUser loaded')
+  }
+  if (fs.existsSync('./ConfigSecret.js')) { // 如果存在，覆盖掉 ConfigSys 和 ConfigUser 里的参数
+    Config=deepmerge(Config. require('./ConfigSecret.js'))
+    mylog.info('ConfigSecret loaded')
+  }
 }catch(err){
-  mylog.info('Config files error: '+err.message)
+  mylog.error('Loading config files failed: '+err.message)
 }
 
 // 载入命令行参数

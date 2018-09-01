@@ -2,14 +2,22 @@
 module.exports={ // 全大写字母的，代表系统常量，不要在 userConfig 或命令行参数里覆盖。小写驼峰的，是用户可以覆盖的。
   root:'./',
   netType:"testnet", // 默认进入测试网
+  consensus:null, // // 共识机制。可选设为 ConsPot, ConsAlone。
   protocol:'http',
 //  host: '', // IP or Hostname
-//  port:6842,
-  consensus:null, // 共识机制。默认为单机出块模式。可选设为 Pot, PotHard。
+//  port:6842, // 默认端口号
+// 如果使用 https 协议，必须填写以下内容，或在命令行参数中设置：
+  sslKey: null, // ssl key file,
+  sslCert: null, // ssl cert file,
+  sslCA: null, // ssl ca file,
+
 //  seedSet:["https://node1.bittic.net:6842"],
   
   dbType:'sqlite',
   dbName:'Data_sqlite/ticdata.sqlite',
+
+// 每个全节点有一个主人，和终端用户一样有密钥
+  ownerSecword:'window air repeat sense bring smoke legend shed accuse loan spy fringe', // 默认为和INITIAL_ACCOUNT一样
 
   NET_TYPE:['mainnet','testnet','devnet'],
   NET_MAGIC:{ mainnet:'1m1', testnet:'2t2', devnet:'3d3' },
