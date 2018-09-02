@@ -14,7 +14,7 @@ module.exports={ // 全大写字母的，代表系统常量，不要在 userConf
 //  seedSet:["https://node1.bittic.net:6842"],
   
   dbType:'sqlite',
-  dbName:'Data_sqlite/ticdata.sqlite',
+  dbName:'Data.sqlite/tic.sqlite',
 
 // 每个全节点有一个主人，和终端用户一样有密钥
   ownerSecword:'window air repeat sense bring smoke legend shed accuse loan spy fringe', // 默认为和INITIAL_ACCOUNT一样

@@ -7,5 +7,5 @@ package-lock.json
 .svn
 ~*
 /Data/sqlite/*.sqlite*
-/Data_sqlite/*.sqlite*
+/Data.sqlite/*.sqlite*
 .gitattributes
