@@ -5,9 +5,10 @@ const NodeMailer=require('nodemailer') // 或者 const smtpTransporter=require('
 let smtpTransporter
 
 // ACCESS_KEY_ID/ACCESS_KEY_SECRET 根据实际申请的账号信息进行替换
-const accessKeyId = 'LTAII9jEbhlTY2wn'
-const secretAccessKey = 'WYqZmfcn2YQAgIBsdqUTQABL8azUJk'
-
+// const accessKeyId = 'LTAII9jEbhlTY2wn'
+// const secretAccessKey = 'WYqZmfcn2YQAgIBsdqUTQABL8azUJk'
+const accessKeyId = wo.Config.SMS_ALI.accessKeyId
+const secretAccessKey = wo.Config.SMS_ALI.secretAccessKey
 const SMSClient = require('@alicloud/sms-sdk')
 let smsClient = new SMSClient({accessKeyId, secretAccessKey})
 
