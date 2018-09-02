@@ -1,13 +1,14 @@
 'use strict'
 
+const fs = require('fs')
+const path = require('path')
+
 // 配置参数： 命令行参数 > ConfigSecret.js > ConfigUser.js > ConfigSys.js
 // ConfigSys: 系统常量（全大写） 以及 默认参数（小写开头驼峰式）
 // ConfigUser: 用户或应用自定义参数。本文件不纳入版本管理。
 // ConfigSecret: 机密参数，例如哈希盐，webtoken密钥，等等。本文件绝对不纳入版本管理。
 function config(){
   const commander = require('commander')
-  const fs = require('fs')
-  const path = require('path')
   const deepmerge = require('deepmerge')
 
   var Config={}
@@ -23,7 +24,7 @@ try {
     mylog.info('ConfigUser loaded')
   }
   if (fs.existsSync('./ConfigSecret.js')) { // 如果存在，覆盖掉 ConfigSys 和 ConfigUser 里的参数
-    Config=deepmerge(Config. require('./ConfigSecret.js'))
+    Config=deepmerge(Config, require('./ConfigSecret.js'))
     mylog.info('ConfigSecret loaded')
   }
 }catch(err){
@@ -57,7 +58,7 @@ try {
 //  }
   Config.dbType = commander.dbType || Config.dbType
   Config.dbName = commander.dbName || Config.dbName
-  Config.host=commander.host || Config.host || require('./Base/Network.js').getMyIp()
+  Config.host=commander.host || Config.host || 'localhost'
   Config.netType = commander.netType || Config.netType || 'devnet'
   Config.ownerSecword = commander.ownerSecword || Config.ownerSecword
   Config.protocol=commander.protocol || Config.protocol || 'http'
@@ -128,7 +129,6 @@ async function init(){  /*** 设置全局对象，启动时光链 ***/
   //const Redis = require('connect-redis')(Session)
   const CookieParser=require('cookie-parser')
   const BodyParser=require('body-parser')
-  const Path=require('path')
   const Favicon = require('serve-favicon')
   const ErrorHandler=require('errorhandler')
 
@@ -136,7 +136,7 @@ async function init(){  /*** 设置全局对象，启动时光链 ***/
 
   /*** 通用中间件 ***/
 
-  server.use(Morgan('development'===server.get('env')?'dev':'combined')) // , {stream:require('fs').createWriteStream(Path.join(__dirname+'/node_log', 'http.log'), {flags: 'a', defaultEncoding: 'utf8'})})) // format: combined, common, dev, short, tiny.  发现 defaultEncoding 并不起作用。
+  server.use(Morgan('development'===server.get('env')?'dev':'combined')) // , {stream:require('fs').createWriteStream(path.join(__dirname+'/node_log', 'http.log'), {flags: 'a', defaultEncoding: 'utf8'})})) // format: combined, common, dev, short, tiny.  发现 defaultEncoding 并不起作用。
   server.use(MethodOverride())
   //server.use(Session({store: new Redis({host: "127.0.0.1", port: 6379}), resave:false, saveUninitialized:false, name: 'server.sid', secret: wo.Config.tokenKey, cookie: {  maxAge: wo.Config.SESSION_LIFETIME*1000 }})) // name: 'connect.sid'
   server.use(CookieParser())
@@ -245,7 +245,6 @@ async function init(){  /*** 设置全局对象，启动时光链 ***/
       mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, wo.Config.port, server.settings.env)
     })
   }else if ('https'===wo.Config.protocol) { // 启用 https。从 http或https 网页访问 https的ticnode/socket 都可以，socket.io 内容也是一致的。
-    const fs = require('fs')
     let webServer = require('https').createServer({
       key: fs.readFileSync(wo.Config.sslKey), cert: fs.readFileSync(wo.Config.sslCert) // , ca: [ fs.readFileSync(wo.Config.sslCA) ] // only for self-signed certificate: https://nodejs.org/api/tls.html#tls_tls_createserver_options_secureconnectionlistener
     }, server)
@@ -262,7 +261,6 @@ async function init(){  /*** 设置全局对象，启动时光链 ***/
     })
 
     let portHttps=(wo.Config.port && wo.Config.port!==80)?wo.Config.port+443:443 // 如果port参数已设置，使用它+443；否则默认为443
-    const fs = require('fs')
     let httpsServer = require('https').createServer({
       key: fs.readFileSync(wo.Config.sslKey), cert: fs.readFileSync(wo.Config.sslCert) // , ca: [ fs.readFileSync(wo.Config.sslCA) ] // only for self-signed certificate: https://nodejs.org/api/tls.html#tls_tls_createserver_options_secureconnectionlistener
     }, server)
