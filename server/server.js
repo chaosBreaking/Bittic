@@ -33,7 +33,7 @@ try {
 // 载入命令行参数
   commander
   .version(Config.VERSION, '-v, --version') // 默认是 -V。如果要 -v，就要加 '-v --version'
-  .option('-c, --consensus <type>', 'Consensus type: Pot (default), PotHard, Pow, Alone, etc.')
+  .option('-c, --consensus <type>', 'Consensus type: Pot (default), Pow, Alone, etc.')
   .option('--dbType <type>', 'Database type mysql|sqlite')
   .option('--dbName <name>', 'Database name')
   .option('-h, --host <host>', 'host ip or domain name')
@@ -42,7 +42,7 @@ try {
   .option('-P, --protocol <protocol>', 'Web server protocol http|https|httpall')
   .option('-p, --port <port>', 'Server port')
   .option('--p2p <p2p>', 'P2P protocol: http|udp')
-  .option('-s, --seedSet <\'["http://ip_or_dn:port"]\'>', 'Peers array in JSON format')
+  .option('-s, --seedSet <seedSet>', 'Peers array in JSON, such as \'["http://ip_or_dn:port"]\'')
   .option('--sslCert <cert>', 'SSL cert file')
   .option('--sslKey <key>', 'SSL privkey file')
   .option('--sslCA <ca>', 'SSL ca bundle file')
@@ -110,7 +110,7 @@ async function init(){  /*** 设置全局对象，启动时光链 ***/
   // else {
   wo.Block=await require('./Ling/Block.js')._init()
   wo.Consensus=require('./Ling/'+wo.Config.consensus+'.js') // todo: 目前的 wo.Chain 对 wo.Consensus 有依赖，只能把 wo.Consensus 放在前面
-  wo.Chain=await require('./Ling/Chain.js')._init() // 用await，完成同步后，并且在赋值wo.Chain后才开始服务
+  wo.Chain=await require('./Ling/Chain.js')._init() // 用await，完成同步后，并且在赋值wo.Chain后才开始 web服务
   // }
 }
 
@@ -242,7 +242,7 @@ async function init(){  /*** 设置全局对象，启动时光链 ***/
     let webServer=require('http').createServer(server)
     // wo.Chat.init(webServer)
     webServer.listen(wo.Config.port, function(err) {
-      mylog.info('Server listening on %s:%d for %s environment', wo.Config.protocol, wo.Config.port, server.settings.env)
+      mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, wo.Config.port, server.settings.env)
     })
   }else if ('https'===wo.Config.protocol) { // 启用 https。从 http或https 网页访问 https的ticnode/socket 都可以，socket.io 内容也是一致的。
     const fs = require('fs')
@@ -251,14 +251,14 @@ async function init(){  /*** 设置全局对象，启动时光链 ***/
     }, server)
     // wo.Chat.init(webServer)
     webServer.listen(wo.Config.port, function(err) {
-      mylog.info('Server listening on %s:%d for %s environment', wo.Config.protocol, wo.Config.port, server.settings.env)
+      mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, wo.Config.port, server.settings.env)
     })
   }else if ('httpall'===wo.Config.protocol) { // 同时启用 http 和 https
     let portHttp=parseInt(wo.Config.port)?parseInt(wo.Config.port):80 // 如果port参数已设置，使用它；否则默认为80
     let httpServer=require('http').createServer(server)
     // wo.Chat.init(httpServer)
     httpServer.listen(portHttp, function(err) {
-      mylog.info('Server listening on %s:%d for %s environment', wo.Config.protocol, portHttp, server.settings.env)
+      mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, portHttp, server.settings.env)
     })
 
     let portHttps=(wo.Config.port && wo.Config.port!==80)?wo.Config.port+443:443 // 如果port参数已设置，使用它+443；否则默认为443
@@ -268,7 +268,7 @@ async function init(){  /*** 设置全局对象，启动时光链 ***/
     }, server)
     // wo.Chat.init(httpsServer)
     httpsServer.listen(portHttps, function(err) {
-      mylog.info('Server listening on %s:%d for %s environment', wo.Config.protocol, portHttps, server.settings.env)
+      mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, portHttps, server.settings.env)
     })
   }
 

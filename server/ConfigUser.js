@@ -11,5 +11,5 @@ module.exports={ // 全节点主人的个性化配置。做成 module.exports �
 //  seckey: '38738caeafbad69d66cddb7b11cb6600d8323a4f19950ca5d2e771a88528ec9baf8b40bcb7c7b91ec95874249e69daf2ca42c27e4e87093382d161bfb641642d'
 //  address: 'Tt9hwM5ydwPK52sjts58PsgZXTdBMe5hCY'
 
-//  ownerSecword:'' // 每个节点应当设置自己的 secword，并且应当保密。
+//  ownerSecword:'' // 每个节点应当在这里设置自己的 secword，并且应当保密。
 }
