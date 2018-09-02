@@ -4,13 +4,8 @@ const RequestPromise=require('request-promise-native') // request-promise/-nativ
 const NodeMailer=require('nodemailer') // 或者 const smtpTransporter=require('nodemailer').createTransport({host:'', port:25, auth:{user:'',pass:''}})
 let smtpTransporter
 
-// ACCESS_KEY_ID/ACCESS_KEY_SECRET 根据实际申请的账号信息进行替换
-// const accessKeyId = 'LTAII9jEbhlTY2wn'
-// const secretAccessKey = 'WYqZmfcn2YQAgIBsdqUTQABL8azUJk'
-const accessKeyId = wo.Config.SMS_ALI.accessKeyId
-const secretAccessKey = wo.Config.SMS_ALI.secretAccessKey
 const SMSClient = require('@alicloud/sms-sdk')
-let smsClient = new SMSClient({accessKeyId, secretAccessKey})
+let smsClient = null
 
 module.exports={
   sendMail: async function(option){ // 或者如果smtp参数已经确定，就可以直接定义 sendMail: Bluebird.promisify(Smtp.sendMail).bind(Smtp)
@@ -49,6 +44,13 @@ http://www.dxton.com/help_detail/2.html
 //    }
   },
   sendSmsByAli: function(phone,code,TemplateCode,SignName){
+    if (!smsClient){ // 在函数调用时，才创建 smsClient，防止 wo.Config 还没有建立好。
+      // ACCESS_KEY_ID/ACCESS_KEY_SECRET 根据实际申请的账号信息进行替换
+      const accessKeyId = wo.Config.SMS_ALI.accessKeyId
+      const secretAccessKey = wo.Config.SMS_ALI.secretAccessKey
+      smsClient = new SMSClient({accessKeyId, secretAccessKey})
+    }
+
     var matches=phone.match(/\d+/g)
     var smsNumber
     if (matches[0]==='86'){
