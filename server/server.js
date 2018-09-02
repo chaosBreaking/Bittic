@@ -79,10 +79,13 @@ async function init(){  /*** 设置全局对象，启动时光链 ***/
   global.mylog=require('./Base/Logger.js') // 简写 console.log，为了少敲几个字母
 
   global.wo={} // wo 代表 world或‘我’，是当前的命名空间，把各种类都放在这里，防止和其他库的冲突。
-  wo.Config=config() // 依次载入系统默认配置、用户配置文件、命令行参数
   wo.Tool=new (require('./Base/Egg.js'))().extendMe(require('./Base/Webtoken.js'))
-
+  wo.Config=config() // 依次载入系统默认配置、用户配置文件、命令行参数
   wo.Crypto=require('./Base/Crypto.js')
+  if (!wo.Crypto.isSecword(wo.Config.ownerSecword)){
+    mylog.error('Invalid secword! Please setup a secword in ConfigSecret.js')
+    process.exit()
+  }
 
   mylog.info('Initializing database......')
   wo.Data=await require('./Data/'+wo.Config.dbType)._init(wo.Config.dbName)
