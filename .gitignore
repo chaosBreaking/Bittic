@@ -1,5 +1,5 @@
 Data/sqlite/*.sqlite*
 Data.sqlite/*.sqlite*
 node_modules
-node_log/*.log*
+Data.log/*.log*
 .svn

@@ -139,7 +139,7 @@ async function init(){  /*** 设置全局对象，启动时光链 ***/
 
   /*** 通用中间件 ***/
 
-  server.use(Morgan('development'===server.get('env')?'dev':'combined')) // , {stream:require('fs').createWriteStream(path.join(__dirname+'/node_log', 'http.log'), {flags: 'a', defaultEncoding: 'utf8'})})) // format: combined, common, dev, short, tiny.  发现 defaultEncoding 并不起作用。
+  server.use(Morgan('development'===server.get('env')?'dev':'combined')) // , {stream:require('fs').createWriteStream(path.join(__dirname+'/Data.log', 'http.log'), {flags: 'a', defaultEncoding: 'utf8'})})) // format: combined, common, dev, short, tiny.  发现 defaultEncoding 并不起作用。
   server.use(MethodOverride())
   //server.use(Session({store: new Redis({host: "127.0.0.1", port: 6379}), resave:false, saveUninitialized:false, name: 'server.sid', secret: wo.Config.tokenKey, cookie: {  maxAge: wo.Config.SESSION_LIFETIME*1000 }})) // name: 'connect.sid'
   server.use(CookieParser())
