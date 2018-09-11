@@ -3,3 +3,4 @@ Data.sqlite/*.sqlite*
 node_modules
 Data.log/*.log*
 .svn
+package-lock.json

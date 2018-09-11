@@ -10,7 +10,7 @@ const Secword = require('bitcore-mnemonic') // https://bitcore.io/api/mnemonic/ 
 
 const Tool = new (require('./Egg.js'))()
 
-var my={}
+const my={}
 my.HASHER='sha256' // 默认的哈希算法。could be md5, sha1, sha256, sha512, ripemd160。 可用 Crypto.getHashes/Ciphers/Curves() 查看支持的种类。
 my.HASHER_LIST=crypto.getHashes()
 my.CIPHER='aes-256-cfb' // 默认的加解密算法
@@ -160,8 +160,8 @@ module.exports = {
         // 采用自己的算法：bip39算法从secword到种子，hash后用 nacl.sign.keyPair.fromSeed()方法。结果和方案1的不一致！
         option=option||{}
         option.hasher=my.HASHER_LIST.indexOf(option.hasher)>=0?option.hasher:my.HASHER
-        var hashBuf=crypto.createHash(option.hasher).update(this.secword2seed(secword)).digest()
-        var keypair = nacl.sign.keyPair.fromSeed(hashBuf) // nacl.sign.keyPair.fromSeed 要求32字节的种子，而 this.secword2seed生成的是64字节种子，所以要先做一次sha256
+        let hashBuf=crypto.createHash(option.hasher).update(this.secword2seed(secword)).digest()
+        let keypair = nacl.sign.keyPair.fromSeed(hashBuf) // nacl.sign.keyPair.fromSeed 要求32字节的种子，而 this.secword2seed生成的是64字节种子，所以要先做一次sha256
         return {
           coin: option.coin,
           pubkey: Buffer.from(keypair.publicKey).toString('hex'), // 测试过 不能直接keypair.publicKey.toString('hex')，不是buffer类型
@@ -194,8 +194,9 @@ module.exports = {
   }
   ,
   seckey2pubkey:function(seckey, option){
-    if (this.isSeckey(seckey) && seckey.length===64){ // 只能用于32字节的私钥。也就是不能用于 TIC 的私钥。
-      option=option||{}
+    option=option||{}
+    option.coin=my.COIN_LIST.indexOf(option.coin)>=0?option.coin:my.COIN
+    if (this.isSeckey(seckey) && seckey.length===64){ // 只能用于32字节的私钥（BTC, ETH)。也就是不能用于 TIC 的私钥。
       let curve = my.CURVE_LIST.indexOf(option.curve)>=0?option.curve:my.CURVE // 默认为 secp256k1
       let compress = ['compressed', 'uncompressed'].indexOf(option.compress)>=0?option.compress:'compressed' // 默认为压缩格式的公钥
       return new crypto.ECDH(curve).setPrivateKey(seckey,'hex').getPublicKey('hex',compress).toString('hex') // ecdh.getPublicKey(不加参数) 默认为 'uncompressed'
@@ -203,16 +204,19 @@ module.exports = {
       // 或者 require('secp256k1').publicKeyCreate(Buffer.from(seckey, 'hex'),compress).toString('hex')
       // 或者 require('bitcore-lib').PublicKey.fromPrivateKey(new Btc.PrivateKey(seckey)).toString('hex')
       // 注意，Buffer.from(nacl.box.keyPair.fromSecretKey(Buffer.from(seckey,'hex')).publicKey).toString('hex') 得到的公钥与上面的不同
+    }else if (this.isSeckey(seckey) && seckey.length===128 && option.coin==='TIC'){ // 用于64字节=128 hex的 TIC 私钥
+      let keypair=nacl.sign.keyPair.fromSecretKey(seckey)
+      return Buffer.from(keypair.publicKey).toString('hex') // 测试过 不能直接keypair.publicKey.toString('hex')，不是buffer类型
     }
     return null
   }
   ,
-  secword2account:function(secword, option){
+  secword2account:function(secword, option){ // account 比 keypair 多了 address 字段。
     let kp=this.secword2keypair(secword, option)
     if (kp) {
       switch (kp.coin){
         case 'TIC': kp.address=this.pubkey2address(kp.pubkey); break;
-        case 'ETH': // 目前不支持 ETH 地址转换，因为这会大量增加前端打包的js。
+        case 'ETH': // 目前不支持 ETH 地址转换，因为这会大量增加前端打包的js。有需要的请自行独立实现。
         case 'BTC': 
         default: return null
       }
