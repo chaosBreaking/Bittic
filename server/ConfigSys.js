@@ -1,27 +1,27 @@
 
 module.exports={ // 全大写字母的，代表系统常量，不要在 userConfig 或命令行参数里覆盖。小写驼峰的，是用户可以覆盖的。
-  root:'./',
-  netType:"testnet", // 默认进入测试网
-  consensus:null, // // 共识机制。可选设为 ConsPot, ConsAlone。
-  protocol:'http',
+  netType:'testnet', // 默认进入测试网
+  consensus:null, // 共识机制。可选设为 ConsPot, ConsAlone。
+  protocol:'http', // http|https|httpall
   host: 'localhost', // 本节点的 IP or Hostname // require('./Base/Network.js').getMyIp()
   port:6842, // 本节点的 Web服务端口号
 // 如果使用 https 协议，必须填写以下内容，或在命令行参数中设置：
   sslKey: null, // ssl key file,
   sslCert: null, // ssl cert file,
   sslCA: null, // ssl ca file,
+  p2p: 'http', // http|udp
 
 //  seedSet:["https://node1.bittic.net:6842"],
   
   dbType:'sqlite',
   dbName:'Data.sqlite/tic.sqlite',
 
-// 每个全节点有一个主人，和终端用户一样有密钥
-  ownerSecword:'window air repeat sense bring smoke legend shed accuse loan spy fringe', // 默认为和INITIAL_ACCOUNT一样
+// 每个全节点有一个主人，应当存入 ConfigSecret.js
+  ownerSecword:'', // 默认为和INITIAL_ACCOUNT一样
 
   NET_TYPE:['mainnet','testnet','devnet'],
   NET_MAGIC:{ mainnet:'1m1', testnet:'2t2', devnet:'3d3' },
-  NET_PORT:{ mainnet:6842, testnet:6842, devnet:6842},
+  NET_PORT:{ mainnet:6842, testnet:6842, devnet:6842 },
   NET_SEEDSET:{
     mainnet:[],
     testnet:[],
@@ -59,7 +59,7 @@ module.exports={ // 全大写字母的，代表系统常量，不要在 userConf
   MIN_FEE_ActTransfer:0,
   MIN_FEE_ActStorage:0,
 
-  INITIAL_ACCOUNT:{ // 初始账户，用于首发TIC币。
+  INITIAL_ACCOUNT_TESTNET:{ // 初始账户，用于首发TIC币。
 // todo: 以下机密信息应当在真正部署时删除！
 //    secword: 'window air repeat sense bring smoke legend shed accuse loan spy fringe'
 //    pubkey: 'd1ed688dccd996c11cba2749d3a916977b0c5977a1d40d1b5ad83606e3303150',
@@ -67,11 +67,24 @@ module.exports={ // 全大写字母的，代表系统常量，不要在 userConf
     address: 'Ttm24Wb877P6EHbNKzswoK6yvnTQqFYaqo'
   }
   ,
+  INITIAL_ACCOUNT_DEVNET:{ // 初始账户，用于首发TIC币。
+// todo: 以下机密信息应当在真正部署时删除！
+//    secword: 'clever journey cave maze luxury juice trigger discover bamboo net shoot put',
+//    pubkey: '0fee122794b94feadcc07a72e69110e1000b6515ea67b4dba90f20dc48f999f8',
+//    seckey: 'df814a79def4fa6e5bff2a19f44a5811163600db35670dca0b9bacc0994db05f0fee122794b94feadcc07a72e69110e1000b6515ea67b4dba90f20dc48f999f8',
+    address: 'TxAEimQbqVRUoPncGLrrpmP82yhtoLmxJE'
+  }
+  ,
+  INITIAL_ACCOUNT:{ // 初始账户，用于首发TIC币。
+// todo: 以下机密信息应当在真正部署时删除！
+    address: 'TpNH7NQoYLYjCDiAJddQX1LP4BrzAQ2Vw7'
+  }
+  ,
   GENESIS_ACCOUNT:{ // 创世账户，用于创建height=0创世块
     secword: "skill loyal dove price spirit illegal bulk rose tattoo congress few amount",
-    pubkey: '656315fb1a34dafbaba2421cb2a6e6685754a0e68dab28be9b90201b4220acd1',
-    seckey: '5334cce097b645559de70d365292bb1ad045f22a1915df0e1790d1f1da6de617656315fb1a34dafbaba2421cb2a6e6685754a0e68dab28be9b90201b4220acd1',
-    address: 'Tq4YQAbMAmoNmUK1mBDi9rqPoeCofawbCa' 
+//    pubkey: '656315fb1a34dafbaba2421cb2a6e6685754a0e68dab28be9b90201b4220acd1',
+//    seckey: '5334cce097b645559de70d365292bb1ad045f22a1915df0e1790d1f1da6de617656315fb1a34dafbaba2421cb2a6e6685754a0e68dab28be9b90201b4220acd1',
+//    address: 'Tq4YQAbMAmoNmUK1mBDi9rqPoeCofawbCa' 
   }
 
 }

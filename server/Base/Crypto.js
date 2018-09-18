@@ -216,12 +216,7 @@ module.exports = {
     option.coin=my.COIN_LIST.indexOf(option.coin)>=0?option.coin:my.COIN
     let kp=this.secword2keypair(secword, option)
     if (kp) {
-      switch (option.coin){
-        case 'TIC': kp.address=this.pubkey2address(kp.pubkey, option); break;
-        case 'ETH': break; // 目前不支持 ETH 地址转换，因为这会大量增加前端打包的js。有需要的请自行独立实现。
-        case 'BTC': kp.address=this.pubkey2address(kp.pubkey, option); break;
-        default: return null
-      }
+      kp.address=this.pubkey2address(kp.pubkey, option)
       return kp 
     }
     return null
@@ -233,13 +228,7 @@ module.exports = {
     let address
     let kp=this.secword2keypair(secword, option)
     if (kp) {
-      switch (option.coin){
-        case 'TIC': address=this.pubkey2address(kp.pubkey,option); break;
-        case 'ETH': break; // 目前不支持 ETH 地址转换，因为这会大量增加前端打包的js。
-        case 'BTC': address=this.pubkey2address(kp.pubkey,option); break;
-        default: return null
-      }
-      return address
+      return this.pubkey2address(kp.pubkey,option)
     }
     return null
   }
@@ -265,19 +254,30 @@ module.exports = {
     return /^[m|t|d|T][123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{33}$/.test(address)  // && address.length>25 && bs58check.decode(address.slice(1)) && ['A'].indexOf(address[0]>=0)) {
   }
   ,
-  pubkey2address:function (pubkey, option) { // pubkey 应当是string或Buffer类型。
+  pubkey2address:function (pubkey, option) { // pubkey 应当是string类型
+    option=option||{}
+    option.coin=my.COIN_LIST.indexOf(option.coin)>=0?option.coin:my.COIN
     if (this.isPubkey(pubkey)) {
       option = option||{}
       let h256 = crypto.createHash('sha256').update(Buffer.from(pubkey, 'hex')).digest()
       let h160 = crypto.createHash('ripemd160').update(h256).digest('hex')
-      let prefix = '42' // todo: 不同网，用不同的prefix。// 前缀使得b58check后变成某个特定字符开头。 '42'=>T。'6E'=>m, '7F'=>t, '5A'=>d
-      if(option.coin==='BTC'){
-        switch (option.netType) {
-          case 'mainnet': prefix='00'; break;
-          case 'testnet': prefix='6f'; break;
-          case 'p2sh': prefix='05'; break;
-          default: prefix='00'
+      let prefix
+      if (option.coin==='TIC'){
+        switch(option.netType){
+          case 'mainnet': prefix='42'; break; // '42'=>T, '6E'=>m
+          case 'testnet': prefix='7F'; break; // '7F'=>t
+          case 'devnet': prefix='5A'; break; // '5A'=>d
+          default: prefix='42' // 默认暂且为 42，为了兼容已经运行的链。
         }
+      }else if(option.coin==='BTC'){
+        switch (option.netType) {
+          case 'mainnet': prefix='00'; break; // 1
+          case 'testnet': prefix='6f'; break; // m or n
+          case 'p2sh': prefix='05'; break; // 3
+          default: prefix='6f'
+        }
+      }else { // 目前不支持 ETH或其他币种 地址转换，因为这会大量增加前端打包的js。
+        return null
       }
       var wifAddress=bs58check.encode(Buffer.from(prefix+h160,'hex')) // wallet import format
       return wifAddress

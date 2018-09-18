@@ -3,10 +3,11 @@
 const fs = require('fs')
 const path = require('path')
 
-// 配置参数： 命令行参数 > ConfigSecret.js > ConfigUser.js > ConfigSys.js
+// 配置参数（按优先级从低到高）：
 // ConfigSys: 系统常量（全大写） 以及 默认参数（小写开头驼峰式）
-// ConfigUser: 用户或应用自定义参数。本文件不纳入版本管理。
-// ConfigSecret: 机密参数，例如哈希盐，webtoken密钥，等等。本文件绝对不纳入版本管理。
+// ConfigUser: 用户或应用自定义参数。本文件不应纳入版本管理。
+// ConfigSecret: 机密参数，例如哈希盐，webtoken密钥，等等。本文件绝对不能纳入版本管理。
+// 命令行参数
 function config(){
   const commander = require('commander')
   const deepmerge = require('deepmerge')
@@ -58,12 +59,12 @@ try {
 //  }
   Config.dbType = commander.dbType || Config.dbType
   Config.dbName = commander.dbName || Config.dbName
-  Config.host=commander.host || Config.host || 'localhost'
-  Config.netType = commander.netType || Config.netType || 'devnet'
+  Config.host=commander.host || Config.host
+  Config.netType = commander.netType || Config.netType
   Config.ownerSecword = commander.ownerSecword || Config.ownerSecword
-  Config.protocol=commander.protocol || Config.protocol || 'http'
+  Config.protocol=commander.protocol || Config.protocol
   Config.port=parseInt(commander.port) || parseInt(Config.port) || (Config.protocol==='http'?6842:Config.protocol==='https'?6842:undefined) // 端口默认为6842(http,https), 或80|443(httpall)
-  Config.p2p=commander.p2p || Config.p2p || 'http' // 'udp'
+  Config.p2p=commander.p2p || Config.p2p
   Config.seedSet= commander.seedSet ? JSON.parse(commander.seedSet) : Config.seedSet
   Config.sslCert=commander.sslCert || Config.sslCert
   Config.sslKey=commander.sslKey || Config.sslKey
