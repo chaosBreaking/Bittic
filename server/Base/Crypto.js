@@ -157,10 +157,9 @@ module.exports = {
       option.coin=my.COIN_LIST.indexOf(option.coin)>=0?option.coin:my.COIN
 
       if(option.coin==='TIC') {
-        // 采用自己的算法：bip39算法从secword到种子，hash后用 nacl.sign.keyPair.fromSeed()方法。结果和方案1的不一致！
-        option=option||{}
+        // 采用自己的算法：bip39算法从secword到种子，hash后用 nacl.sign.keyPair.fromSeed()方法。
         option.hasher=my.HASHER_LIST.indexOf(option.hasher)>=0?option.hasher:my.HASHER
-        let hashBuf=crypto.createHash(option.hasher).update(this.secword2seed(secword)).digest()
+        let hashBuf=crypto.createHash(option.hasher).update(this.secword2seed(secword, option.pass)).digest()
         let keypair = nacl.sign.keyPair.fromSeed(hashBuf) // nacl.sign.keyPair.fromSeed 要求32字节的种子，而 this.secword2seed生成的是64字节种子，所以要先做一次sha256
         return {
           coin: option.coin,
