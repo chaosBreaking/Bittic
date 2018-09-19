@@ -66,6 +66,9 @@ DAD.signOnce=async function(){
       my.selfPot.signature=signature
       my.selfPot.message=message
       my.selfPot.pubkey=pubkey
+      mylog.info('本节点主人（地址'+wo.Crypto.pubkey2address(pubkey)+'）的时间证明签名：'+JSON.stringify(signature))
+    }else{
+      mylog.info('本节点主人（地址'+wo.Crypto.pubkey2address(pubkey)+'）的账户余额不足，无法参加本轮时间证明签名')
     }
     my.currentPhase='signing'
   }
@@ -86,8 +89,12 @@ DAD.api.signWatcher=async function(option) { // 监听收集终端用户的签�
         my.selfPot.signature = option.signature // 随时更新到最佳的签名
         my.selfPot.message=option.message
         my.selfPot.pubkey=option.pubkey
-        mylog.info('终端用户的时间证明验证成功、并且获胜：'+JSON.stringify(option.signature)+' 来自地址 '+wo.Crypto.pubkey2address(option.pubkey))
+        mylog.info('终端用户（地址：'+wo.Crypto.pubkey2address(option.pubkey)+'）的时间证明验证成功、并且获胜：'+JSON.stringify(option.signature))
+      }else{
+        mylog.info('终端用户（地址：'+wo.Crypto.pubkey2address(option.pubkey)+'）的余额不足，时间证明不被接收，')
       }
+    }else{
+      mylog.info('终端用户（地址：'+wo.Crypto.pubkey2address(option.pubkey)+'）的签名 '+option.signature+' 没有通过本节点验证或比较')
     }
   }
 }
