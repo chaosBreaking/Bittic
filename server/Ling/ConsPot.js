@@ -172,6 +172,9 @@ DAD.api.electWatcher=async function(option) { // 互相转发最优的签名块
     mylog.info("上区块哈希: " + option.Block.lastBlockHash)    
     mylog.info("本机上一区块HASH: " + wo.Chain.getTopBlock().hash)
   }
+  else{
+    mylog.info('收到的签名块无效：'+JSON.stringify(option.Block))
+  }
 }
 DAD.api.shareWinner=async function(option){
   // if (option.winnerSignature === my.bestPot.signature)

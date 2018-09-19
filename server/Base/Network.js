@@ -51,7 +51,7 @@ module.exports = {
         })
       })
     } catch (e) {
-      console.log('ERROR in getPublicIP(): '+e.message)
+      console.log('ERROR in getMyIP(): '+e.message)
     }
     return publicIp||privateIp
   }

@@ -59,7 +59,7 @@ try {
 //  }
   Config.dbType = commander.dbType || Config.dbType
   Config.dbName = commander.dbName || Config.dbName
-  Config.host=commander.host || Config.host
+  Config.host=commander.host || Config.host || require('./Base/Network.js').getMyIp() // // 本节点的从外部可访问的 IP or Hostname，不能是 127.0.0.1 或 localhost
   Config.netType = commander.netType || Config.netType
   Config.ownerSecword = commander.ownerSecword || Config.ownerSecword
   Config.protocol=commander.protocol || Config.protocol

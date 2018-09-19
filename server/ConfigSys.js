@@ -3,7 +3,7 @@ module.exports={ // 全大写字母的，代表系统常量，不要在 userConf
   netType:'testnet', // 默认进入测试网
   consensus:null, // 共识机制。可选设为 ConsPot, ConsAlone。
   protocol:'http', // http|https|httpall
-  host: 'localhost', // 本节点的 IP or Hostname // require('./Base/Network.js').getMyIp()
+  host: null, // 本节点的从外部可访问的 IP or Hostname，不能是 127.0.0.1 或 localhost
   port:6842, // 本节点的 Web服务端口号
 // 如果使用 https 协议，必须填写以下内容，或在命令行参数中设置：
   sslKey: null, // ssl key file,

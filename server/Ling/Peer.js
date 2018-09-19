@@ -39,14 +39,14 @@ DAD.api.ping=function(option) { // 响应邻居节点发来的ping请求。
     if (!my.peerAddressArray[option.Peer.ownerAddress]) { // 是新邻居发来的ping？把新邻居加入节点池
       option.Peer.fromHost=fromHost
       option.Peer.fromPort=fromPort
-      option.Peer.remoteAddress=wo.Crypto.secword2address(wo.Config.ownerSecword)
+      option.Peer.remoteAddress=wo.Crypto.secword2address(wo.Config.ownerSecword) // 把本地节点（我）的地址也告知远方节点
       my.pushPeerPool(new DAD(option.Peer))
 //      my.fromPeerPool[option.Peer.ownerAddress]=new DAD(option.Peer) 
 //      my.toPeerPool.push(my.fromPeerPool[option.Peer.ownerAddress])
     }
 //    mylog.info(JSON.stringify(my.toPeerPool))
     option.Peer.lastResponse=Date.now() // 记录我发回response的时间
-    return option.Peer
+    return option.Peer // 把远方节点的信息添加一些资料后，返回给远方节点
   }
   return null
 }
