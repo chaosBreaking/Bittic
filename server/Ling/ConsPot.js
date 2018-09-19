@@ -182,8 +182,8 @@ DAD.api.shareWinner=async function(option){
 DAD.mineOnce=async function(){
   if (Date.time2height()===wo.Chain.getTopBlock().height+1) {
     mylog.info(new Date()+'：出块阶段开始 for block='+(wo.Chain.getTopBlock().height+1)+' using block='+wo.Chain.getTopBlock().height)
-    mylog.info('全网最终获胜签名='+my.bestPot.signature)
-    mylog.info('本节点的候选签名='+my.selfPot.signature)
+    mylog.info('全网最终获胜签名='+my.bestPot.signature+'，主人地址为 '+wo.Crypto.pubkey2address(my.bestPot.pubkey))
+    mylog.info('本节点的候选签名='+my.selfPot.signature+'，主人地址为 '+wo.Crypto.pubkey2address(my.selfPot.pubkey))
     my.currentPhase='mining'
     if (my.selfPot.signature && my.bestPot.signature===my.selfPot.signature) { // 全网最终获胜者是我自己，于是打包并广播。注意防止 bestPot===selfPot===undefined，这是跳过竞选阶段直接从前两阶段开始会发生的。
       mylog.info('本节点是获胜者！')
@@ -208,8 +208,10 @@ DAD.api.mineWatcher=async function(option){ // 监听别人发来的区块
         // mylog.info('收到赢家的区块：winnerSignature='+my.bestPot.signature)
     if (await wo.Chain.appendBlock(option.Block)) {
       wo.Peer.broadcast('/Consensus/mineWatcher', {Block:JSON.stringify(wo.Chain.getTopBlock())})
-      mylog.info('本节点收到赢家的区块哈希为：'+wo.Chain.getTopBlock().hash)
+      mylog.info('本节点收到全网赢家的区块哈希为：'+wo.Chain.getTopBlock().hash+'，全网赢家的地址为'+wo.Crypto.pubkey2address(option.Block.winnerPubkey)+'，打包节点的地址为 '+wo.Crypto.pubkey2address(option.Block.packerPubkey))
     }
+  }else{
+      mylog.info('本节点刚收到的区块不是全网赢家的，而是'+wo.Crypto.pubkey2address(option.Block.winnerPubkey)+'的，打包节点的地址为 '+wo.Crypto.pubkey2address(option.Block.packerPubkey))
   }
   return null
 }
