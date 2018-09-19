@@ -48,7 +48,6 @@ DAD.signOnce=async function(){
   heightNow=Date.time2height()
   if (heightNow===wo.Chain.getTopBlock().height+1 && new Date().getSeconds()<15 ) { // 注意，前面的同步可能花了20多秒，到这里已经是在竞选阶段。所以再加个当前秒数的限制。
     mylog.info(new Date()+'：签名阶段开始 for block='+(wo.Chain.getTopBlock().height+1)+' using block='+wo.Chain.getTopBlock().height)
-    my.currentPhase='signing'
     mylog.info('重置sigPool/packerPool/selfPot/bestPot，来接收这一轮的签名。')
     my.signerPool={}
     my.packerPool={}
@@ -57,15 +56,18 @@ DAD.signOnce=async function(){
     mylog.info("合法事务池长度**********",Object.keys(DAD.currentActionPool).length)
     mylog.info("待办事务池长度**********",Object.keys(wo.Action.actionPool).length)
     DAD.currentActionPool={}
-    // 作为节点，把自己签名发给自己。这是因为，全网刚起步时，很可能还没有终端用户，这时需要节点进行签名。
-    var message={ timestamp:new Date(), blockHash:wo.Chain.getTopBlock().hash, height:heightNow }
-    DAD.api.signWatcher({
-      signature:wo.Crypto.sign(message, wo.Crypto.secword2keypair(wo.Config.ownerSecword).seckey), 
-      message:message, 
-      pubkey:wo.Crypto.secword2keypair(wo.Config.ownerSecword).pubkey,
-      netType: wo.Config.netType
-    })
-
+    // 作为节点，把自己签名直接交给自己。这是因为，全网刚起步时，很可能还没有终端用户，这时需要节点进行签名。
+    var me=await wo.Account.getOne({Account:{address: wo.Crypto.secword2address(wo.Config.ownerSecword)}})
+    if (me && me.balance>0){
+      let message={ timestamp:new Date(), blockHash:wo.Chain.getTopBlock().hash, height:heightNow }
+      let signature=wo.Crypto.sign(message, wo.Crypto.secword2keypair(wo.Config.ownerSecword).seckey)
+      let pubkey=wo.Crypto.secword2keypair(wo.Config.ownerSecword).pubkey
+      my.signerPool[pubkey]={ message:message, signature:signature }
+      my.selfPot.signature=signature
+      my.selfPot.message=message
+      my.selfPot.pubkey=pubkey
+    }
+    my.currentPhase='signing'
   }
 }
 DAD.api.signWatcher=async function(option) { // 监听收集终端用户的签名
@@ -76,7 +78,7 @@ DAD.api.signWatcher=async function(option) { // 监听收集终端用户的签�
         && Date.time2height(option.message.timestamp)===Date.time2height()
         && option.message.blockHash===wo.Chain.getTopBlock().hash
         && wo.Crypto.compareSig(wo.Chain.getTopBlock().hash, my.selfPot.signature, option.signature)!==my.selfPot.signature // 注意，my.selfPot.signature有可能是undefined
-        && option.netType === wo.Config.netType
+        && option.netType === wo.Config.netType // 前端应用的链，和后台节点的链相同
       ) { // 比我现有最好的更好
       var user=await wo.Account.getOne({Account:{address: wo.Crypto.pubkey2address(option.pubkey)}})
       if (user && user.balance>0) { // 只有账户里有币的用户才能挖矿。
