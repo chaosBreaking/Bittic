@@ -57,7 +57,8 @@ DAD.signOnce=async function(){
     mylog.info("待办事务池长度**********",Object.keys(wo.Action.actionPool).length)
     DAD.currentActionPool={}
     // 作为节点，把自己签名直接交给自己。这是因为，全网刚起步时，很可能还没有终端用户，这时需要节点进行签名。
-    var me=await wo.Account.getOne({Account:{address: wo.Crypto.secword2address(wo.Config.ownerSecword)}})
+    let myAddress=wo.Crypto.secword2address(wo.Config.ownerSecword)
+    let me=await wo.Account.getOne({Account:{address: myAddress}})
     if (me && me.balance>0){
       let message={ timestamp:new Date(), blockHash:wo.Chain.getTopBlock().hash, height:heightNow }
       let signature=wo.Crypto.sign(message, wo.Crypto.secword2keypair(wo.Config.ownerSecword).seckey)
@@ -66,9 +67,9 @@ DAD.signOnce=async function(){
       my.selfPot.signature=signature
       my.selfPot.message=message
       my.selfPot.pubkey=pubkey
-      mylog.info('本节点主人（地址'+wo.Crypto.pubkey2address(pubkey)+'）的时间证明签名：'+JSON.stringify(signature))
+      mylog.info('本节点主人（地址'+myAddress+'）的时间证明签名：'+JSON.stringify(signature))
     }else{
-      mylog.info('本节点主人（地址'+wo.Crypto.pubkey2address(pubkey)+'）的账户余额不足，无法参加本轮时间证明签名')
+      mylog.info('本节点主人（地址'+myAddress+'）的账户余额不足，无法参加本轮时间证明签名')
     }
     my.currentPhase='signing'
   }
