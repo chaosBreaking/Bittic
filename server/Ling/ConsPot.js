@@ -94,7 +94,7 @@ DAD.api.signWatcher=async function(option) { // 监听收集终端用户的签�
         mylog.info('终端用户（地址：'+wo.Crypto.pubkey2address(option.pubkey)+'）的余额不足，时间证明不被接收，')
       }
     }else{
-      mylog.info('终端用户（地址：'+wo.Crypto.pubkey2address(option.pubkey)+'）的签名 '+option.signature+' 没有通过本节点验证或比较')
+      mylog.info('终端用户（地址：'+wo.Crypto.pubkey2address(option.pubkey)+'）的签名 '+option.signature+' 没有通过本节点验证或竞争')
     }
   }
 }
@@ -113,11 +113,13 @@ DAD.electOnce=async function(){
       my.bestPot.pubkey=my.selfPot.pubkey
       my.signBlock=new wo.Block({winnerMessage:my.selfPot.message, winnerSignature:my.selfPot.signature, winnerPubkey:my.selfPot.pubkey, type:'SignBlock'}) // 把候选签名打包进本节点的虚拟块
       await my.signBlock.packMe([], wo.Chain.getTopBlock(), wo.Crypto.secword2keypair(wo.Config.ownerSecword))
-//      mylog.info('广播虚拟块：'+JSON.stringify(my.signBlock))
+      mylog.info('广播本节点的最佳块：'+my.signBlock.hash)
       wo.Peer.broadcast('/Consensus/electWatcher', {Block:JSON.stringify(my.signBlock)})
     }else{
       mylog.info('本节点没有收集到时间证明，本轮不参与竞选')
     }
+  }else{
+    mylog.info('本节点的最高块高度为'+wo.Chain.getTopBlock().height+', 不匹配当前时刻所属块的高度'+Date.time2height()+'，不参与本轮竞选')
   }
 }
 DAD.api.electWatcher=async function(option) { // 互相转发最优的签名块
@@ -143,6 +145,7 @@ DAD.api.electWatcher=async function(option) { // 互相转发最优的签名块
       wo.Peer.broadcast('/Consensus/electWatcher', {Block:JSON.stringify(option.Block)}) // 就进行广播
       return my.signBlock
     }else{ // 对方的签名不如我的，就把我的最优签名告知它
+      mylog.info('收到的竞选签名没有通过验证或竞争：'+option.Block.winnerSignature)
       return my.signBlock
     }
   }
