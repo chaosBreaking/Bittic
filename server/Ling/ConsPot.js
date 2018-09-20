@@ -226,7 +226,7 @@ DAD.api.mineWatcher=async function(option){ // 监听别人发来的区块
     mylog.info('出块阶段尚未开始，忽略收到的区块：'+JSON.stringify(option.Block))
   }
   else if (option && option.Block
-      && option.Block.winnerSignature===my.bestPot.signature && my.bestPot.signature!==my.selfPot.signature 
+      && option.Block.winnerSignature===my.bestPot.signature && my.bestPot.signature!==my.selfPot.signature // 收到了全网赢家的区块，而全网赢家不是本节点的
       && option.Block.lastBlockHash===wo.Chain.getTopBlock().hash && option.Block.height===wo.Chain.getTopBlock().height+1
     ) { // 注意不要接受我自己作为获胜者创建的块，以及不要重复接受已同步的区块
         // mylog.info('收到赢家的区块：winnerSignature='+my.bestPot.signature)
@@ -234,8 +234,9 @@ DAD.api.mineWatcher=async function(option){ // 监听别人发来的区块
       wo.Peer.broadcast('/Consensus/mineWatcher', {Block:JSON.stringify(wo.Chain.getTopBlock())})
       mylog.info('本节点收到全网赢家的区块哈希为：'+wo.Chain.getTopBlock().hash+'，全网赢家的地址为'+wo.Crypto.pubkey2address(option.Block.winnerPubkey)+'，打包节点的地址为 '+wo.Crypto.pubkey2address(option.Block.packerPubkey))
     }
-  }else{
-    mylog.info('本节点刚收到的区块不是全网赢家的，而是'+wo.Crypto.pubkey2address(option.Block.winnerPubkey)+'的，打包节点的地址为 '+wo.Crypto.pubkey2address(option.Block.packerPubkey))
+  }else {
+    if (my.bestPot.signature!==my.selfPot.signature) // 全网赢家不是本节点的
+      mylog.info('本节点刚收到的区块不是全网赢家的，而是'+wo.Crypto.pubkey2address(option.Block.winnerPubkey)+'的，打包节点的地址为 '+wo.Crypto.pubkey2address(option.Block.packerPubkey))
   }
 }
 
