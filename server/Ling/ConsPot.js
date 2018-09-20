@@ -130,7 +130,7 @@ DAD.electOnce=async function(){
 }
 DAD.api.electWatcher=async function(option) { // 互相转发最优的签名块
   if (my.currentPhase!=='electing') {
-    mylog.info('竞选阶段尚未开始，忽略收到的预签名空块：'+JSON.stringify(option))
+    mylog.info('竞选阶段尚未开始，忽略收到的预签名空块：'+JSON.stringify(option.Block))
   }
   else if (option && option.Block 
       && (!my.signBlock || option.Block.hash !== my.signBlock.hash) // 收到的区块不是本节点目前已知的最优块
@@ -181,9 +181,17 @@ DAD.api.electWatcher=async function(option) { // 互相转发最优的签名块
     mylog.info("收到的预签名空块的上一区块哈希: " + option.Block.lastBlockHash)
     mylog.info("本节点上一区块HASH: " + wo.Chain.getTopBlock().hash)
   }
-  else
+  else // 通常，假如本节点具有全网赢家，我发给别人后，别人会再发给我，就会走到这里来。
   {
     mylog.info('收到的签名块无效：'+JSON.stringify(option.Block))
+    // if (option.Block.packerPubkey===wo.Crypto.secword2keypair(wo.Config.ownerSecword).pubkey) 
+    //   mylog.info('是本节点打包的')
+    // if (my.packerPool.hasOwnProperty(option.Block.packerPubkey))
+    //   mylog.info('该节点已经提交过区块')
+    // if (option.Block.winnerSignature===my.bestPot.signature)
+    //   mylog.info('重复接收该签名')
+    // if (my.signBlock && option.Block.hash === my.signBlock.hash)
+    //   mylog.info('已是本节点已知的最佳块')
   }
 }
 DAD.api.shareWinner=async function(option){
@@ -215,7 +223,7 @@ DAD.mineOnce=async function(){
 
 DAD.api.mineWatcher=async function(option){ // 监听别人发来的区块
   if (my.currentPhase!=='mining') {
-    mylog.info('出块阶段尚未开始，忽略收到的区块：'+JSON.stringify(option))
+    mylog.info('出块阶段尚未开始，忽略收到的区块：'+JSON.stringify(option.Block))
   }
   else if (option && option.Block
       && option.Block.winnerSignature===my.bestPot.signature && my.bestPot.signature!==my.selfPot.signature 
