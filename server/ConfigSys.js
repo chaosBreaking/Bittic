@@ -45,6 +45,7 @@ module.exports={ // 全大写字母的，代表系统常量，不要在 userConf
   COIN_PRECISION:6, // 每个币可细分到小数点后第几位
   MaxRBS:10, //区块缓存栈最大容量
 
+  SIGNER_THRESHOLD:0,
   PACKER_THRESHOLD:600,
 
   LIMIT_DEFAULT:12,

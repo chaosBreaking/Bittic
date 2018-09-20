@@ -59,7 +59,7 @@ DAD.signOnce=async function(){
     // 作为节点，把自己签名直接交给自己。这是因为，全网刚起步时，很可能还没有终端用户，这时需要节点进行签名。
     let myAddress=wo.Crypto.secword2address(wo.Config.ownerSecword)
     let me=await wo.Account.getOne({Account:{address: myAddress}})
-    if (me && me.balance>0){
+    if (me && me.balance>wo.Config.PACKER_THRESHOLD){
       let message={ timestamp:new Date(), blockHash:wo.Chain.getTopBlock().hash, height:heightNow }
       let signature=wo.Crypto.sign(message, wo.Crypto.secword2keypair(wo.Config.ownerSecword).seckey)
       let pubkey=wo.Crypto.secword2keypair(wo.Config.ownerSecword).pubkey
@@ -75,9 +75,11 @@ DAD.signOnce=async function(){
   }
 }
 DAD.api.signWatcher=async function(option) { // 监听收集终端用户的签名
-  if (option && option.message && option.signature && option.pubkey && option.netType) {
-    if (my.currentPhase==='signing' 
-        && !my.signerPool.hasOwnProperty(option.pubkey) // 对一个用户，只采集其一个签名
+  if (my.currentPhase!=='signing') {
+    mylog.info('签名阶段尚未开始，忽略收到的时间证明：'+JSON.stringify(option))
+  }
+  else if (option && option.message && option.signature && option.pubkey && option.netType) {
+    if (!my.signerPool.hasOwnProperty(option.pubkey) // 对一个用户，只采集其一个签名
         && wo.Crypto.verify(option.message, option.signature, option.pubkey) // 签名有效
         && Date.time2height(option.message.timestamp)===Date.time2height()
         && option.message.blockHash===wo.Chain.getTopBlock().hash
@@ -85,7 +87,7 @@ DAD.api.signWatcher=async function(option) { // 监听收集终端用户的签�
         && option.netType === wo.Config.netType // 前端应用的链，和后台节点的链相同
       ) { // 比我现有最好的更好
       var user=await wo.Account.getOne({Account:{address: wo.Crypto.pubkey2address(option.pubkey)}})
-      if (user && user.balance>0) { // 只有账户里有币的用户才能挖矿。
+      if (user && user.balance>wo.Config.SIGNER_THRESHOLD) { // 只有账户里有币的用户才能挖矿。
         my.signerPool[option.pubkey]={message:option.message, signature:option.signature} 
         my.selfPot.signature = option.signature // 随时更新到最佳的签名
         my.selfPot.message=option.message
@@ -97,6 +99,9 @@ DAD.api.signWatcher=async function(option) { // 监听收集终端用户的签�
     }else{
       mylog.info('终端用户（地址：'+wo.Crypto.pubkey2address(option.pubkey)+'）的签名 '+option.signature+' 没有通过本节点验证或竞争')
     }
+  }
+  else{
+    mylog.info('收到无效的时间证明：'+JSON.stringify(option))
   }
 }
 
@@ -114,7 +119,7 @@ DAD.electOnce=async function(){
       my.bestPot.pubkey=my.selfPot.pubkey
       my.signBlock=new wo.Block({winnerMessage:my.selfPot.message, winnerSignature:my.selfPot.signature, winnerPubkey:my.selfPot.pubkey, type:'SignBlock'}) // 把候选签名打包进本节点的虚拟块
       await my.signBlock.packMe([], wo.Chain.getTopBlock(), wo.Crypto.secword2keypair(wo.Config.ownerSecword))
-      mylog.info('广播本节点的最佳块：'+my.signBlock.hash)
+      mylog.info('广播本节点的赢家的预签名空块：'+my.signBlock.hash)
       wo.Peer.broadcast('/Consensus/electWatcher', {Block:JSON.stringify(my.signBlock)})
     }else{
       mylog.info('本节点没有收集到时间证明，本轮不参与竞选')
@@ -124,10 +129,14 @@ DAD.electOnce=async function(){
   }
 }
 DAD.api.electWatcher=async function(option) { // 互相转发最优的签名块
-  if (my.currentPhase==='electing' && option && option.Block && (!my.signBlock || option.Block.hash !== my.signBlock.hash)
+  if (my.currentPhase!=='electing') {
+    mylog.info('竞选阶段尚未开始，忽略收到的预签名空块：'+JSON.stringify(option))
+  }
+  else if (option && option.Block 
+      && (!my.signBlock || option.Block.hash !== my.signBlock.hash) // 收到的区块不是本节点目前已知的最优块
       && option.Block.winnerSignature!==my.bestPot.signature // 不要重复接收同一个最佳块
       && !my.packerPool.hasOwnProperty(option.Block.packerPubkey) // 一个packer只允许出一个签
-      && option.Block.packerPubkey!==wo.Crypto.secword2keypair(wo.Config.ownerSecword).pubkey
+      && option.Block.packerPubkey!==wo.Crypto.secword2keypair(wo.Config.ownerSecword).pubkey // 收到的区块不是本节点自己打包的
       && wo.Crypto.verify(option.Block.winnerMessage, option.Block.winnerSignature, option.Block.winnerPubkey)
       && option.Block.lastBlockHash === wo.Chain.getTopBlock().hash
       && wo.Block.verifySig(option.Block) &&  wo.Block.verifyHash(option.Block)
@@ -137,51 +146,52 @@ DAD.api.electWatcher=async function(option) { // 互相转发最优的签名块
     let user=await wo.Account.getOne({Account:{address: wo.Crypto.pubkey2address(option.Block.winnerPubkey)}})
     let packer = await wo.Account.getOne({Account:{address: wo.Crypto.pubkey2address(option.Block.packerPubkey)}})
     if (wo.Crypto.compareSig(wo.Chain.getTopBlock().hash, my.bestPot.signature, option.Block.winnerSignature)===option.Block.winnerSignature // 新收到的签名获胜了。注意，my.bestPot.signature有可能是undefined
-        && user && user.balance>0 && packer.balance > wo.Config.PACKER_THRESHOLD) {
-      mylog.info('收到了更好的POT空块：签名='+option.Block.winnerSignature+' 来自地址 '+wo.Crypto.pubkey2address(option.Block.winnerPubkey))
+        && user && user.balance>wo.Config.SIGNER_THRESHOLD && packer.balance > wo.Config.PACKER_THRESHOLD) {
+      mylog.info('新收到的预签名空块胜出：赢家签名='+option.Block.winnerSignature+'，地址='+wo.Crypto.pubkey2address(option.Block.winnerPubkey)+'，节点地址='+wo.Crypto.pubkey2address(option.Block.packerPubkey))
       my.bestPot.signature=option.Block.winnerSignature
       my.bestPot.pubkey=option.Block.winnerPubkey
       my.bestPot.message=option.Block.winnerMessage
-      my.signBlock=option.Block // 保存新收到的虚拟块
+      my.signBlock=option.Block // 保存新收到的签名块
       wo.Peer.broadcast('/Consensus/electWatcher', {Block:JSON.stringify(option.Block)}) // 就进行广播
       return my.signBlock
     }else{ // 对方的签名不如我的，就把我的最优签名告知它
-      mylog.info('收到的竞选签名没有通过验证或竞争：'+option.Block.winnerSignature)
+      mylog.info('收到的预签名空块的用户'+wo.Crypto.pubkey2address(option.Block.winnerPubkey)+'或节点'+wo.Crypto.pubkey2address(option.Block.packerPubkey)+'的余额不足，或签名没有胜出：'+option.Block.winnerSignature)
       return my.signBlock
     }
   }
   else if (
   // option && option.Block && (!my.signBlock || option.Block.hash !== my.signBlock.hash)
-      wo.Crypto.verify(option.Block.winnerMessage, option.Block.winnerSignature, option.Block.winnerPubkey)      
-      && option.Block.lastBlockHash !== wo.Chain.getTopBlock().hash
-      && wo.Block.verifySig(option.Block) 
+      wo.Crypto.verify(option.Block.winnerMessage, option.Block.winnerSignature, option.Block.winnerPubkey)
+      && option.Block.lastBlockHash !== wo.Chain.getTopBlock().hash // 分叉了
+      && wo.Block.verifySig(option.Block)
       && wo.Block.verifyHash(option.Block)
   ){
-    mylog.info("收到分叉时间证明区块，来自用户："+wo.Crypto.pubkey2address(option.Block.winnerPubkey))
-    mylog.info("收到分叉时间证明区块，来自节点："+wo.Crypto.pubkey2address(option.Block.packerPubkey))    
-    mylog.info("本机上一区块HASH: " + wo.Chain.getTopBlock().hash)
-    mylog.info("分叉签名块上区块哈希: " + option.Block.lastBlockHash)
+    mylog.info("收到分叉的预签名空块，来自用户："+wo.Crypto.pubkey2address(option.Block.winnerPubkey))
+    mylog.info("收到分叉的预签名空块，来自节点："+wo.Crypto.pubkey2address(option.Block.packerPubkey))    
+    mylog.info("本节点上一区块HASH: " + wo.Chain.getTopBlock().hash)
+    mylog.info("分叉的预签名空块的上一区块哈希: " + option.Block.lastBlockHash)
     mylog.info("开始处理分叉.........")
     DAD.forkHandler(option)
   }
   else if( !wo.Block.verifySig(option.Block) || !wo.Block.verifyHash(option.Block))
   {
-    mylog.info("收到无法通过验证的POT空块：")
+    mylog.info("收到无法通过签名或哈希验证的预签名空块：")
     mylog.info("来自用户："+wo.Crypto.pubkey2address(option.Block.winnerPubkey))
-    mylog.info("来自节点："+wo.Crypto.pubkey2address(option.Block.packerPubkey))    
-    mylog.info("上区块哈希: " + option.Block.lastBlockHash)    
-    mylog.info("本机上一区块HASH: " + wo.Chain.getTopBlock().hash)
+    mylog.info("来自节点："+wo.Crypto.pubkey2address(option.Block.packerPubkey))
+    mylog.info("收到的预签名空块的上一区块哈希: " + option.Block.lastBlockHash)
+    mylog.info("本节点上一区块HASH: " + wo.Chain.getTopBlock().hash)
   }
-  else{
+  else
+  {
     mylog.info('收到的签名块无效：'+JSON.stringify(option.Block))
   }
 }
 DAD.api.shareWinner=async function(option){
   // if (option.winnerSignature === my.bestPot.signature)
-    return my.signBlock
+  return my.signBlock
 }
 
-// 第三阶段：出块，或接收获胜者打包广播的区块，
+// 第三阶段：出块，或接收获胜者打包广播的区块
 DAD.mineOnce=async function(){
   if (Date.time2height()===wo.Chain.getTopBlock().height+1) {
     mylog.info(new Date()+'：出块阶段开始 for block='+(wo.Chain.getTopBlock().height+1)+' using block='+wo.Chain.getTopBlock().height)
@@ -204,7 +214,10 @@ DAD.mineOnce=async function(){
 }
 
 DAD.api.mineWatcher=async function(option){ // 监听别人发来的区块
-  if (my.currentPhase==='mining' && option && option.Block
+  if (my.currentPhase!=='mining') {
+    mylog.info('出块阶段尚未开始，忽略收到的区块：'+JSON.stringify(option))
+  }
+  else if (option && option.Block
       && option.Block.winnerSignature===my.bestPot.signature && my.bestPot.signature!==my.selfPot.signature 
       && option.Block.lastBlockHash===wo.Chain.getTopBlock().hash && option.Block.height===wo.Chain.getTopBlock().height+1
     ) { // 注意不要接受我自己作为获胜者创建的块，以及不要重复接受已同步的区块
@@ -214,9 +227,8 @@ DAD.api.mineWatcher=async function(option){ // 监听别人发来的区块
       mylog.info('本节点收到全网赢家的区块哈希为：'+wo.Chain.getTopBlock().hash+'，全网赢家的地址为'+wo.Crypto.pubkey2address(option.Block.winnerPubkey)+'，打包节点的地址为 '+wo.Crypto.pubkey2address(option.Block.packerPubkey))
     }
   }else{
-      mylog.info('本节点刚收到的区块不是全网赢家的，而是'+wo.Crypto.pubkey2address(option.Block.winnerPubkey)+'的，打包节点的地址为 '+wo.Crypto.pubkey2address(option.Block.packerPubkey))
+    mylog.info('本节点刚收到的区块不是全网赢家的，而是'+wo.Crypto.pubkey2address(option.Block.winnerPubkey)+'的，打包节点的地址为 '+wo.Crypto.pubkey2address(option.Block.packerPubkey))
   }
-  return null
 }
 
 DAD.actionLoop = async function(){
