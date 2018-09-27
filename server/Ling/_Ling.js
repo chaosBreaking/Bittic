@@ -89,7 +89,7 @@ MOM.normalize= async function() {
 
 /* 数据库存取 */
 MOM.getMe= async function(option){
-//mylog.info('<<<< 【Ling.proto】 new '+this._class+'().getOne('+JSON.stringify(option)+')');
+//mylog.info('<<<< 【Ling.proto】 new '+this._class+'().getMe('+JSON.stringify(option)+')');
   var self=this
   option=option||{}
   if (option.excludeSelf){
@@ -119,7 +119,7 @@ MOM.getMe= async function(option){
 }
 
 MOM.setMe= async function(option){ // 修改数据是特殊的：又有set又有where。
-//mylog.info('<<<< 【Ling.proto】 new '+this._class+'().setOne('+JSON.stringify(option)+')'); 
+//mylog.info('<<<< 【Ling.proto】 new '+this._class+'().setMe('+JSON.stringify(option)+')'); 
   var self=this
   option=option||{}
   if (option.excludeSelf){
@@ -162,7 +162,7 @@ MOM.setMe= async function(option){ // 修改数据是特殊的：又有set又有
   return null;
 }
 MOM.addMe= async function(option){
-//mylog.info('<<<< 【Ling.proto】 new '+this._class+'().addOne('+JSON.stringify(option)+')');
+//mylog.info('<<<< 【Ling.proto】 new '+this._class+'().addMe('+JSON.stringify(option)+')');
   var self=this
   option=option||{}
   if (option.excludeSelf){
@@ -188,7 +188,7 @@ MOM.addMe= async function(option){
   }).catch(console.log)
 }
 MOM.hideMe= async function(option){
-//mylog.info('<<<< 【Ling.proto】 new '+this._class+'().setOne('+JSON.stringify(option)+')');
+//mylog.info('<<<< 【Ling.proto】 new '+this._class+'().hideMe('+JSON.stringify(option)+')');
   var self=this
   option=option||{}
 
