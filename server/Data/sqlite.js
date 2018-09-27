@@ -9,7 +9,7 @@ var db;
 
 module.exports={
   _init:async function(dbName){
-    dbName=dbName||"Data/sqlite/database.sqlite" // dbName 是相对于启动node的目录的。所以要在 server.js 的目录下启动。
+    dbName=dbName||"Data.sqlite/database.sqlite" // dbName 是相对于启动node的目录的。所以要在 server.js 的目录下启动。
     db=await new sqlite(dbName, {cached:true, min:2, max:10}); // 先等db创建好，不然调用其方法可能 UnhandledPromiseRejectionWarning: Error: SQLITE_BUSY: database is locked
     return this
 /* 或者使用 generic-pool
