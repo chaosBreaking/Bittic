@@ -41,8 +41,8 @@ try {
   .option('-h, --host <host>', 'host ip or domain name')
   .option('-n, --netType <net>', 'devnet/testnet/mainnet')
   .option('-o, --ownerSecword <secword>', 'Node owner\'s secword')
-  .option('-P, --protocol <protocol>', 'Web server protocol http|https|httpall')
-  .option('-p, --port <port>', 'Server port')
+  .option('-P, --protocol <protocol>', 'Server protocol http|https|httpall, default '+Config.protocol)
+  .option('-p, --port <port>', 'Server port, default'+Config.port)
   .option('--p2p <p2p>', 'P2P protocol: http|udp')
   .option('-s, --seedSet <seedSet>', 'Peers array in JSON, such as \'["http://ip_or_dn:port"]\'')
   .option('--sslCert <cert>', 'SSL cert file')
@@ -257,7 +257,7 @@ async function init(){  /*** 设置全局对象，启动时光链 ***/
       mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, wo.Config.port, server.settings.env)
     })
   }else if ('httpall'===wo.Config.protocol) { // 同时启用 http 和 https
-    let portHttp=parseInt(wo.Config.port)?parseInt(wo.Config.port):80 // 如果port参数已设置，使用它；否则默认为80
+    let portHttp=wo.Config.port?wo.Config.port:80 // 如果port参数已设置，使用它；否则默认为80
     let httpServer=require('http').createServer(server)
     // wo.Chat.init(httpServer)
     httpServer.listen(portHttp, function(err) {
