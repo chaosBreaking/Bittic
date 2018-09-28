@@ -87,9 +87,51 @@ MOM.normalize= async function() {
   return this
 }
 
+/* 事件处理 */
+MOM._eventPool = null // 不要初始化为 {}, 而是在 addWatcher 里创建，否则所有子对象都继承了同一份 _eventPool
+MOM.addWatcher = function(eventType, watcher) {
+  if (this._eventPool == null) {
+    this._eventPool = {}
+  }
+  if (typeof this._eventPool[eventType] == 'undefined') {
+    this._eventPool[eventType] = []
+  }
+  this._eventPool[eventType].push(watcher)
+}
+MOM.dropWatcher = function(eventType, watcher) {
+  if (this._eventPool != null
+      && this._eventPool[eventType] instanceof Array) {
+    var watcherSet = this._eventPool[eventType];
+    for (var i in watcherSet) {
+      if (watcherSet[i] === watcher) {
+        watcherSet.splice(i, 1)
+        break
+      }
+    }
+  }
+}
+MOM.dropWatcherAll = function(eventType) {
+  if (this._eventPool != null){
+    this._eventPool[eventType]=undefined
+  }
+}
+MOM.triggerEvent = function(eventType, params, callback) {
+  var event = {
+    type : eventType,
+    target : this
+  }
+  if (this._eventPool != null
+      && this._eventPool[event.type] instanceof Array) {
+    var watcherSet = this._eventPool[event.type];
+    for (var i in watcherSet) {
+      watcherSet[i](event, params, callback)
+    }
+  }
+}
+
 /* 数据库存取 */
 MOM.getMe= async function(option){
-//mylog.info('<<<< 【Ling.proto】 new '+this._class+'().getOne('+JSON.stringify(option)+')');
+//mylog.info('<<<< 【Ling.proto】 new '+this._class+'().getMe('+JSON.stringify(option)+')');
   var self=this
   option=option||{}
   if (option.excludeSelf){
@@ -119,7 +161,7 @@ MOM.getMe= async function(option){
 }
 
 MOM.setMe= async function(option){ // 修改数据是特殊的：又有set又有where。
-//mylog.info('<<<< 【Ling.proto】 new '+this._class+'().setOne('+JSON.stringify(option)+')'); 
+//mylog.info('<<<< 【Ling.proto】 new '+this._class+'().setMe('+JSON.stringify(option)+')'); 
   var self=this
   option=option||{}
   if (option.excludeSelf){
@@ -162,7 +204,7 @@ MOM.setMe= async function(option){ // 修改数据是特殊的：又有set又有
   return null;
 }
 MOM.addMe= async function(option){
-//mylog.info('<<<< 【Ling.proto】 new '+this._class+'().addOne('+JSON.stringify(option)+')');
+//mylog.info('<<<< 【Ling.proto】 new '+this._class+'().addMe('+JSON.stringify(option)+')');
   var self=this
   option=option||{}
   if (option.excludeSelf){
@@ -188,7 +230,7 @@ MOM.addMe= async function(option){
   }).catch(console.log)
 }
 MOM.hideMe= async function(option){
-//mylog.info('<<<< 【Ling.proto】 new '+this._class+'().setOne('+JSON.stringify(option)+')');
+//mylog.info('<<<< 【Ling.proto】 new '+this._class+'().hideMe('+JSON.stringify(option)+')');
   var self=this
   option=option||{}
 

@@ -1,6 +1,5 @@
-Data/sqlite/*.sqlite*
+Data.log/*.log*
 Data.sqlite/*.sqlite*
 node_modules
-Data.log/*.log*
 .svn
 package-lock.json
