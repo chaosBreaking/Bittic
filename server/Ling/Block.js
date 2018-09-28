@@ -72,12 +72,10 @@ MOM.packMe = async function (actionPool, lastBlock, keypair) { // 后台节点�
   this.rewardPacker = this.getReward({rewardType:'rewardPacker'})
   this.totalFee = 0
   this.totalAmount = 0
-  this.version = 0
-  this.timestamp = lastBlock?new Date():wo.Config.GENESIS_EPOCHE
-  this.lastBlockHash = lastBlock?lastBlock.hash:null
+  this.version = wo.Config.VERSION
   this.packerPubkey = keypair.pubkey
-
-  let actionValues=Object.values(actionPool||{})  //todo：依照手续费对交易进行排序
+  this.lastBlockHash = lastBlock?lastBlock.hash:null
+  this.timestamp = lastBlock?new Date():wo.Config.GENESIS_EPOCHE
 
   /*  此注释以下内容不应该放在Block内，而是应该从事务池中直接取出一个 合法的事务集合
       假如我们限定一个区块内所能容纳的事务上限为N,则
@@ -89,61 +87,39 @@ MOM.packMe = async function (actionPool, lastBlock, keypair) { // 后台节点�
       2. merkelRoot
    */
 
-  // while (action=actionValues.shift()) { // 遍历所有事务，累计哈希和总金额、总手续费等。
-  //   if (await action.execute()){ // save changes of this action to other tables such as account
-  //     actionList.push(action) // 后面还需要修改每个action的blockHash，存入数据库，所以这里要先保存在一个数组里
-  //     this.actionHashList.push(action.hash)
-
-  //     this.totalFee += (action.fee||0)
-
-  //     this.totalAmount += (action.amount||0)
-      
-  //     delete actionPool[action.hash]
-  //   }else{ // 也许事务无法执行（balance不够等等）
-  //     continue
-  //   }
-    if(this.type!=="SignBlock")
-    {
-
-      this.totalAmount = DAD.totalAmount
-      this.totalFee = DAD.totalFee
-      DAD.totalAmount = DAD.totalFee = 0
-      this.actionHashList = Object.keys(actionPool||{})
-
-      this.actionHashRoot = wo.Crypto.getMerkleRoot(this.actionHashList)
-      this.numberAction = this.actionHashList.length
-      DAD.todoActionPool = actionPool
-    }
+  if(this.type!=="SignBlock")
+  {
+    this.totalAmount = DAD.totalAmount
+    this.totalFee = DAD.totalFee
+    this.actionHashList = Object.keys(actionPool)
+    this.actionHashRoot = wo.Crypto.getMerkleRoot(this.actionHashList)
+    this.numberAction = this.actionHashList.length
+  }
   
   this.signMe(keypair.seckey)
-
-  //  this.normalize()
-
   this.hashMe()
   if(this.type!=="SignBlock")
-  mylog.info('block '+this.height+' is created with '+this.numberAction+' actions')
-
+    mylog.info('block '+this.height+' is created with '+this.numberAction+' actions')
+  DAD.totalAmount = DAD.totalFee = 0
   return this
-
 }
 MOM.runActionList = async function()
 {
-  // let actionHashList = DAD.todoActionPool
-  if(this.actionHashList.length){
-    actionList = Object.values(wo.Consensus.currentActionPool||wo.Action.actionPool)
-    for (var action of actionList) {
-      action.blockHash=this.hash
-      await action.execute()
-      await action.addMe()  //这里要用await 不然在循环中会因为多次add触发数据库死锁 ResourceRequest
-      // delete wo.Action.verifyActionList[action.hash]
+  if(this.actionHashList.length && this.actionHashList.length > 0){
+    actionList = Object.values(wo.Action.currentActionPool)
+    for (let action of actionList) {
+      action.blockHash = this.hash
+      await wo[action.type].execute(action)
+      await wo[action.type].addOne(action)  //这里要用await 不然在循环中会因为多次add触发数据库死锁 ResourceRequest
     }
-    mylog.info("共action--"+Object.keys(wo.Consensus.currentActionPool||wo.Action.actionPool).length+" Action写入数据库")
+    mylog.info(`共 ${Object.keys(wo.Action.currentActionPool.length)} Action写入数据库`)
   }
   else
   {
     return null
   }
 }
+
 MOM.hashMe = function(){
   this.hash=wo.Crypto.hash(this.getJson({exclude:['hash']}))
   return this
@@ -305,9 +281,9 @@ DAD.api.getActionList=async function(option) {
 }
 
 /********************** Private members in class *******************/
-DAD.todoActionPool={}
-DAD.totalFee=0
-DAD.totalAmount=0
+DAD.totalFee = 0
+DAD.totalAmount = 0
+
 const my={
   milestones: [
     { rewardWinner:60, rewardPacker:6,   penaltyPacker: -600, start:1 }, // 第一年，1分钟一块

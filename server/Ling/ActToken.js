@@ -101,7 +101,7 @@ MOM.execute=async function(){
                   return this
                 }
                 // mylog.info('balance('+sender.address+')='+sender.balance+' is less than '+this.amount+', 无法转账')
-                delete wo.Consensus.currentActionPool[this.hash] //无法执行的交易需要删除，不能被写入Action
+                delete wo.Action.currentActionPool[this.hash] //无法执行的交易需要删除，不能被写入Action
                 return null
             }
             case 'deposit':

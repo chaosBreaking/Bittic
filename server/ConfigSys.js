@@ -36,7 +36,7 @@ module.exports={ // 全大写字母的，代表系统常量，不要在 userConf
   PEER_POOL_CAPACITY:12, // 保持几个邻居节点
 
   GENESIS_EPOCHE:new Date('2019-06-06T00:00:00.000Z'), // 主网的创世时刻。1515341898018
-  GENESIS_EPOCHE_TESTNET:new Date('2018-09-02T00:00:00.000Z'), // 测试网的创世时刻。
+  GENESIS_EPOCHE_TESTNET:new Date('2018-09-28T09:40:00.000Z'), // 测试网的创世时刻。
   GENESIS_MESSAGE:'History is Future, Future is Now',
   GENESIS_MESSAGE_TESTNET:'The Cabinet Office minister David Lidington today defended Philip Hammond’s decision to issue a new warning that a no-deal Brexit would significantly damage the economy.',
   GENESIS_MESSAGE_DEVNET:'some big things start out small',

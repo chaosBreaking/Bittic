@@ -72,30 +72,39 @@ DAD.verifyChainFromDb=async function(){ // 验证本节点已有的区块链
   if (wo.Config.netType==='devnet') // 在开发链上，自动给当前用户预存一笔，使其能够挖矿
     await wo.Account.addOne({Account:{ balance: 100000, address:wo.Crypto.secword2address(wo.Config.ownerSecword)}})
 
-//  let top=(await wo.Block.getCount()).count
-//  mylog.info('共有'+top+'个区块在数据库')
+  //  let top=(await wo.Block.getCount()).count
+  //  mylog.info('共有'+top+'个区块在数据库')
   await wo.Block.dropAll({Block:{height:'<='+wo.Config.GENESIS_HEIGHT}}) // 极端罕见的可能，有错误的（为了测试，手工加入的）height<创世块的区块，也删掉它。  
-  let blockList=await wo.Block.getAll({Block:{height:'>'+my.topBlock.height}, config:{limit:100, order:'height ASC'}})
-  while (Array.isArray(blockList) && blockList.length>0){ // 遍历数据库里的区块链，保留有效的区块，删除所有错误的。
-    mylog.info('这一轮取出了'+blockList.length+'个区块')
+  let blockList=await wo.Block.getAll({Block:{height:'>' + my.topBlock.height}, config:{limit:100, order:'height ASC'}})
+  while (Array.isArray(blockList) && blockList.length > 0 && my.topBlock.height < Date.time2height() - 1){ // 遍历数据库里的区块链，保留有效的区块，删除所有错误的。
+    mylog.info('取出'+blockList.length+'个区块')
     for (let block of blockList){
-      if(block.type==="VirtBlock")  //如果是虚拟块，尝试从邻居数据库里拿到正常块并替换
+      if(block.height > Date.time2height() - 1) break
+      if(block.type === "VirtBlock")  //如果是虚拟块，尝试从邻居数据库里拿到正常块并替换
       {
-        var realBlock = await wo.Peer.randomcast('/Block/getBlock', { Block:{height:block.height}})
-        realBlock=new wo.Block(realBlock)
-        if (realBlock&&realBlock.type!=="VirtBlock"&&realBlock.lastBlockHash ===block.hash&&realBlock.height===block.height&&realBlock.verifyHash()&&realBlock.verifySig())
-        {        
-          block.dropMe()
-          await DAD.updateChainFromPeer()
-          return my.topBlock
+        let realBlock = await wo.Peer.randomcast('/Block/getBlock', { Block:{height:block.height}})
+        if(realBlock){
+          realBlock = new wo.Block(realBlock)
+          if(realBlock &&
+            realBlock.type!=="VirtBlock" && 
+            realBlock.lastBlockHash === block.hash && 
+            realBlock.height === block.height &&
+            realBlock.verifyHash()  &&
+            realBlock.verifySig())
+          {
+            await block.dropMe(); //其他节点合法块而本节点是虚拟块，可以直接停止验证而开始向其他节点更新
+            return 0;
+          }
         }
+        //fallback 没有拿到可以替换虚拟块的合法块
+        DAD.pushTopBlock(block)
+        mylog.info('成功验证区块：'+block.height)
       }
-      if (block.lastBlockHash===my.topBlock.hash && /*block.height===my.topBlock.height+1 &&*/ block.verifySig() && block.verifyHash())
+      else if (block.lastBlockHash === my.topBlock.hash && block.verifySig() && block.verifyHash())
       {
-        mylog.info('block '+block.height+' is verified')
         if ( await block.verifyActionList() ){
-          DAD.pushTopBlock(block)
           mylog.info('成功验证区块：'+block.height)
+          DAD.pushTopBlock(block)
         }
         else {
           mylog.warn('block '+block.height+' 验证失败！从数据库中删除...')
@@ -104,16 +113,17 @@ DAD.verifyChainFromDb=async function(){ // 验证本节点已有的区块链
       }
       else
       {
+        //fallback -> 无法通过验证的块
         mylog.warn('block '+block.height+' 验证失败！从数据库中删除...')
         await block.dropMe() // 注意，万一删除失败，会导致无限循环下去
       }
-
     }
-// 万一还有 height=my.topBlock.height 的区块，需要先删除。因为下一步是直接获取 height>my.topBlock.height
-// 此外，这一步很危险，如果height存在，hash不存在，那么无法删除；如果height不存在，那么会不会删除所有？？
+    // 万一还有 height=my.topBlock.height 的区块，需要先删除。因为下一步是直接获取 height>my.topBlock.height
+    // 此外，这一步很危险，如果height存在，hash不存在，那么无法删除；如果height不存在，那么会不会删除所有？？
     await wo.Block.dropAll({Block:{height:my.topBlock.height, hash:'!='+my.topBlock.hash}})
-    blockList=await wo.Block.getAll({Block:{height:'>'+my.topBlock.height}, config:{limit:100, order:'height ASC'}})
+    blockList = await wo.Block.getAll({Block:{height:'>'+my.topBlock.height}, config:{limit:100, order:'height ASC'}})
   }
+  await wo.Block.dropAll({Block:{height:'>'+my.topBlock.height}})
   mylog.info('...数据库中的区块验证完毕')
 
   if (my.topBlock.height===wo.Config.GENESIS_HEIGHT) {
@@ -126,55 +136,50 @@ DAD.verifyChainFromDb=async function(){ // 验证本节点已有的区块链
 
 DAD.updateChainFromPeer=async function(){ // 向其他节点获取自己缺少的区块；如果取不到最高区块，就创建虚拟块填充。
   mylog.info('开始向邻居节点同步区块')
-  for (let count = 0; wo.Config.consensus==="ConsPot" && Date.time2height()>(my.topBlock.height+1) && count<10; count++){ // 确保更新到截至当前时刻的最高区块。
+  for (let count = 0; wo.Config.consensus==="ConsPot" && Date.time2height() > (my.topBlock.height + 1) && count < 10; count++){ // 确保更新到截至当前时刻的最高区块。
+    mylog.info(`向全网广播同步请求-->开始第${count}轮同步`)
     let blockList=await wo.Peer.randomcast('/Block/getBlockList', { Block:{height:'>'+my.topBlock.height}, config:{limit:100, order:'height ASC'} })
     while (Array.isArray(blockList) && blockList.length>0){
       for (let block of blockList){
-        block=new wo.Block(block) // 通过 Peer 返回的是原始数据，要转换成对象。
-        if (block.lastBlockHash===my.topBlock.hash && /*block.height===my.topBlock.height+1 &&*/ block.verifySig() && block.verifyHash())
+        block = new wo.Block(block) // 通过 Peer 返回的是原始数据，要转换成对象。
+        if (block.lastBlockHash===my.topBlock.hash && block.verifySig() && block.verifyHash())
         {
-          await block.addMe()
-          mylog.info('block '+block.height+' is updated')
           // update actions of this block
-          if (Array.isArray(block.actionHashList) && block.actionHashList.length>0&&block.type!=="VirtBlock") { 
-            var actionList = await wo.Peer.randomcast('/Block/getActionList', { Block:{ hash:block.hash, height:block.height } })
+          if (Array.isArray(block.actionHashList) && block.actionHashList.length > 0 && block.type!=="VirtBlock") {
+            let actionList = await wo.Peer.randomcast('/Block/getActionList', { Block:{ hash:block.hash, height:block.height } })
             if (actionList){
-              for (let actionData of actionList) {
-                var action=new wo[actionData.type](actionData)
-                if (action.validate()) {
-                  await action.execute()
-                  await action.addMe()
+              for (let action of actionList) {
+                if (wo[action.type].validater(action)) {
+                  await wo[action.type].execute(action)
+                  await wo[action.type].addOne(action)
+                  //todo:1.需要计算merkelRoot并且验证于区块actionHashRoot的一致性 2.添加到数据库之前对交易(action)序列化
                 }
               }
             }
           }
+          await block.addMe()
           if (wo.Config.consensus==='ConsPot') wo.Consensus.pushInRBS(block)
           DAD.pushTopBlock(block)
+          mylog.info(`高度${block.height}区块同步成功`)
         }
         else{ // 碰到一个错的区块，立刻退出
-          mylog.info('block '+block.height+' 同步有错误！')
-          var signalBadBlock=true
+          mylog.info(`高度${block.height}区块 同步错误!`)
           break
         }
       }
-      if (signalBadBlock) {
-        signalBadBlock=undefined
-        break
-      }
       blockList=await wo.Peer.randomcast('/Block/getBlockList', { Block:{height:'>'+my.topBlock.height}, config:{limit:100, order:'height ASC'} })
     }
-    mylog.info('当前连接的节点没有新的区块了')
+    mylog.info(`全网无最新区块-->停止第${count}轮同步`)
   }
   if(Date.time2height() - my.topBlock.height > 1){
-    for (let height=my.topBlock.height+1; wo.Config.consensus ==='ConsPot' && height<Date.time2height(); height++) {
+    for (let height = my.topBlock.height + 1; wo.Config.consensus ==='ConsPot' && height < Date.time2height(); height++) {
       await DAD.createVirtBlock()
     }
   }
-  else{
-    return my.topBlock
-  }
-  if (wo.Config.consensus ==='ConsPot') mylog.info(new Date()+'...已同步到区块='+my.topBlock.height+'，当前时刻的待出区块='+Date.time2height())
-  else mylog.info('...向邻居节点同步区块完毕')
+  if (wo.Config.consensus ==='ConsPot') 
+    mylog.info(new Date()+'...已同步到区块='+my.topBlock.height+'，当前时刻的待出区块='+Date.time2height())
+  else
+    mylog.info('区块同步完毕')
   return my.topBlock
 }
 
@@ -186,51 +191,39 @@ DAD.createVirtBlock=async function(){
   mylog.info('virtual block '+block.height+' is created')
   return block
 }
+
 DAD.createBlock=async function(block){
-  block= (block instanceof wo.Block)?block:(new wo.Block(block)) // POT 里调用时，传入的可能是普通对象，需要转成 Block
+  block = (block instanceof wo.Block)? block : (new wo.Block(block)) // POT 里调用时，传入的可能是普通对象，需要转成 Block
   block.message='矿工留言在第'+(my.topBlock.height+1)+'区块'
-  await block.packMe(wo.Consensus.currentActionPool||wo.Action.actionPool, my.topBlock, wo.Crypto.secword2keypair(wo.Config.ownerSecword))//算出默克根、hash、交易表
+  await block.packMe(wo.Action.currentActionPool, my.topBlock, wo.Crypto.secword2keypair(wo.Config.ownerSecword))//算出默克根、hash、交易表
   await block.addMe()     //将区块写入数据库
   let winnerAccount = await wo.Account.getOne({Account:{address:wo.Crypto.pubkey2address(block.winnerPubkey)}})
-  if (winnerAccount) await winnerAccount.setMe({Account:{balance:winnerAccount.balance+block.rewardWinner},cond:{address:winnerAccount.address},excludeSelf:true})
   let packerAccount = await wo.Account.getOne({Account:{address:wo.Crypto.pubkey2address(block.packerPubkey)}})
+  if (winnerAccount) await winnerAccount.setMe({Account:{balance:winnerAccount.balance+block.rewardWinner},cond:{address:winnerAccount.address},excludeSelf:true})
   if (packerAccount) await packerAccount.setMe({Account:{balance:packerAccount.balance+block.rewardPacker},cond:{address:packerAccount.address},excludeSelf:true})  
 
   DAD.pushTopBlock(block)
   if (wo.Config.consensus==='ConsPot') wo.Consensus.pushInRBS(block)
   // mylog.info('block '+block.height+' is created')
+  block.runActionList() //无需等待交易执行
   return block
 }
+
 DAD.appendBlock=async function(block){ // 添加别人打包的区块
   block= (block instanceof wo.Block)?block:(new wo.Block(block)) // POT 里调用时，传入的可能是普通对象，需要转成 Block
-  if (!my.addingLock&&(block.lastBlockHash===my.topBlock.hash && block.height===my.topBlock.height+1 && block.verifySig() && block.verifyHash())){
+  if (!my.addingLock && block.lastBlockHash === my.topBlock.hash && block.height === my.topBlock.height + 1 && block.verifySig() && block.verifyHash()){
     // todo: push action into database
     //因为异步操作会重复添加，先将锁锁定，防止因为没有及时pushTopBlock多次添加符合条件的区块
     //先判断是否符合条件、符合条件的块 才加锁
     my.addingLock = true
-    for (var actionHash of block.actionHashList){
-      let action=wo.Action.actionPool[actionHash]
-      if (action) {
-        action.blockHash = block.hash
-        await action.execute()
-        await action.addMe()
-        delete wo.Action.actionPool[actionHash]
-      }else{
-        // 向对等节点或打包节点要求获取该缺失的action
-        mylog.info("缺少该Action,向邻居请求")
-        let missAction=wo.Peer.broadcast('/Action/getAction', {Action:{ hash:actionHash }})
-        action.blockHash = block.hash
-        await missAction.execute()
-        await missAction.addMe()
-      }
-    }
     if (block.type==="SignBlock") {
       block.rewardPacker = block.getReward({rewardType:'packerPenalty'})
       let winnerAccount = await wo.Account.getOne({Account:{address:wo.Crypto.pubkey2address(block.winnerPubkey)}})
       if (winnerAccount) await winnerAccount.setMe({Account:{balance:winnerAccount.balance+block.rewardWinner},cond:{address:winnerAccount.address},excludeSelf:true})
       let packerAccount = await wo.Account.getOne({Account:{address:wo.Crypto.pubkey2address(block.packerPubkey)}})
       if (packerAccount) await packerAccount.setMe({Account:{balance:packerAccount.balance+block.rewardPacker},cond:{address:packerAccount.address},excludeSelf:true})        
-    }else if (block.type!=='VirtBlock'){
+    }
+    else if (block.type!=='VirtBlock'){
       let winnerAccount = await wo.Account.getOne({Account:{address:wo.Crypto.pubkey2address(block.winnerPubkey)}})
       if (winnerAccount) await winnerAccount.setMe({Account:{balance:winnerAccount.balance+block.rewardWinner},cond:{address:winnerAccount.address},excludeSelf:true})
       let packerAccount = await wo.Account.getOne({Account:{address:wo.Crypto.pubkey2address(block.packerPubkey)}})
@@ -242,6 +235,7 @@ DAD.appendBlock=async function(block){ // 添加别人打包的区块
     //区块添加完毕后 释放锁
     my.addingLock = false 
     mylog.info(block.timestamp.toJSON() + ' : block '+block.height+' is added')
+    block.runActionList() //无需等待交易的执行
     return block
   }
   return null
@@ -251,7 +245,7 @@ DAD.getTopBlock = DAD.api.getTopBlock = function(){
   return my.topBlock
 }
 
-DAD.pushTopBlock=function(topBlock){ // 保留最高和次高的区块
+DAD.pushTopBlock = function(topBlock){ // 保留最高和次高的区块
   my.lastBlock=my.topBlock
   my.topBlock=topBlock
 }
