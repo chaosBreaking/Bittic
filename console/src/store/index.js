@@ -8,8 +8,10 @@ import owner from './owner'
 Vue.use(Vuex)
 
 export default new Vuex.Store({
-  chain,
-  owner,
-  market,
-  network,
+  modules: {
+    chain,
+    owner,
+    market,
+    network,
+  },
 })
