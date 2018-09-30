@@ -96,14 +96,11 @@ async function init(){  /*** 设置全局对象，启动时光链 ***/
   wo.Ling=require('./Ling/_Ling.js')
   wo.Account = await require('./Ling/Account.js')._init()
   wo.Action = await require('./Ling/Action.js')._init()
-  wo.Token = await require('./Ling/Token.js')._init()
-  wo.TokenAccount = await require('./Ling/TokenAccount.js')._init()
   wo.ActTransfer = require('./Ling/ActTransfer.js')
   wo.ActStorage = require('./Ling/ActStorage.js')
-  wo.ActToken = require('./Ling/ActToken.js')
   wo.ActMultisig = require('./Ling/ActMultisig.js')
   wo.Bancor = require('./Ling/Bancor.js')._init()
-
+  
   mylog.info('Initializing chain............')
   wo.Peer=await require('./Ling/Peer.js')._init()
   // if (wo.Config.consensus==='ConsPow') {
@@ -140,7 +137,7 @@ async function init(){  /*** 设置全局对象，启动时光链 ***/
 
   /*** 通用中间件 ***/
 
-  server.use(Morgan('development'===server.get('env')?'dev':'combined')) // , {stream:require('fs').createWriteStream(path.join(__dirname+'/Data.log', 'http.log'), {flags: 'a', defaultEncoding: 'utf8'})})) // format: combined, common, dev, short, tiny.  发现 defaultEncoding 并不起作用。
+  // server.use(Morgan('development'===server.get('env')?'dev':'combined')) // , {stream:require('fs').createWriteStream(path.join(__dirname+'/Data.log', 'http.log'), {flags: 'a', defaultEncoding: 'utf8'})})) // format: combined, common, dev, short, tiny.  发现 defaultEncoding 并不起作用。
   server.use(MethodOverride())
   //server.use(Session({store: new Redis({host: "127.0.0.1", port: 6379}), resave:false, saveUninitialized:false, name: 'server.sid', secret: wo.Config.tokenKey, cookie: {  maxAge: wo.Config.SESSION_LIFETIME*1000 }})) // name: 'connect.sid'
   server.use(CookieParser())

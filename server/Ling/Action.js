@@ -51,18 +51,30 @@ MOM.hashMe = function(){
   return this
 }
 
-DAD.verifySig = function(){
-  let json=this.getJson({exclude:['hash','blockHash','actorSignature']})
-  let res=wo.Crypto.verify(json, this.actorSignature, this.actorPubkey)
+DAD.getJson = function(action,option={}){
+  let data = {}
+  let sortedKey = Object.keys(DAD.prototype._model).sort()
+  for(let exkey of option.exclude)
+    sortedKey.splice(sortedKey.indexOf(exkey),1)
+  for (let key of sortedKey){ // 忽略一些不需要签名的属性
+    data[key] = action[key]
+  }
+  let json=JSON.stringify(data)
+  return json
+}
+
+DAD.verifySig = function(action){
+  let json = DAD.getJson(action,{exclude:['hash','blockHash','actorSignature']})
+  let res=wo.Crypto.verify(json, action.actorSignature, action.actorPubkey)
   return res
 }
 
-DAD.verifyAddress = function(){
-  return this.actorAddress===wo.Crypto.pubkey2address(this.actorPubkey)
+DAD.verifyAddress = function(action){
+  return action.actorAddress===wo.Crypto.pubkey2address(action.actorPubkey)
 }
 
-DAD.verifyHash = function(){
-  return this.hash===wo.Crypto.hash(this.getJson({exclude:['hash', 'blockHash']}))
+DAD.verifyHash = function(action){
+  return action.hash===wo.Crypto.hash(DAD.getJson(action,{exclude:['hash', 'blockHash']}))
 }
 
 DAD.execute=function(){ // 子类应当覆盖本方法。把action的影响，汇总登记到其他表格（用于辅助的、索引的表格），方便快速索引、处理。每种事务类型都要重定义这个方法。
@@ -94,15 +106,15 @@ DAD.api.getActionList=async function(option){
 DAD.api.prepare=async function(option){ 
   // 前端发来action数据，进行初步检查（不检查是否可执行--这和事务类型、执行顺序有关，只检查格式是否有效--这是所有事务通用的规范）后放入缓冲池。
   if (option && option.Action && option.Action.type && option.Action.hash && !DAD.actionPool[option.Action.hash]) {
-    if( DAD.verifyAddress(option.action) && 
-        DAD.verifySig(option.action) && 
-        DAD.verifyHash(option.action) &&
-        wo[option.Action.type].validater(option.action)) 
+    if( DAD.verifyAddress(option.Action) && 
+        DAD.verifySig(option.Action) && 
+        DAD.verifyHash(option.Action) &&
+        wo[option.Action.type].validater(option.Action)) 
     {
       // mylog.info('Received action='+JSON.stringify(action))
-      DAD.actionPool[action.hash] = option.action
+      DAD.actionPool[option.Action.hash] = option.Action
       wo.Peer.broadcast('/Action/prepare', option)
-      return option.action
+      return option.Action
     }
   }
   return null  // 非法的交易数据

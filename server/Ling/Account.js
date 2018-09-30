@@ -14,17 +14,14 @@ MOM.__proto__=Ling.prototype
 /******************** Shared by instances ********************/
 MOM._tablekey='hash'
 MOM._model={
-  version:        { default:0,         sqlite:'INTEGER' }, // 账户需要版本号吗？
   type:           { default:'user',  sqlite:'TEXT',     mysql:'VARCHAR(100)' },
   user:           { default:undefined, sqlite:'TEXT',   mysql:'String' }, // 隶属于哪个真人用户
-  name:           { default:undefined, sqlite:'TEXT',   mysql:'String(20)' },
   address:        { default:undefined, sqlite:'TEXT UNIQUE',   mysql:'String(50)' },
   pubkey:         { default:undefined, sqlite:'TEXT UNIQUE',   mysql:'Binary(32)' },
+  balance:        { default:0,         sqlite:'NUMERIC',   mysql:'BigInt' },
   secondPubkey:   { default:undefined, sqlite:'TEXT',   mysql:'Binary(32)' },
   secondSignature:{ default:undefined, sqlite:'TEXT',   mysql:'BigInt' },
-  balance:        { default:0,         sqlite:'NUMERIC',   mysql:'BigInt' },
   multiSignatures:{ default:undefined, sqlite:'TEXT',   mysql:'Text' },
-  blockHash:      { default:undefined, sqlite:'TEXT UNIQUE',   mysql:'String(64)' }, // luk.lu: 这是什么？
   producedBlocks: { default:undefined, sqlite:'INTEGER',mysql:'BigInt' },
   missedBlocks:   { default:undefined, sqlite:'INTEGER',mysql:'BigInt' },
   fees:           { default:0,         sqlite:'NUMERIC',   mysql:'BigInt' },
@@ -71,9 +68,4 @@ DAD.getBalance=DAD.api.getBalance=async function(option){
     return 0
   }
   return null
-}
-
-/********************** Private in class *******************/
-
-const my = {
 }

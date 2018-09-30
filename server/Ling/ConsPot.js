@@ -9,7 +9,7 @@ const DAD=module.exports=function ConsPot(prop) {
 //  this.setProp(prop)
 }
 //DAD.__proto__=Ling
-const MOM=DAD.prototype
+const MOM = DAD.prototype
 //MOM.__proto__=Ling.prototype
 
 /******************** Shared by instances ********************/
@@ -52,6 +52,8 @@ DAD.signOnce=async function(){
     my.selfPot={} // 注意，不要 my.selfPot=my.bestPot={} 这样指向了同一个对象！
     my.bestPot={} // 如果设signature=null，就可能会===compareSig返回的null，就产生错误了。因此保留为undefined.
     wo.Action.currentActionPool={}
+    wo.Block.totalAmount = 0
+    wo.Block.totalFee = 0
     mylog.info("合法事务池长度**********",Object.keys(wo.Action.currentActionPool).length)
     mylog.info("待办事务池长度**********",Object.keys(wo.Action.actionPool).length)
     // 作为节点，把自己签名直接交给自己。这是因为，全网刚起步时，很可能还没有终端用户，这时需要节点进行签名。
@@ -218,7 +220,6 @@ DAD.mineOnce=async function(){
     if (my.selfPot.signature && my.bestPot.signature === my.selfPot.signature) { // 全网最终获胜者是我自己，于是打包并广播。注意防止 bestPot===selfPot===undefined，这是跳过竞选阶段直接从前两阶段开始会发生的。
       mylog.info('本节点获胜，开始出块...')
       let block = await wo.Chain.createBlock({winnerMessage:my.selfPot.message,winnerSignature:my.selfPot.signature, winnerPubkey:my.selfPot.pubkey})
-      block.runActionList()  //不能阻塞出块。todo: 潜在问题，有的交易也许并不能成功执行，但是却已经放在区块里。
       wo.Peer.broadcast('/Consensus/mineWatcher', {Block:JSON.stringify(wo.Chain.getTopBlock())})
       mylog.info('本节点出块的哈希为：'+wo.Chain.getTopBlock().hash)
     }
@@ -257,19 +258,20 @@ DAD.api.mineWatcher=async function(option){ // 监听别人发来的区块
   return 0
 }
 
-DAD.actionLoop = async function(){
+DAD.actionLoop = function(){
   //事务处理循环：拿出actionPool里的事务--->执行并放入currentActionPool--->从删除actionPool删除
   //出块时调用的是 currentActionPool
   while(my.currentPhase!=='mining' && Object.keys(wo.Action.actionPool).length>0){
       action = Object.values(wo.Action.actionPool).shift()
+      // if(!action) return 0
       wo.Action.currentActionPool[action.hash] = action
-      wo.Block.totalAmount +=  (action.amount||0)
-      wo.Block.totalFee +=  (action.fee||0)
+      wo.Block.totalAmount += action.amount||0
+      wo.Block.totalFee +=  action.fee||0
       delete wo.Action.actionPool[action.hash]
   }
 }
 
-DAD._init=async function(){
+DAD._init = function(){
   var signing=my.scheduleJobs[0]=Schedule.scheduleJob({ second:0 }, DAD.signOnce) // 每分钟的第0秒
   var electing=my.scheduleJobs[1]=Schedule.scheduleJob({second:20}, DAD.electOnce)
   var mining=my.scheduleJobs[2]=Schedule.scheduleJob({second:40}, DAD.mineOnce)
@@ -281,137 +283,93 @@ DAD._init=async function(){
 }
 
 DAD.forkHandler  = async function(option){
-  if(wo.Chain.getTopBlock().height!==Date.time2height()-1)
+  if(wo.Chain.getTopBlock().height <= Date.time2height() - 2)
     return "高度未达到分叉标准"
   let res = await wo.Peer.broadcast('/Consensus/getRBS', {target:option.Block.packerPubkey})//取第一个元素
-  res = res[0]
-  if(res){
-    let index = DAD.diffRecBlockStack(res)
-    if(index===null||index===0)
-    {
-      mylog.warn('分叉长度超过当前可处理范围')
-      return null
-    }
-    if(res[index].type==="VirtBlock" && my.recBlockStack[index].type!=="VirtBlock")
-    {
-      mylog.warn("对方的虚拟块应当被合并")
-      return null
-    }
-    else if(res[index].type!=="VirtBlock" && my.recBlockStack[index].type==="VirtBlock")
-    {
-      res[index]=new wo['Block'](res[index])
-      if(wo.Crypto.verify(res[index].winnerMessage,res[index].winnerSignature,res[index].winnerPubkey)
-        &&res[index].verifySig()
-        &&res[index].verifyHash()
-      )
-      {
-        //说明自己分叉，去改数据库
-        mylog.warn("我分叉了")
-        my.scheduleJobs[0].cancel()
-        my.scheduleJobs[1].cancel()
-        my.scheduleJobs[2].cancel()
-        let blockList = await wo.Block.getAll({Block:{height:'>'+(res[index].height-1)}, config:{limit:wo.Config.MaxRBS-index, order:'height ASC'}})
-        for (let block of blockList){
-          if(block.actionHashList.length !== 0 )
-          {
-            //获取本块所有交易
-            let actionList = await wo.Action.getAll({Action:{blockHash:block.hash}, config:{limit:block.actionHashList.length}})
-            for(let action of actionList)
-            {
-              if (action.validate()){
-                wo.Action.api.prepare({Action:action}) // 将自己区块内的交易广播出去
-              }
-            }
-          }  
-          block.dropMe()
-          my.recBlockStack.pop()
-        }
-        wo.Chain.pushTopBlock(res[index-1])
-        await wo.Chain.updateChainFromPeer()
-        await wo.Chain.verifyChainFromDb()
-        my.bestPot={} // 全网最佳时间证明：{签名，时间申明，公钥}
-        my.selfPot={} // 本节点最佳时间证明：{签名，时间申明，公钥}
-        my.signBlock={} 
-        my.scheduleJobs[0].reschedule({ second:0 }, DAD.signOnce)
-        my.scheduleJobs[1].reschedule({ second:20 }, DAD.electOnce)
-        my.scheduleJobs[2].reschedule({ second:40 }, DAD.mineOnce)
-        // return 1
-      }
-      else
-      mylog.warn("对方块非法")
-    }
-    /*
-      POT的天然优势：
-    */
-    else
-    {
-      if(res[index].totalAmount*0.6+res[index].totalFee*0.4 < my.recBlockStack[index].totalAmount*0.6+my.recBlockStack[index].totalFee*0.4)
-      {
-        mylog.warn("我的更好 我没分叉")
-        return null
-      }
-      else{
-        if(res[index].totalAmount*0.6+res[index].totalFee*0.4 === my.recBlockStack[index].totalAmount*0.6+my.recBlockStack[index].totalFee*0.4)
-        {
-          if(res[index].totalAmount<my.recBlockStack[index].totalAmount)
-            {
-              mylog.warn("我的更好 我没分叉")
-              return null
-            }
-        }
-        mylog.warn("对方的更好 我应该被合并")
-        my.scheduleJobs[0].cancel()
-        my.scheduleJobs[1].cancel()
-        my.scheduleJobs[2].cancel()
-          let blockList = await wo.Block.getAll({Block:{height:'>'+(res[index].height-1)}, config:{limit:wo.Config.MaxRBS-index, order:'height ASC'}})
-          for (let block of blockList){
-            if(block.actionHashList.length !== 0 )
-            {
-              //获取本块所有交易
-              let actionList = await wo.Action.getAll({Action:{blockHash:block.hash}, config:{limit:block.actionHashList.length}})
-              for(let action of actionList)
-              {
-                if (action.validate()){
-                  wo.Action.api.prepare({Action:action}) // 将自己区块内的交易广播出去
-                }
-              }
-            }  
-            block.dropMe()
-            my.recBlockStack.pop()
-          }
-          wo.Chain.pushTopBlock(res[index-1])
-          await wo.Chain.updateChainFromPeer()
-          await wo.Chain.verifyChainFromDb()
-          my.bestPot={} // 全网最佳时间证明：{签名，时间申明，公钥}
-          my.selfPot={} // 本节点最佳时间证明：{签名，时间申明，公钥}
-          my.signBlock={} 
-          my.scheduleJobs[0].reschedule({ second:0 }, DAD.signOnce)
-          my.scheduleJobs[1].reschedule({ second:20 }, DAD.electOnce)
-          my.scheduleJobs[2].reschedule({ second:40 }, DAD.mineOnce)
-      }
-    } 
+  if(!res){
+    mylog.warn("没拿到对方缓存表")
+    return null
   }
-  else
-  mylog.warn("没拿到对方缓存表")
+    // res = res[0]
+  let diff = DAD.diffRecBlockStack(my.recBlockStack , res)
+  if(typeof diff.index === 'undefined' || diff.index === 0)
+  {
+    mylog.warn('分叉长度超过可处理范围')
+    return null
+  }
+  if(res[diff.index].height === my.recBlockStack[diff.index].type && res[diff.index].height === "VirtBlock" && my.recBlockStack[diff.index].type !== "VirtBlock")
+  {
+    mylog.warn("对方的虚拟块应当被合并")
+    return null
+  }
+  //区块合法性检验
+  let forkBlock = new wo.Block(my.recBlockStack[diff.index])
+  if( !wo.Crypto.verify(forkBlock.winnerMessage, forkBlock.winnerSignature, forkBlock.winnerPubkey)
+      || !forkBlock.verifySig()
+      || !forkBlock.verifyHash()
+  ){
+    mylog.warn("收到非合法的区块,分叉合并取消")
+    return null
+  }
+  //检验通过
+  else if( res[index].totalAmount < my.recBlockStack[index].totalAmount || res[index].totalFee < my.recBlockStack[index].totalFee)
+  {
+    mylog.warn("本节点区块交易量或手续费更多，保持本机区块数据，取消合并")
+    return null
+  } 
+  //剩下的情况本机需要被合并   
+  else{
+    //说明自己分叉，开始处理分叉
+    mylog.warn(`本节点在高度${diff.height}分叉,开始处理分叉...`)
+    my.scheduleJobs[0].cancel()
+    my.scheduleJobs[1].cancel()
+    my.scheduleJobs[2].cancel()
+    let blockList = await wo.Block.getAll({Block:{height:'>'+( diff.height - 1)}, config:{limit:10, order:'height ASC'}})
+    for (let block of blockList){
+      if(block.actionHashList.length !== 0 )
+      {
+        //获取本块所有交易
+        let actionList = await wo.Action.getAll({Action:{blockHash:block.hash}, config:{limit:block.actionHashList.length}})
+        for(let action of actionList)
+        {
+            wo.Peer.broadcast('/Action/prepare', option) // 将自己区块内的交易广播出去
+        }
+      }  
+      await block.dropMe()
+    }
+    my.recBlockStack.splice(diff.index) //删除recBlockStack里从分叉点开始以后的全部块记录
+    wo.Chain.pushTopBlock(my.recBlockStack[diff.index-1]) //记录top区块
+    await wo.Chain.updateChainFromPeer()
+    await wo.Chain.verifyChainFromDb()
+    my.bestPot={} // 全网最佳时间证明：{签名，时间申明，公钥}
+    my.selfPot={} // 本节点最佳时间证明：{签名，时间申明，公钥}
+    my.signBlock={} 
+    my.scheduleJobs[0].reschedule({ second:0 }, DAD.signOnce)
+    my.scheduleJobs[1].reschedule({ second:20 }, DAD.electOnce)
+    my.scheduleJobs[2].reschedule({ second:40 }, DAD.mineOnce)
+    return 0 
+  }
+
 }
 
-DAD.diffRecBlockStack = function(target){
+DAD.diffRecBlockStack = function(mine,target){
   //target的类型也是列表
   for(index in target)
   {
-    if(target[index].hash!==my.recBlockStack[index].hash
-      &&target[index].height===my.recBlockStack[index].height
-      &&target[index].lastBlockHash === my.recBlockStack[index].lastBlockHash
-      ||target[index].winnerSignature !== my.recBlockStack[index].winnerSignature)
+    if(target[index].hash !== mine[index].hash
+      &&target[index].height === mine[index].height
+      &&target[index].lastBlockHash === mine[index].lastBlockHash
+      ||target[index].winnerSignature !== mine[index].winnerSignature)
     {
-      mylog.warn("差异处: %d", index)
-      return index
+      mylog.warn(`差异高度${target[index].height}`)
+      return {index, height:target[index].height}
     }
   }
   return null
 }
 
 DAD.pushInRBS = function(obj){
+  // MaxRBS = 10
   if(my.recBlockStack.length < wo.Config.MaxRBS)
   {
     my.recBlockStack.push(obj)

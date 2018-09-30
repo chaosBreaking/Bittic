@@ -89,8 +89,8 @@ MOM.packMe = async function (actionPool, lastBlock, keypair) { // 后台节点�
 
   if(this.type!=="SignBlock")
   {
-    this.totalAmount = DAD.totalAmount
-    this.totalFee = DAD.totalFee
+    this.totalAmount = wo.Block.totalAmount
+    this.totalFee = wo.Block.totalFee
     this.actionHashList = Object.keys(actionPool)
     this.actionHashRoot = wo.Crypto.getMerkleRoot(this.actionHashList)
     this.numberAction = this.actionHashList.length
@@ -100,19 +100,18 @@ MOM.packMe = async function (actionPool, lastBlock, keypair) { // 后台节点�
   this.hashMe()
   if(this.type!=="SignBlock")
     mylog.info('block '+this.height+' is created with '+this.numberAction+' actions')
-  DAD.totalAmount = DAD.totalFee = 0
   return this
 }
-MOM.runActionList = async function()
+MOM.runActionList = async function(currentActionPool)
 {
   if(this.actionHashList.length && this.actionHashList.length > 0){
-    actionList = Object.values(wo.Action.currentActionPool)
-    for (let action of actionList) {
-      action.blockHash = this.hash
-      await wo[action.type].execute(action)
-      await wo[action.type].addOne(action)  //这里要用await 不然在循环中会因为多次add触发数据库死锁 ResourceRequest
+    for (let actionHash of this.actionHashList) {
+      currentActionPool[actionHash].blockHash = this.hash
+      mylog.error()
+      await wo[currentActionPool[actionHash].type].execute(currentActionPool[actionHash])
+      await wo[currentActionPool[actionHash].type].addOne({[currentActionPool[actionHash].type]:currentActionPool[actionHash]})
     }
-    mylog.info(`共 ${Object.keys(wo.Action.currentActionPool.length)} Action写入数据库`)
+    mylog.info(`共 ${this.actionHashList.length} Action写入数据库`)
   }
   else
   {
@@ -175,14 +174,13 @@ MOM.verifyActionList = async function(){
   for (let action of actionList){
     if(actionHashList.indexOf(action.hash) !== -1)
     {
-      let tar = new wo[action.type](action)
-      await tar.execute()  //每次重启Account被清空，所以要在这里重建
+      await wo[action.type].execute(action)  //每次重启Account被清空，所以要在这里重建
       actionHashList.splice(actionHashList.indexOf(action.hash), 1);
     }
     else  //没找到
     {
       mylog.info("丢弃一个错误Action")
-      await action.dropMe()
+      await wo[action].dropOne({[action.type]:action})
     }
   }
   if(actionHashList.length === 0 )  //双向检查完毕，执行区块奖励操作后返回
@@ -215,8 +213,8 @@ MOM.verifyActionList = async function(){
       if(missAction){
         var target=new wo[missAction.type](missAction)
         if (target.validate()){
-          await target.execute()    //执行该Action
-          await target.addMe()      //加入Action表
+          await wo[missAction.type].execute(missAction)    //执行该Action
+          await wo[missAction.type].addOne({[missAction.type]:missAction})      //加入Action表
         }
         break
       }
@@ -279,10 +277,10 @@ DAD.api.getActionList=async function(option) {
   }
   return null
 }
+DAD.totalAmount = 0,
+DAD.totalFee = 0
 
 /********************** Private members in class *******************/
-DAD.totalFee = 0
-DAD.totalAmount = 0
 
 const my={
   milestones: [
