@@ -54,9 +54,7 @@ DAD.createGenesis=async function(){
   DAD.pushTopBlock(my.genesis)
 
   mylog.info('清空并初始化账户...')
-  await wo.Token.dropAll({Token:{version:'!=null'}})
-  await wo.TokenAccount.dropAll({TokenAccount:{version:'!=null'}})
-  await wo.Account.dropAll({Account:{version:'!=null'}})
+  await wo.Account.dropAll({Account:{balance:'!=0'}})
   await wo.Account.addOne({Account:{ balance: wo.Config.COIN_INIT_AMOUNT, address:wo.Config.INITIAL_ACCOUNT.address }})
   mylog.info('net ================ '+wo.Config.netType)
   if (wo.Config.netType==='devnet') // 在开发链上，自动给当前用户预存一笔，使其能够挖矿
@@ -201,11 +199,9 @@ DAD.createBlock=async function(block){
   let packerAccount = await wo.Account.getOne({Account:{address:wo.Crypto.pubkey2address(block.packerPubkey)}})
   if (winnerAccount) await winnerAccount.setMe({Account:{balance:winnerAccount.balance+block.rewardWinner},cond:{address:winnerAccount.address},excludeSelf:true})
   if (packerAccount) await packerAccount.setMe({Account:{balance:packerAccount.balance+block.rewardPacker},cond:{address:packerAccount.address},excludeSelf:true})  
-
   DAD.pushTopBlock(block)
   if (wo.Config.consensus==='ConsPot') wo.Consensus.pushInRBS(block)
-  // mylog.info('block '+block.height+' is created')
-  block.runActionList() //无需等待交易执行
+  block.runActionList(wo.Action.currentActionPool) //无需等待交易执行
   return block
 }
 
@@ -230,12 +226,12 @@ DAD.appendBlock=async function(block){ // 添加别人打包的区块
       if (packerAccount) await packerAccount.setMe({Account:{balance:packerAccount.balance+block.rewardPacker},cond:{address:packerAccount.address},excludeSelf:true})        
     }
     await block.addMe()
+    block.runActionList(wo.Action.currentActionPool) //无需等待交易的执行
     DAD.pushTopBlock(block)
     if (wo.Config.consensus==='ConsPot') wo.Consensus.pushInRBS(block)
     //区块添加完毕后 释放锁
-    my.addingLock = false 
     mylog.info(block.timestamp.toJSON() + ' : block '+block.height+' is added')
-    block.runActionList() //无需等待交易的执行
+    my.addingLock = false
     return block
   }
   return null
@@ -261,7 +257,4 @@ const my={
   ,
   addingLock:false
   ,
-//  keypair:null // 启动时，从配置文件里读出节点主人的secword，计算出公私钥
-//  ,
-
 }
