@@ -19,13 +19,13 @@ class Tac extends Ling {
       actorPubkey:    { default:undefined, sqlite:'TEXT',             mysql:'BINARY(32)' },
       actorAddress:   { default:undefined, sqlite:'TEXT',             mysql:'VARCHAR(50)' },
       actorSignature: { default:undefined, sqlite:'TEXT',             mysql:'BINARY(64)' },
-      transactions:   { default:{},        sqlite:'TEXT' },
       desc:           { default:undefined, sqlite:'TEXT',             mysql:'VARCHAR(256)' },
       option:         { default:undefined, sqlite:'TEXT',             mysql:'VARCHAR(4096)' },
     })
   }
   static async create(option){
-    return null
+    //先生成地址，校验和等
+    return await (new Tac(option)).addMe()
   }
   static async transfer(option){
     return null

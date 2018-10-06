@@ -54,8 +54,6 @@ DAD.signOnce=async function(){
     wo.Action.currentActionPool={}
     wo.Block.totalAmount = 0
     wo.Block.totalFee = 0
-    mylog.info("合法事务池长度**********",Object.keys(wo.Action.currentActionPool).length)
-    mylog.info("待办事务池长度**********",Object.keys(wo.Action.actionPool).length)
     // 作为节点，把自己签名直接交给自己。这是因为，全网刚起步时，很可能还没有终端用户，这时需要节点进行签名。
     let myAddress = wo.Crypto.secword2address(wo.Config.ownerSecword)
     let me = await wo.Account.getOne({Account:{address: myAddress}})

@@ -109,9 +109,9 @@ DAD.api.prepare=async function(option){
     if( DAD.verifyAddress(option.Action) && 
         DAD.verifySig(option.Action) && 
         DAD.verifyHash(option.Action) &&
-        wo[option.Action.type].validater(option.Action)) 
+        wo[option.Action.type].validater(option.Action)
+      ) 
     {
-      // mylog.info('Received action='+JSON.stringify(action))
       DAD.actionPool[option.Action.hash] = option.Action
       wo.Peer.broadcast('/Action/prepare', option)
       return option.Action

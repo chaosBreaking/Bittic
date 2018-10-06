@@ -13,7 +13,7 @@ MOM.__proto__=Ling.prototype
 
 /******************** Public members shared by instances ********************/
 MOM._tablekey='hash'
-MOM._model={ // 数据模型，用来初始化每个对象的数据
+MOM._model = { // 数据模型，用来初始化每个对象的数据
   hash:           { default:undefined, sqlite:'TEXT',     mysql:'VARCHAR(64) PRIMARY KEY' }, 
   version:        { default:0,         sqlite:'INTEGER',  mysql:'INT' }, // 用来升级
   type:           { default:'',        sqlite:'TEXT',     mysql:'VARCHAR(100)'}, // 用来分类：普通块，虚拟块（如果某获胜节点没有及时出块，就用虚块填充）
@@ -76,16 +76,6 @@ MOM.packMe = async function (actionPool, lastBlock, keypair) { // 后台节点�
   this.packerPubkey = keypair.pubkey
   this.lastBlockHash = lastBlock?lastBlock.hash:null
   this.timestamp = lastBlock?new Date():wo.Config.GENESIS_EPOCHE
-
-  /*  此注释以下内容不应该放在Block内，而是应该从事务池中直接取出一个 合法的事务集合
-      假如我们限定一个区块内所能容纳的事务上限为N,则
-      packMe函数应该接受的参数是(currentActionPool,merkelRoot=null,lastBlock,keypair)
-        ·validAction为Action的静态属性,存储从actionPool中拿出的N个合法的action
-        ·merkelRoot也可以在block中算出来,也可以Action算出来后直接传入
-      总之，出块的时候，对于Action只需要确定：
-      1. 所有合法且应该被包含于当前Block的actionHash
-      2. merkelRoot
-   */
 
   if(this.type!=="SignBlock")
   {
