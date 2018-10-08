@@ -1,7 +1,8 @@
 // 共识模块
 
 const Schedule=require('node-schedule')
-const workers = []
+
+
 /******************** Public of instances ********************/
 
 const DAD=module.exports=function ConsPot(prop) {
@@ -13,18 +14,20 @@ const MOM = DAD.prototype
 
 DAD.api={}
 
-DAD._init = function(worker){
+DAD._init = async function(){
+  while(Date.time2height() !== wo.Store.getTopBlock().height+1){
+      await DAD.calibrate();
+  }
   var signing = my.scheduleJobs[0] = Schedule.scheduleJob({ second:0 }, DAD.signOnce) // 每分钟的第0秒
   var electing = my.scheduleJobs[1] = Schedule.scheduleJob({second:20}, DAD.electOnce)
   var mining = my.scheduleJobs[2] = Schedule.scheduleJob({second:40}, DAD.mineOnce)
-  DAD.mountWorker(worker);
+  wo.eventBus.send(100);
   if(new Date().getSeconds()<15) 
     DAD.signOnce()
 }
-DAD.mountWorker = function(worker){
-  workers.push(worker);
-}
+
 DAD.calibrate = async function(){
+  //启动前本机链情况检查
   let heightNow = Date.time2height()
   mylog.info(`此刻时间对应的区块高度 : ${heightNow}`)
   mylog.info('此刻本机链的最高块 : ' + (await wo.Store.getTopBlock()).height)
@@ -36,10 +39,11 @@ DAD.calibrate = async function(){
       let topBlock = new wo['Block'](result)
       await wo.Chain.appendBlock(topBlock)
     }
-    if(!result || heightNow === (await wo.Store.getTopBlock()).height + 2)
+    if(!result)
     {
       mylog.info('上轮获胜节点错过出块！使用空块')
-      await wo.Chain.appendBlock(my.signBlock)
+      wo.eventBus.call('Chain', '', appendBlock, my.signBlock)
+      // await wo.Chain.appendBlock(my.signBlock)
       my.signBlock = null
     }
   }
@@ -57,6 +61,7 @@ DAD.signOnce = async function(){
   mylog.info('此刻本机链的最高块 : ' + (await wo.Store.getTopBlock()).height)
 
   if (heightNow === (await wo.Store.getTopBlock()).height+1 && new Date().getSeconds()<15 ) { // 注意，前面的同步可能花了20多秒，到这里已经是在竞选阶段。所以再加个当前秒数的限制。
+    wo.eventBus.send(110);
     mylog.info(new Date()+'：签名阶段开始 for block='+((await wo.Store.getTopBlock()).height+1)+' using block='+(await wo.Store.getTopBlock()).height)
     mylog.info('重置sigPool/packerPool/selfPot/bestPot，来接收这一轮的签名。')
     my.signerPool={}
@@ -121,6 +126,7 @@ DAD.api.signWatcher=async function(option) { // 监听收集终端用户的签�
 // 第二阶段：竞选
 DAD.electOnce = async function(){
   if (Date.time2height()===(await wo.Store.getTopBlock()).height+1) {
+    wo.eventBus.send(120);
     mylog.info(new Date()+'：竞选阶段开始 for block='+((await wo.Store.getTopBlock()).height+1)+' using block='+(await wo.Store.getTopBlock()).height)
     my.currentPhase='electing'
 //    let sigList=Object.keys(my.signerPool)
@@ -224,6 +230,7 @@ DAD.api.shareWinner = async function(option){
 // 第三阶段：出块，或接收获胜者打包广播的区块
 DAD.mineOnce = async function(){
   if (Date.time2height()===(await wo.Store.getTopBlock()).height+1) {
+    wo.eventBus.send(130);
     mylog.info(new Date()+'：出块阶段开始 for block='+((await wo.Store.getTopBlock()).height+1)+' using block='+(await wo.Store.getTopBlock()).height)
     mylog.info('全网最终获胜签名='+my.bestPot.signature+'，来自地址地址 '+wo.Crypto.pubkey2address(my.bestPot.pubkey))
     mylog.info('本节点的候选签名='+my.selfPot.signature+'，来自地址地址 '+wo.Crypto.pubkey2address(my.selfPot.pubkey))
@@ -270,6 +277,7 @@ DAD.api.mineWatcher=async function(option){ // 监听别人发来的区块
 }
 
 DAD.forkHandler  = async function(option){
+  wo.eventBus.send(500);
   if((await wo.Store.getTopBlock()).height <= Date.time2height() - 2)
     return "高度未达到分叉标准"
   let res = await wo.Peer.broadcast('/Consensus/getRBS', {target:option.Block.packerPubkey})//取第一个元素
@@ -385,3 +393,12 @@ my.currentPhase
 my.signBlock={} // 抽签块
 my.recBlockStack=[]   //缓存最近的5个区块
 my.scheduleJobs=[]
+
+/**
+ * 100:共识校对完毕，启动定时器任务
+ * 110:签名阶段开始
+ * 120:竞选阶段开始
+ * 130:出块阶段开始
+ * 500:启动分叉处理
+ * 
+ */

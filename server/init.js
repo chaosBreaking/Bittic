@@ -53,10 +53,7 @@ try {
   // 把命令行参数 合并入配置。
   Config.consensus='Cons'+(commander.consensus||Config.consensus||'Pot')
   mylog.info('Consensus used: ', Config.consensus)
-//  if (typeof(Config.consensus)==='string' && ['ConsPot','ConsPotHard'].indexOf(Config.consensus)<0) {
-//    mylog.info('共识模式无法识别，目前仅支持 ConsPot, ConsPotHard。转为默认的单机出块模式。')
-//    Config.consensus=null
-//  }
+
   Config.dbType = commander.dbType || Config.dbType
   Config.dbName = commander.dbName || Config.dbName
   Config.host=commander.host || Config.host || require('./Base/Network.js').getMyIp() // // 本节点的从外部可访问的 IP or Hostname，不能是 127.0.0.1 或 localhost
@@ -104,7 +101,7 @@ async function masterInit(){
             wo.Config.GENESIS_MESSAGE=wo.Config.GENESIS_MESSAGE_DEVNET
             wo.Config.INITIAL_ACCOUNT=wo.Config.INITIAL_ACCOUNT_DEVNET
         }
-      }
+    }
 }
 async function chainInit(){
   global.mylog=require('./Base/Logger.js')
@@ -130,11 +127,10 @@ async function chainInit(){
   wo.Peer = await require('./Ling/Peer.js')._init()
   wo.Block = await require('./Ling/Block.js')._init()
   wo.Store = await require('./Ling/Store.js')('redis')._init()
+  wo.eventBus = require('./Ling/eventBus.js')(process)
   wo.Chain = await require('./Ling/Chain.js')._init()
 }
 async function serverInit(){ // 配置并启动 Web 服务
-
-//   await init()
 
   mylog.info("★★★★★★★★ Starting Server......")
 
@@ -223,10 +219,8 @@ async function serverInit(){ // 配置并启动 Web 服务
   }
 
   /*** 启动 Web 服务 ***/
-  // 同时或选择启用 http 和 https。如果同时启用，前端根据用户发起的http/https来各自连接，但这样子，两个socket.io之间不通，从https和http来访的用户之间，不能实时聊天。
   if ('http'===wo.Config.protocol) { // 如果在本地localhost做开发，就启用 http。注意，从https网页，不能调用http的socket.io。Chrome/Firefox都报错：Mixed Content: The page at 'https://localhost/yuncai/' was loaded over HTTPS, but requested an insecure XMLHttpRequest endpoint 'http://localhost:6327/socket.io/?EIO=3&transport=polling&t=LoRcACR'. This request has been blocked; the content must be served over HTTPS.
     let webServer=require('http').createServer(server)
-    // wo.Chat.init(webServer)
     webServer.listen(wo.Config.port, function(err) {
       mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, wo.Config.port, server.settings.env)
     })
@@ -234,14 +228,12 @@ async function serverInit(){ // 配置并启动 Web 服务
     let webServer = require('https').createServer({
       key: fs.readFileSync(wo.Config.sslKey), cert: fs.readFileSync(wo.Config.sslCert) // , ca: [ fs.readFileSync(wo.Config.sslCA) ] // only for self-signed certificate: https://nodejs.org/api/tls.html#tls_tls_createserver_options_secureconnectionlistener
     }, server)
-    // wo.Chat.init(webServer)
     webServer.listen(wo.Config.port, function(err) {
       mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, wo.Config.port, server.settings.env)
     })
   }else if ('httpall'===wo.Config.protocol) { // 同时启用 http 和 https
     let portHttp=wo.Config.port?wo.Config.port:80 // 如果port参数已设置，使用它；否则默认为80
     let httpServer=require('http').createServer(server)
-    // wo.Chat.init(httpServer)
     httpServer.listen(portHttp, function(err) {
       mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, portHttp, server.settings.env)
     })
@@ -250,7 +242,6 @@ async function serverInit(){ // 配置并启动 Web 服务
     let httpsServer = require('https').createServer({
       key: fs.readFileSync(wo.Config.sslKey), cert: fs.readFileSync(wo.Config.sslCert) // , ca: [ fs.readFileSync(wo.Config.sslCA) ] // only for self-signed certificate: https://nodejs.org/api/tls.html#tls_tls_createserver_options_secureconnectionlistener
     }, server)
-    // wo.Chat.init(httpsServer)
     httpsServer.listen(portHttps, function(err) {
       mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, portHttps, server.settings.env)
     })
@@ -260,41 +251,29 @@ async function serverInit(){ // 配置并启动 Web 服务
 
 (async function Start(){
     if(cluster.isMaster){
-        var mylog = require('./Base/Logger.js')
+        var mylog = require('./Base/Logger.js');
         var worker = cluster.fork();
-        cluster.on('message',async (worker, message, handle) => {
+        cluster.on('message',async (worker, message) => {
             mylog.warn(`[Master] 收到消息码 `+message.code)
             switch (message.code) {
-                case 21:
+                case 201:
                     mylog.warn(`[Master] 主程序初始化完毕，启动共识模块......`)
                     await masterInit();
-                    // while(Date.time2height() !== wo.Store.getTopBlock().height+1){
-                        await wo.Consensus.calibrate();
-                    // }
+                    wo.eventBus = require('./Ling/eventBus.js')(worker);
                     wo.Consensus._init(worker);
-                    worker.send({
-                        code:11
-                    });
             }
         });
         cluster.on('exit', function(worker, code, signal) {
             mylog.warn('worker ' + worker.process.pid + ' died');
+            process.exit();
         });
     }
     else{
-        var mylog = require('./Base/Logger.js')
-        cluster.worker.on('message',(state)=>{
-            switch (state.code){
-                case 11:
-                    mylog.warn('[Worker] 主程序共识模块已经启动')
-                    return 0;
-                case 12:
-            }
-        });
-        await chainInit();
-        await serverInit();
-        process.send({
-            code:21
-        });
+      await chainInit();
+      cluster.worker.on('message', wo.eventBus.handler);
+      await serverInit();
+      process.send({
+          code : 201
+      });
     }
 })()
