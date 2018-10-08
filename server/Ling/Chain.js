@@ -1,4 +1,5 @@
 // var Ling = wo.Ling
+const Schedule=require('node-schedule')
 
 /******************** Public of instance ********************/
 
@@ -35,9 +36,12 @@ DAD._init=async function(){
 
   await DAD.createGenesis()
   await DAD.verifyChainFromDb()
-  await DAD.updateChainFromPeer() // todo: 里面多处用到了 wo.Consensus 里的共识特定的方法，导致 Chain 对共识方法产生依赖，这不好。
+  await DAD.updateChainFromPeer() // todo: 里面多处用到了 Consensus 里的共识特定的方法，导致 Chain 对共识方法产生依赖，这不好。
 
-  wo.Consensus._init()
+  var rule = new Schedule.RecurrenceRule();
+  rule.second=[]
+  for(let i =0;i<=39;i++) rule.second.push(i)
+  my.scheduleJobs[0]=Schedule.scheduleJob(rule, DAD.actionLoop)
   
   return this
 }
@@ -156,7 +160,7 @@ DAD.updateChainFromPeer=async function(){ // 向其他节点获取自己缺少�
             }
           }
           await block.addMe()
-          if (wo.Config.consensus==='ConsPot') wo.Consensus.pushInRBS(block)
+          if (wo.Config.consensus==='ConsPot') wo.Store.pushInRBS(block)
           DAD.pushTopBlock(block)
           mylog.info(`高度${block.height}区块同步成功`)
         }
@@ -185,7 +189,7 @@ DAD.createVirtBlock=async function(){
   var block=new wo.Block({type:'VirtBlock', timestamp:new Date(), height:my.topBlock.height+1, hash:my.topBlock.hash, lastBlockHash:my.topBlock.hash})
   await block.addMe()
   DAD.pushTopBlock(block)
-  if (wo.Config.consensus==='ConsPot') wo.Consensus.pushInRBS(block)
+  if (wo.Config.consensus==='ConsPot') wo.Store.pushInRBS(block)
   mylog.info('virtual block '+block.height+' is created')
   return block
 }
@@ -200,7 +204,7 @@ DAD.createBlock=async function(block){
   if (winnerAccount) await winnerAccount.setMe({Account:{balance:winnerAccount.balance+block.rewardWinner},cond:{address:winnerAccount.address},excludeSelf:true})
   if (packerAccount) await packerAccount.setMe({Account:{balance:packerAccount.balance+block.rewardPacker},cond:{address:packerAccount.address},excludeSelf:true})  
   DAD.pushTopBlock(block)
-  if (wo.Config.consensus==='ConsPot') wo.Consensus.pushInRBS(block)
+  if (wo.Config.consensus==='ConsPot') wo.Store.pushInRBS(block)
   block.runActionList(wo.Action.currentActionPool) //无需等待交易执行
   return block
 }
@@ -228,7 +232,7 @@ DAD.appendBlock=async function(block){ // 添加别人打包的区块
     await block.addMe()
     block.runActionList(wo.Action.currentActionPool) //无需等待交易的执行
     DAD.pushTopBlock(block)
-    if (wo.Config.consensus==='ConsPot') wo.Consensus.pushInRBS(block)
+    if (wo.Config.consensus==='ConsPot') wo.Store.pushInRBS(block)
     //区块添加完毕后 释放锁
     mylog.info(block.timestamp.toJSON() + ' : block '+block.height+' is added')
     my.addingLock = false
@@ -237,14 +241,30 @@ DAD.appendBlock=async function(block){ // 添加别人打包的区块
   return null
 }
 
+DAD.pushTopBlock = function(topBlock){ // 保留最高和次高的区块
+  my.lastBlock = my.topBlock;
+  my.topBlock = topBlock;
+  wo.Store.pushTopBlock(topBlock);
+}
+
+DAD.actionLoop = function(){
+  //事务处理循环：拿出actionPool里的事务--->执行并放入currentActionPool--->从删除actionPool删除
+  //出块时调用的是 currentActionPool
+  while(my.currentPhase!=='mining' && Object.keys(wo.Action.actionPool).length>0){
+      action = Object.values(wo.Action.actionPool).shift()
+      // if(!action) return 0
+      wo.Action.currentActionPool[action.hash] = action
+      wo.Block.totalAmount += action.amount||0
+      wo.Block.totalFee +=  action.fee||0
+      delete wo.Action.actionPool[action.hash]
+  }
+}
+
 DAD.getTopBlock = DAD.api.getTopBlock = function(){
   return my.topBlock
 }
 
-DAD.pushTopBlock = function(topBlock){ // 保留最高和次高的区块
-  my.lastBlock=my.topBlock
-  my.topBlock=topBlock
-}
+
 
 /********************** Private in class *******************/
 
@@ -257,4 +277,5 @@ const my={
   ,
   addingLock:false
   ,
+  scheduleJobs:[]
 }

@@ -112,7 +112,7 @@ NetUDP.serverUdp.on('message',async (msg,rinfo)=>{
             wo.Chain.appendBlock(msg.data);
             console.log(`From ${rinfo.address}:${rinfo.port}` + "new block Height:" + msg.data.height )
 
-            wo.Consensus._init();  //待改进，
+            // wo.Consensus._init();  //待改进，
         }
         //else if(lastBlock.height >= msg.data.height){} //自己产生的区块，广播返回了，
         else{  //向其它节点申请blocks数据，

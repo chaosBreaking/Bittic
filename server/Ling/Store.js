@@ -1,28 +1,48 @@
-const Redis = require('ioredis')
-module.exports = class Store extends Redis {
-    constructor(port, host,config){
-        if(global._RedisStore)
-            return wo.Store
-        global._RedisStore = 'Ready'
-        super(port, host,config)
-        return this
-    }
-    static async _init(port = 6379, host = '127.0.0.1', config = {}) {
-        if(global._RedisStore) return 0
-        let redis = new Store(port,host,config)
-        await redis.setKey('actionPool',{})
-        await redis.setKey('currentActionPool',{})
-        await redis.setKey('totalAmountForNewBlock',0)
-        await redis.setKey('totalFeeForNewBlock',0)
-        return redis
-    }
-    async setKey(key, value){
-        return await this.set(key,JSON.stringify(value))
-    }
-    async getKey(key){
-        return JSON.parse(await this.get(key))
-    }
+'use strict'
+const storeAPI = require('../Base/Store.js');
+
+
+function Store(dbType,option){
+    if(!new.target)
+        return new Store(dbType,option)
+    Object.defineProperties(this,{ 
+        'dbType':{
+            value:dbType,
+            writable:false,
+            enumerable:true
+        },
+        'storeAPI':{
+            value : storeAPI(dbType, option),
+            writable:false,
+            enumerable:false
+        }
+    });
 }
+Store.prototype._init = async function(){
+    await Promise.all([
+        this.storeAPI.setKey('recBlockStack',[]),
+        this.storeAPI.setKey('topBlock',''),
+    ]);
+    return this
+}
+Store.prototype.pushInRBS = async function(block){
+    let stack = await this.storeAPI.getKey('recBlockStack');
+    stack.push(block);
+    stack.length > wo.Config.MaxRBS ? stack.shift():null;
+    await this.storeAPI.setKey('recBlockStack', stack);
+}
+Store.prototype.pushTopBlock = async function(block){
+    //getTopBlock 作用是 取高度，取hash 取整个块向外广播
+    await this.storeAPI.setKey('topBlock', JSON.stringify({
+        height : block.height,
+        hash : block.hash
+    }));
+}
+Store.prototype.getTopBlock = async function(){
+    return JSON.parse(await this.storeAPI.getKey('topBlock'));
+}
+
+module.exports = Store
 
 
 /**
