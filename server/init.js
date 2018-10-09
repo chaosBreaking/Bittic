@@ -83,6 +83,7 @@ async function masterInit(){
     }
     wo.Ling=require('./Ling/_Ling.js')
     mylog.info('Initializing Consensus......')
+    wo.Block = require('./Ling/Block.js')
     wo.Peer = await require('./Ling/Peer.js')._init()
     wo.Store = await require('./Ling/Store.js')('redis')  //  必须指定数据库,另外不能_init(),否则会覆盖子进程已经设定好的内容
     wo.Consensus = require('./Ling/'+wo.Config.consensus+'.js') 

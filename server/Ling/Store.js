@@ -19,11 +19,23 @@ function Store(dbType,option){
     });
 }
 Store.prototype._init = async function(){
+    await this.storeAPI.flushdb();
     await Promise.all([
         this.storeAPI.setKey('recBlockStack',[]),
         this.storeAPI.setKey('topBlock',''),
     ]);
     return this
+}
+
+Store.prototype.getBalance = async function(address){
+    return JSON.parse(await this.storeAPI.getKey(address));
+}
+
+Store.prototype.increase = async function(address, amount){
+    return JSON.parse(await this.storeAPI.incrbyfloat(address, amount));
+}
+Store.prototype.decrease = async function(address, amount){
+    return JSON.parse(await this.storeAPI.incrbyfloat(address, 0 - amount));
 }
 Store.prototype.pushInRBS = async function(block){
     let stack = await this.storeAPI.getKey('recBlockStack');

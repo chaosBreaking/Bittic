@@ -16,12 +16,12 @@ DAD.validater = function(action){
 }
 
 DAD.execute = async function(action){
-  let sender = await wo.Account.getOne({Account: { address: action.actorAddress }})
-  if (sender && sender.type !== 'multisig' && action.toAddress != action.actorAddress && sender.balance >= action.amount + action.fee){
-    await sender.setMe({Account:{ balance: sender.balance-action.amount-action.fee }, cond:{ address:sender.address}})
-    let getter = await wo.Account.getOne({Account: { address: action.toAddress }}) || await wo.Account.addOne({Account: { address: action.toAddress }})
-    await getter.setMe({Account:{ balance: getter.balance+action.amount }, cond:{ address:getter.address}})
-    return action
+  let sender = await wo.Store.getBalance(action.actorAddress);
+  // if (sender && sender.type !== 'multisig' && action.toAddress != action.actorAddress && sender.balance >= action.amount + action.fee){
+  if (action.toAddress != action.actorAddress && sender >= action.amount + action.fee){
+    await wo.Store.decrease(action.actorAddress, action.amount + action.fee);
+    await wo.Store.increase(action.toAddress, action.amount)
+    return true
   }
   return null
 }

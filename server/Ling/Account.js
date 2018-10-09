@@ -58,14 +58,7 @@ DAD.api.openAccount=async function(option){ // 根据 pubkey 返回已有账户�
 
 DAD.getBalance=DAD.api.getBalance=async function(option){
   if (option && option.Account && option.Account.address){
-    let account=await DAD.getOne({Account:{ address: option.Account.address }})
-    if (account){
-      return account.balance||0
-    }
-    //    let received=await wo.Action.getSum({Action:{toAddress: option.Account.address}, field:'amount'})
-//    let sent=await wo.Action.getSum({Action:{actorAddress: option.Account.address}, field:'amount'})
-//    return received.sum - sent.sum
-    return 0
+    return await wo.Store.getBalance(option.Account.address)
   }
   return null
 }

@@ -103,7 +103,7 @@ DAD.api.getActionList=async function(option){
   return await DAD.getAll(option)
 }
 
-DAD.api.prepare=async function(option){ 
+DAD.api.prepare=async function(option){
   // 前端发来action数据，进行初步检查（不检查是否可执行--这和事务类型、执行顺序有关，只检查格式是否有效--这是所有事务通用的规范）后放入缓冲池。
   if (option && option.Action && option.Action.type && option.Action.hash && !DAD.actionPool[option.Action.hash]) {
     if( DAD.verifyAddress(option.Action) && 

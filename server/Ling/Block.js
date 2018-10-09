@@ -98,8 +98,8 @@ MOM.runActionList = async function(currentActionPool)
     for (let actionHash of this.actionHashList) {
       currentActionPool[actionHash].blockHash = this.hash
       mylog.error()
-      await wo[currentActionPool[actionHash].type].execute(currentActionPool[actionHash])
       await wo[currentActionPool[actionHash].type].addOne({[currentActionPool[actionHash].type]:currentActionPool[actionHash]})
+      wo[currentActionPool[actionHash].type].execute(currentActionPool[actionHash]) //执行速度比交易写入数据库快
     }
     mylog.info(`共 ${this.actionHashList.length} Action写入数据库`)
   }
@@ -139,26 +139,16 @@ DAD.verifySig = function(blockData){
 }
 
 MOM.verifyActionList = async function(){
-  if(this.actionHashList.length === 0 )
-  {
-    if(this.type!=="VirtBlock" && this.packerPubkey && this.winnerPubkey!==""){
-      let winnerAccount = await wo.Account.getOne({Account:{address:wo.Crypto.pubkey2address(this.winnerPubkey)}})
-      if (winnerAccount) await winnerAccount.setMe({Account:{balance:winnerAccount.balance+this.rewardWinner},cond:{address:winnerAccount.address},excludeSelf:true})
-      let packerAccount = await wo.Account.getOne({Account:{address:wo.Crypto.pubkey2address(this.packerPubkey)}})
-      if (packerAccount) await packerAccount.setMe({Account:{balance:packerAccount.balance+this.rewardPacker},cond:{address:packerAccount.address},excludeSelf:true})    
-        return true;
-    }
-    else if(this.type==="SignBlock")
-    {
-      this.rewardPacker = this.getReward({rewardType:'packerPenalty'})
-      let winnerAccount = await wo.Account.getOne({Account:{address:wo.Crypto.pubkey2address(block.winnerPubkey)}})
-      if (winnerAccount) await winnerAccount.setMe({Account:{balance:winnerAccount.balance+block.rewardWinner},cond:{address:winnerAccount.address},excludeSelf:true})
-      let packerAccount = await wo.Account.getOne({Account:{address:wo.Crypto.pubkey2address(block.packerPubkey)}})
-      if (packerAccount) await packerAccount.setMe({Account:{balance:packerAccount.balance+block.rewardPacker},cond:{address:packerAccount.address},excludeSelf:true})              
-      return true;
-    }
-    return true
+  //首先执行奖励
+  if(this.type!=="VirtBlock" && this.packerPubkey && this.winnerPubkey){
+    await wo.Store.increase(wo.Crypto.pubkey2address(this.winnerPubkey), this.rewardWinner);
+    await wo.Store.increase(wo.Crypto.pubkey2address(this.packerPubkey), this.rewardPacker);
+    return true;
   }
+  //事务列表为0，直接返回
+  if(this.actionHashList.length === 0 ) 
+    return true
+
   let actionList = await wo.Action.getAll({Action:{blockHash:this.hash}, config:{limit:this.actionHashList.length}})
   let actionHashList = wo.Tool.extend([], this.actionHashList)
   for (let action of actionList){
@@ -173,27 +163,9 @@ MOM.verifyActionList = async function(){
       await wo[action].dropOne({[action.type]:action})
     }
   }
-  if(actionHashList.length === 0 )  //双向检查完毕，执行区块奖励操作后返回
-  {
-    if(this.type!=="VirtBlock" && this.packerPubkey && this.winnerPubkey!==""){
-      let winnerAccount = await wo.Account.getOne({Account:{address:wo.Crypto.pubkey2address(this.winnerPubkey)}})
-      if (winnerAccount) await winnerAccount.setMe({Account:{balance:winnerAccount.balance+this.rewardWinner},cond:{address:winnerAccount.address},excludeSelf:true})
-      let packerAccount = await wo.Account.getOne({Account:{address:wo.Crypto.pubkey2address(this.packerPubkey)}})
-      if (packerAccount) await packerAccount.setMe({Account:{balance:packerAccount.balance+this.rewardPacker},cond:{address:packerAccount.address},excludeSelf:true})    
-        return true;
-    }
-    else if(this.type==="SignBlock")
-    {
-      this.rewardPacker = this.getReward({rewardType:'packerPenalty'})
-      let winnerAccount = await wo.Account.getOne({Account:{address:wo.Crypto.pubkey2address(block.winnerPubkey)}})
-      if (winnerAccount) await winnerAccount.setMe({Account:{balance:winnerAccount.balance+block.rewardWinner},cond:{address:winnerAccount.address},excludeSelf:true})
-      let packerAccount = await wo.Account.getOne({Account:{address:wo.Crypto.pubkey2address(block.packerPubkey)}})
-      if (packerAccount) await packerAccount.setMe({Account:{balance:packerAccount.balance+block.rewardPacker},cond:{address:packerAccount.address},excludeSelf:true})              
-      return true;
-    }
-
+  if(actionHashList.length === 0 )  //双向检查完毕，直接返回
     return true
-  }
+
   //丢失一些Action 开始向外同步
   let actionHash = null
   while (actionHashList.length > 0){
@@ -214,22 +186,6 @@ MOM.verifyActionList = async function(){
       }
       //循环结束 还未拿到action 认为该区块不合法
     }
-  }
-  if(this.type!=="VirtBlock" && this.packerPubkey && this.winnerPubkey!==""){
-    let winnerAccount = await wo.Account.getOne({Account:{address:wo.Crypto.pubkey2address(this.winnerPubkey)}})
-    if (winnerAccount) await winnerAccount.setMe({Account:{balance:winnerAccount.balance+this.rewardWinner},cond:{address:winnerAccount.address},excludeSelf:true})
-    let packerAccount = await wo.Account.getOne({Account:{address:wo.Crypto.pubkey2address(this.packerPubkey)}})
-    if (packerAccount) await packerAccount.setMe({Account:{balance:packerAccount.balance+this.rewardPacker},cond:{address:packerAccount.address},excludeSelf:true})    
-      return true;
-  }
-  else if(this.type==="SignBlock")
-  {
-    this.rewardPacker = this.getReward({rewardType:'packerPenalty'})
-    let winnerAccount = await wo.Account.getOne({Account:{address:wo.Crypto.pubkey2address(block.winnerPubkey)}})
-    if (winnerAccount) await winnerAccount.setMe({Account:{balance:winnerAccount.balance+block.rewardWinner},cond:{address:winnerAccount.address},excludeSelf:true})
-    let packerAccount = await wo.Account.getOne({Account:{address:wo.Crypto.pubkey2address(block.packerPubkey)}})
-    if (packerAccount) await packerAccount.setMe({Account:{balance:packerAccount.balance+block.rewardPacker},cond:{address:packerAccount.address},excludeSelf:true})              
-    return true;
   }
   return true
 }

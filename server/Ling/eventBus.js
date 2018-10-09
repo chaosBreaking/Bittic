@@ -24,21 +24,20 @@ eventBus.prototype.get = async function(who, api, act, param){
         return await wo.Store.storeAPI.getKey(id);
     }
 }
-eventBus.prototype.call = async function(who, api, act, param){
-    let id = String(Math.random()).slice(2,18);
+eventBus.prototype.call = function(who, api, act, param){
     if(this.obj && this.obj.send){
         this.obj.send({code : 'call', data : {
             who, api, act, param
         }});
-        return await wo.Store.storeAPI.getKey(id);
     }
+    return 1;
 }
 eventBus.prototype.handler = async function(message){
     if(message && message.code){
         switch(message.code){
             //子进程处理Master触发的事件
             case 100:
-                mylog('[Worker] 主进程启动共识');
+                mylog.warn('[Worker] 主进程启动共识');
                 return 0;
             case 110:
                 return 0;

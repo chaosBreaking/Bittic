@@ -59,25 +59,26 @@ DAD.createGenesis=async function(){
 
   mylog.info('清空并初始化账户...')
   await wo.Account.dropAll({Account:{balance:'!=0'}})
-  await wo.Account.addOne({Account:{ balance: wo.Config.COIN_INIT_AMOUNT, address:wo.Config.INITIAL_ACCOUNT.address }})
+  // await wo.Account.addOne({Account:{ balance: wo.Config.COIN_INIT_AMOUNT, address:wo.Config.INITIAL_ACCOUNT.address }})
+  await  wo.Store.increase(wo.Config.INITIAL_ACCOUNT.address, wo.Config.COIN_INIT_AMOUNT)  
   mylog.info('net ================ '+wo.Config.netType)
   if (wo.Config.netType==='devnet') // 在开发链上，自动给当前用户预存一笔，使其能够挖矿
-    await wo.Account.addOne({Account:{ balance: 100000, address:wo.Crypto.secword2address(wo.Config.ownerSecword)}})
-  
+    // await wo.Account.addOne({Account:{ balance: 100000, address:wo.Crypto.secword2address(wo.Config.ownerSecword)}})
+  await  wo.Store.increase(wo.Crypto.secword2address(wo.Config.ownerSecword), 100000)
   return my.genesis
 }
 
 DAD.verifyChainFromDb=async function(){ // 验证本节点已有的区块链
   mylog.info('开始验证数据库中的区块')
-  await wo.Account.dropAll({Account:{version:'!=null'}})
-  await wo.Account.addOne({Account:{ balance: wo.Config.COIN_INIT_AMOUNT, address:wo.Config.INITIAL_ACCOUNT.address }})
-  if (wo.Config.netType==='devnet') // 在开发链上，自动给当前用户预存一笔，使其能够挖矿
-    await wo.Account.addOne({Account:{ balance: 100000, address:wo.Crypto.secword2address(wo.Config.ownerSecword)}})
+  // await wo.Account.dropAll({Account:{version:'!=null'}})
+  // await wo.Account.addOne({Account:{ balance: wo.Config.COIN_INIT_AMOUNT, address:wo.Config.INITIAL_ACCOUNT.address }})
+  // if (wo.Config.netType==='devnet') // 在开发链上，自动给当前用户预存一笔，使其能够挖矿
+  //   await wo.Account.addOne({Account:{ balance: 100000, address:wo.Crypto.secword2address(wo.Config.ownerSecword)}})
 
   //  let top=(await wo.Block.getCount()).count
   //  mylog.info('共有'+top+'个区块在数据库')
   await wo.Block.dropAll({Block:{height:'<='+wo.Config.GENESIS_HEIGHT}}) // 极端罕见的可能，有错误的（为了测试，手工加入的）height<创世块的区块，也删掉它。  
-  let blockList=await wo.Block.getAll({Block:{height:'>' + my.topBlock.height}, config:{limit:100, order:'height ASC'}})
+  let blockList = await wo.Block.getAll({Block:{height:'>' + my.topBlock.height}, config:{limit:100, order:'height ASC'}})
   while (Array.isArray(blockList) && blockList.length > 0 && my.topBlock.height < Date.time2height() - 1){ // 遍历数据库里的区块链，保留有效的区块，删除所有错误的。
     mylog.info('取出'+blockList.length+'个区块')
     for (let block of blockList){
@@ -199,13 +200,11 @@ DAD.createBlock=async function(block){
   block.message='矿工留言在第'+(my.topBlock.height+1)+'区块'
   await block.packMe(wo.Action.currentActionPool, my.topBlock, wo.Crypto.secword2keypair(wo.Config.ownerSecword))//算出默克根、hash、交易表
   await block.addMe()     //将区块写入数据库
-  let winnerAccount = await wo.Account.getOne({Account:{address:wo.Crypto.pubkey2address(block.winnerPubkey)}})
-  let packerAccount = await wo.Account.getOne({Account:{address:wo.Crypto.pubkey2address(block.packerPubkey)}})
-  if (winnerAccount) await winnerAccount.setMe({Account:{balance:winnerAccount.balance+block.rewardWinner},cond:{address:winnerAccount.address},excludeSelf:true})
-  if (packerAccount) await packerAccount.setMe({Account:{balance:packerAccount.balance+block.rewardPacker},cond:{address:packerAccount.address},excludeSelf:true})  
-  DAD.pushTopBlock(block)
-  if (wo.Config.consensus==='ConsPot') wo.Store.pushInRBS(block)
-  block.runActionList(wo.Action.currentActionPool) //无需等待交易执行
+  await wo.Store.increase(wo.Crypto.pubkey2address(block.winnerPubkey), block.rewardWinner);
+  await wo.Store.increase(wo.Crypto.pubkey2address(block.packerPubkey), block.rewardPacker);
+  DAD.pushTopBlock(block);
+  if (wo.Config.consensus==='ConsPot') wo.Store.pushInRBS(block);
+  block.runActionList(wo.Action.currentActionPool); //无需等待交易执行
   return block
 }
 
@@ -218,16 +217,12 @@ DAD.appendBlock=async function(block){ // 添加别人打包的区块
     my.addingLock = true
     if (block.type==="SignBlock") {
       block.rewardPacker = block.getReward({rewardType:'packerPenalty'})
-      let winnerAccount = await wo.Account.getOne({Account:{address:wo.Crypto.pubkey2address(block.winnerPubkey)}})
-      if (winnerAccount) await winnerAccount.setMe({Account:{balance:winnerAccount.balance+block.rewardWinner},cond:{address:winnerAccount.address},excludeSelf:true})
-      let packerAccount = await wo.Account.getOne({Account:{address:wo.Crypto.pubkey2address(block.packerPubkey)}})
-      if (packerAccount) await packerAccount.setMe({Account:{balance:packerAccount.balance+block.rewardPacker},cond:{address:packerAccount.address},excludeSelf:true})        
+      await wo.Store.increase(wo.Crypto.pubkey2address(block.winnerPubkey), block.rewardWinner);
+      await wo.Store.increase(wo.Crypto.pubkey2address(block.packerPubkey), block.rewardPacker);
     }
-    else if (block.type!=='VirtBlock'){
-      let winnerAccount = await wo.Account.getOne({Account:{address:wo.Crypto.pubkey2address(block.winnerPubkey)}})
-      if (winnerAccount) await winnerAccount.setMe({Account:{balance:winnerAccount.balance+block.rewardWinner},cond:{address:winnerAccount.address},excludeSelf:true})
-      let packerAccount = await wo.Account.getOne({Account:{address:wo.Crypto.pubkey2address(block.packerPubkey)}})
-      if (packerAccount) await packerAccount.setMe({Account:{balance:packerAccount.balance+block.rewardPacker},cond:{address:packerAccount.address},excludeSelf:true})        
+    else{
+      await wo.Store.increase(wo.Crypto.pubkey2address(block.winnerPubkey), block.rewardWinner);
+      await wo.Store.increase(wo.Crypto.pubkey2address(block.packerPubkey), block.rewardPacker);  
     }
     await block.addMe()
     block.runActionList(wo.Action.currentActionPool) //无需等待交易的执行
