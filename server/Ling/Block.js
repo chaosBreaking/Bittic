@@ -102,6 +102,8 @@ MOM.runActionList = async function(currentActionPool)
       wo[currentActionPool[actionHash].type].execute(currentActionPool[actionHash]) //执行速度比交易写入数据库快
     }
     mylog.info(`共 ${this.actionHashList.length} Action写入数据库`)
+    wo.Block.totalAmount = 0;
+    wo.Block.totalFee = 0;
   }
   else
   {
@@ -143,7 +145,6 @@ MOM.verifyActionList = async function(){
   if(this.type!=="VirtBlock" && this.packerPubkey && this.winnerPubkey){
     await wo.Store.increase(wo.Crypto.pubkey2address(this.winnerPubkey), this.rewardWinner);
     await wo.Store.increase(wo.Crypto.pubkey2address(this.packerPubkey), this.rewardPacker);
-    return true;
   }
   //事务列表为0，直接返回
   if(this.actionHashList.length === 0 ) 

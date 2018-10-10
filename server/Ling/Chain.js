@@ -138,7 +138,9 @@ DAD.verifyChainFromDb=async function(){ // 验证本节点已有的区块链
 }
 
 DAD.updateChainFromPeer=async function(){ // 向其他节点获取自己缺少的区块；如果取不到最高区块，就创建虚拟块填充。
-  mylog.info('开始向邻居节点同步区块')
+  mylog.info('开始向邻居节点同步区块');
+  if(my.addingLock) return 0;
+  my.addingLock = 1;
   for (let count = 0; wo.Config.consensus==="ConsPot" && Date.time2height() > (my.topBlock.height + 1) && count < 10; count++){ // 确保更新到截至当前时刻的最高区块。
     mylog.info(`向全网广播同步请求-->开始第${count}轮同步`)
     let blockList=await wo.Peer.randomcast('/Block/getBlockList', { Block:{height:'>'+my.topBlock.height}, config:{limit:100, order:'height ASC'} })
@@ -182,7 +184,8 @@ DAD.updateChainFromPeer=async function(){ // 向其他节点获取自己缺少�
   if (wo.Config.consensus ==='ConsPot') 
     mylog.info(new Date()+'...已同步到区块='+my.topBlock.height+'，当前时刻的待出区块='+Date.time2height())
   else
-    mylog.info('区块同步完毕')
+    mylog.info('区块同步完毕');
+  my.addingLock = 0;
   return my.topBlock
 }
 
@@ -203,18 +206,20 @@ DAD.createBlock=async function(block){
   await wo.Store.increase(wo.Crypto.pubkey2address(block.winnerPubkey), block.rewardWinner);
   await wo.Store.increase(wo.Crypto.pubkey2address(block.packerPubkey), block.rewardPacker);
   DAD.pushTopBlock(block);
+  wo.eventBus.send(231, block);
   if (wo.Config.consensus==='ConsPot') wo.Store.pushInRBS(block);
   block.runActionList(wo.Action.currentActionPool); //无需等待交易执行
+  wo.Action.currentActionPool = {};
   return block
 }
 
 DAD.appendBlock=async function(block){ // 添加别人打包的区块
-  block= (block instanceof wo.Block)?block:(new wo.Block(block)) // POT 里调用时，传入的可能是普通对象，需要转成 Block
+  block = (block instanceof wo.Block)?block:(new wo.Block(block)) // POT 里调用时，传入的可能是普通对象，需要转成 Block
   if (!my.addingLock && block.lastBlockHash === my.topBlock.hash && block.height === my.topBlock.height + 1 && block.verifySig() && block.verifyHash()){
     // todo: push action into database
     //因为异步操作会重复添加，先将锁锁定，防止因为没有及时pushTopBlock多次添加符合条件的区块
     //先判断是否符合条件、符合条件的块 才加锁
-    my.addingLock = true
+    my.addingLock = true;
     if (block.type==="SignBlock") {
       block.rewardPacker = block.getReward({rewardType:'packerPenalty'})
       await wo.Store.increase(wo.Crypto.pubkey2address(block.winnerPubkey), block.rewardWinner);
@@ -224,14 +229,14 @@ DAD.appendBlock=async function(block){ // 添加别人打包的区块
       await wo.Store.increase(wo.Crypto.pubkey2address(block.winnerPubkey), block.rewardWinner);
       await wo.Store.increase(wo.Crypto.pubkey2address(block.packerPubkey), block.rewardPacker);  
     }
-    await block.addMe()
-    block.runActionList(wo.Action.currentActionPool) //无需等待交易的执行
-    DAD.pushTopBlock(block)
-    if (wo.Config.consensus==='ConsPot') wo.Store.pushInRBS(block)
+    await block.addMe();
+    block.runActionList(wo.Action.currentActionPool); //无需等待交易的执行
+    DAD.pushTopBlock(block);
+    if (wo.Config.consensus==='ConsPot') wo.Store.pushInRBS(block);
     //区块添加完毕后 释放锁
-    mylog.info(block.timestamp.toJSON() + ' : block '+block.height+' is added')
-    my.addingLock = false
-    return block
+    mylog.info(block.timestamp.toJSON() + ' : block '+block.height+' is added');
+    my.addingLock = false;
+    return block;
   }
   return null
 }

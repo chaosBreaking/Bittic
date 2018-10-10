@@ -131,7 +131,7 @@ async function chainInit(){
   wo.eventBus = require('./Ling/eventBus.js')(process)
   wo.Chain = await require('./Ling/Chain.js')._init()
 }
-async function serverInit(){ // 配置并启动 Web 服务
+function serverInit(){ // 配置并启动 Web 服务
 
   mylog.info("★★★★★★★★ Starting Server......")
 
@@ -257,11 +257,12 @@ async function serverInit(){ // 配置并启动 Web 服务
         cluster.on('message',async (worker, message) => {
             mylog.warn(`[Master] 收到消息码 `+message.code)
             switch (message.code) {
-                case 201:
-                    mylog.warn(`[Master] 主程序初始化完毕，启动共识模块......`)
+                case 200:
+                    mylog.warn(`[Master] 主程序初始化完毕，启动共识模块......`);
                     await masterInit();
                     wo.eventBus = require('./Ling/eventBus.js')(worker);
                     wo.Consensus._init(worker);
+                    cluster.on('message', wo.eventBus.masterHandler);
             }
         });
         cluster.on('exit', function(worker, code, signal) {
@@ -270,11 +271,11 @@ async function serverInit(){ // 配置并启动 Web 服务
         });
     }
     else{
-      await chainInit();
-      cluster.worker.on('message', wo.eventBus.handler);
-      await serverInit();
-      process.send({
-          code : 201
-      });
+        await chainInit();
+        cluster.worker.on('message', wo.eventBus.workerHandler);
+        serverInit();
+        process.send({
+          code : 200
+        });
     }
 })()

@@ -15,46 +15,48 @@ const MOM = DAD.prototype
 DAD.api={}
 
 DAD._init = async function(){
-  await DAD.calibrate();
-  if(Date.time2height() !== wo.Store.getTopBlock().height+1){
+  if(await DAD.calibrate()){
     var signing = my.scheduleJobs[0] = Schedule.scheduleJob({ second:0 }, DAD.signOnce) // 每分钟的第0秒
     var electing = my.scheduleJobs[1] = Schedule.scheduleJob({second:20}, DAD.electOnce)
     var mining = my.scheduleJobs[2] = Schedule.scheduleJob({second:40}, DAD.mineOnce)
     wo.eventBus.send(100);
-    if(new Date().getSeconds()<15) 
+    if(new Date().getSeconds()<17 && !my.selfPot.signature)
       DAD.signOnce()
+  }
+  else{
+    await DAD.calibrate();
+    setTimeout(DAD._init,60 - new Date().getSeconds())
   }
 }
 
 DAD.calibrate = async function(){
   //启动前本机链情况检查
-  let heightNow = Date.time2height()
-  mylog.info(`此刻时间对应的区块高度 : ${heightNow}`)
-  mylog.info('此刻本机链的最高块 : ' + (await wo.Store.getTopBlock()).height)
+  let heightNow = Date.time2height();
+  if (heightNow === (await wo.Store.getTopBlock()).height+1 && new Date().getSeconds()<15 ) { // 注意，前面的同步可能花了20多秒，到这里已经是在竞选阶段。所以再加个当前秒数的限制。
+    return 1;
+  }
+  // mylog.info(`此刻时间对应的区块高度 : ${heightNow}`);
+  // mylog.info('此刻本机链的最高块 : ' + (await wo.Store.getTopBlock()).height);
+  wo.eventBus.emit(100, '校对');
   if (heightNow === (await wo.Store.getTopBlock()).height + 2 && my.signBlock && (await wo.Store.getTopBlock()).height === my.signBlock.height - 1) { 
     // 上一块没有及时出现
     let result = await wo.Peer.randomcast('/Block/getBlock', { Block:{height : (await wo.Store.getTopBlock()).height + 1} })
     if(result && result.height ===  (await wo.Store.getTopBlock()).height+1)
     {
       let topBlock = new wo['Block'](result)
-      // await wo.Chain.appendBlock(topBlock)
       wo.eventBus.call('Chain','','appendBlock',topBlock)
     }
     if(!result)
     {
       mylog.info('上轮获胜节点错过出块！使用空块')
-      // await wo.Chain.appendBlock(my.signBlock)
       wo.eventBus.call('Chain', '', appendBlock, my.signBlock)
       my.signBlock = null
     }
   }
   else if (heightNow > (await wo.Store.getTopBlock()).height + 1) {
     mylog.info('heightNow = ' + heightNow +' 当前本机链的最高块 = ' + (await wo.Store.getTopBlock()).height+'...准备更新缺少的区块')
-    // await wo.Chain.updateChainFromPeer()
     wo.eventBus.call('Chain', '', 'updateChainFromPeer')
   }
-  if(new Date().getSeconds()<15 && !my.selfPot.signature) 
-    DAD.signOnce()
 }
 
 // 第一阶段：签名
@@ -236,7 +238,7 @@ DAD.api.shareWinner = async function(option){
 // 第三阶段：出块，或接收获胜者打包广播的区块
 DAD.mineOnce = async function(){
   if (Date.time2height()===(await wo.Store.getTopBlock()).height+1) {
-    wo.eventBus.send(130);
+    wo.eventBus.emit(130);
     mylog.info(new Date()+'：出块阶段开始 for block='+((await wo.Store.getTopBlock()).height+1)+' using block='+(await wo.Store.getTopBlock()).height)
     mylog.info('全网最终获胜签名='+my.bestPot.signature+'，来自地址地址 '+wo.Crypto.pubkey2address(my.bestPot.pubkey))
     mylog.info('本节点的候选签名='+my.selfPot.signature+'，来自地址地址 '+wo.Crypto.pubkey2address(my.selfPot.pubkey))
@@ -245,8 +247,8 @@ DAD.mineOnce = async function(){
       mylog.info('本节点获胜，开始出块...')
       // await wo.Chain.createBlock({winnerMessage:my.selfPot.message,winnerSignature:my.selfPot.signature, winnerPubkey:my.selfPot.pubkey})
       wo.eventBus.call('Chain','','createBlock',{winnerMessage:my.selfPot.message,winnerSignature:my.selfPot.signature, winnerPubkey:my.selfPot.pubkey})
-      wo.Peer.broadcast('/Consensus/mineWatcher', {Block:JSON.stringify(wo.Store.getTopBlock())})
-      mylog.info('本节点出块的哈希为：'+wo.Store.getTopBlock().hash)
+      // wo.Peer.broadcast('/Consensus/mineWatcher', {Block:JSON.stringify(wo.Store.getTopBlock())})
+      // mylog.info('本节点出块的哈希为：'+ wo.Store.getTopBlock().hash)
     }
     else{
       mylog.info('本节点没有赢:(')
@@ -261,21 +263,15 @@ DAD.api.mineWatcher=async function(option){ // 监听别人发来的区块
   }
   else if( option 
       && option.Block
-      && option.Block.winnerSignature===my.bestPot.signature 
-      && my.bestPot.signature!==my.selfPot.signature // 收到了全网赢家的区块，而全网赢家不是本节点的
-      && option.Block.lastBlockHash===wo.Store.getTopBlock().hash 
-      && option.Block.height===(await wo.Store.getTopBlock()).height+1
+      && option.Block.winnerSignature === my.bestPot.signature 
+      && my.bestPot.signature !== my.selfPot.signature // 收到了全网赢家的区块，而全网赢家不是本节点的
+      && option.Block.lastBlockHash === (await wo.Store.getTopBlock()).hash 
+      && option.Block.height === (await wo.Store.getTopBlock()).height+1
     ){ 
       // 注意不要接受我自己作为获胜者创建的块，以及不要重复接受已同步的区块
-    // let block = await wo.Chain.appendBlock(option.Block)
     wo.eventBus.call('Chain','','appendBlock',option.Block)
-    // if (block){
-    wo.Peer.broadcast('/Consensus/mineWatcher', {Block:JSON.stringify(wo.Store.getTopBlock())})
-    mylog.info('本节点收到全网赢家的区块哈希为：'+wo.Store.getTopBlock().hash+'，全网赢家的地址为'+wo.Crypto.pubkey2address(option.Block.winnerPubkey)+'，打包节点的地址为 '+wo.Crypto.pubkey2address(option.Block.packerPubkey))
-    // }
-    // else{
-    //   mylog.error(`添加高度在${option.Block.height}的区块失败!`)
-    // }
+    wo.Peer.broadcast('/Consensus/mineWatcher', {Block:option.Block})
+    mylog.info('本节点收到全网赢家的区块哈希为：' + option.Block.hash +'，全网赢家的地址为'+wo.Crypto.pubkey2address(option.Block.winnerPubkey)+'，打包节点的地址为 '+wo.Crypto.pubkey2address(option.Block.packerPubkey))
   }
   else {
     if (my.bestPot.signature!==my.selfPot.signature) // 全网赢家不是本节点的
