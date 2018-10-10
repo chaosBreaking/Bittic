@@ -38,12 +38,12 @@ try {
   .option('-c, --consensus <type>', 'Consensus type: Pot (default), Pow, Alone, etc.')
   .option('--dbType <type>', 'Database type mysql|sqlite')
   .option('--dbName <name>', 'Database name')
-  .option('-h, --host <host>', 'host ip or domain name')
+  .option('-H, --host <host>', 'host ip or domain name')
   .option('-n, --netType <net>', 'devnet/testnet/mainnet')
   .option('-o, --ownerSecword <secword>', 'Node owner\'s secword')
   .option('-P, --protocol <protocol>', 'Server protocol http|https|httpall, default '+Config.protocol)
   .option('-p, --port <port>', 'Server port, default'+Config.port)
-  .option('--p2p <p2p>', 'P2P protocol: http|udp')
+  .option('-l, --link <link>', 'P2P protocol: http|udp')
   .option('-s, --seedSet <seedSet>', 'Peers array in JSON, such as \'["http://ip_or_dn:port"]\'')
   .option('--sslCert <cert>', 'SSL cert file')
   .option('--sslKey <key>', 'SSL privkey file')
@@ -64,11 +64,27 @@ try {
   Config.ownerSecword = commander.ownerSecword || Config.ownerSecword
   Config.protocol=commander.protocol || Config.protocol
   Config.port=parseInt(commander.port) || parseInt(Config.port) || (Config.protocol==='http'?6842:Config.protocol==='https'?6842:undefined) // 端口默认为6842(http,https), 或80|443(httpall)
-  Config.p2p=commander.p2p || Config.p2p
+  Config.link=commander.link || Config.link
   Config.seedSet= commander.seedSet ? JSON.parse(commander.seedSet) : Config.seedSet
   Config.sslCert=commander.sslCert || Config.sslCert
   Config.sslKey=commander.sslKey || Config.sslKey
   Config.sslCA=commander.sslCA || Config.sslCA
+
+  switch (Config.netType){
+    case 'mainnet':
+      break
+    case 'testnet':
+      Config.GENESIS_EPOCHE=Config.GENESIS_EPOCHE_TESTNET
+      Config.GENESIS_MESSAGE=Config.GENESIS_MESSAGE_TESTNET
+      Config.INITIAL_ACCOUNT=Config.INITIAL_ACCOUNT_TESTNET
+      Config.dbName=Config.dbName+'.'+Config.netType
+      break
+    case 'devnet': default:
+      Config.GENESIS_EPOCHE= require('./Base/Date.js').time2epoche({type:'prevHour'}) // nextMin: 下一分钟（单机测试）， prevHour: 前一小时（多机测试），或 new Date('2018-07-03T10:15:00.000Z') // 为了方便开发，暂不使用固定的创世时间，而是生成当前时刻之后的第一个0秒，作为创世时间
+      Config.GENESIS_MESSAGE=Config.GENESIS_MESSAGE_DEVNET
+      Config.INITIAL_ACCOUNT=Config.INITIAL_ACCOUNT_DEVNET
+      Config.dbName=Config.dbName+'.'+Config.netType
+  }
 
   mylog.info('Configuration is ready.')
 
@@ -94,13 +110,16 @@ async function init(){  /*** 设置全局对象，启动时光链 ***/
   mylog.info('Loading classes and Creating tables......')
   // wo.Session=await require('./Ling/_Session.js')._init() // 目前不使用。
   wo.Ling=require('./Ling/_Ling.js')
-  wo.Account = await require('./Ling/Account.js')._init()
-  wo.Action = await require('./Ling/Action.js')._init()
-  wo.ActTransfer = require('./Ling/ActTransfer.js')
+  wo.Account=await require('./Ling/Account.js')._init()
+  wo.Action=await require('./Ling/Action.js')._init()
+  wo.Token = await require('./Ling/Token.js')._init()
+  wo.TokenAccount = await require('./Ling/TokenAccount.js')._init()
+  wo.ActTransfer=require('./Ling/ActTransfer.js')
   wo.ActStorage = require('./Ling/ActStorage.js')
+  wo.ActToken = require('./Ling/ActToken.js')
   wo.ActMultisig = require('./Ling/ActMultisig.js')
   wo.Bancor = require('./Ling/Bancor.js')._init()
-  
+
   mylog.info('Initializing chain............')
   wo.Peer=await require('./Ling/Peer.js')._init()
   // if (wo.Config.consensus==='ConsPow') {
@@ -108,12 +127,12 @@ async function init(){  /*** 设置全局对象，启动时光链 ***/
   //   wo.Consensus=require('./Ling/ConsPow.js')
   //   wo.Chain=await require('./Ling/ChainPow.js')._init()
   //   wo.NetUDP = require('./Base/NetUDP.js')._init()
-  //   return 0
   // }
+  // else {
   wo.Block=await require('./Ling/Block.js')._init()
   wo.Consensus=require('./Ling/'+wo.Config.consensus+'.js') // todo: 目前的 wo.Chain 对 wo.Consensus 有依赖，只能把 wo.Consensus 放在前面
   wo.Chain=await require('./Ling/Chain.js')._init() // 用await，完成同步后，并且在赋值wo.Chain后才开始 web服务
-
+  // }
 }
 
 (async function start(){ // 配置并启动 Web 服务
@@ -126,26 +145,31 @@ async function init(){  /*** 设置全局对象，启动时光链 ***/
   const Cors = require('cors')
   const Morgan=require('morgan')
   const MethodOverride=require('method-override')
+  //const Session = require('express-session') // https://github.com/expressjs/session // 不再使用 session 来管理在线用户，而是用 webtoken 了。
+  //const Redis = require('connect-redis')(Session)
   const CookieParser=require('cookie-parser')
   const BodyParser=require('body-parser')
+  const Favicon = require('serve-favicon')
   const ErrorHandler=require('errorhandler')
 
   const server = Express()
 
   /*** 通用中间件 ***/
 
-  // server.use(Morgan('development'===server.get('env')?'dev':'combined')) // , {stream:require('fs').createWriteStream(path.join(__dirname+'/Data.log', 'http.log'), {flags: 'a', defaultEncoding: 'utf8'})})) // format: combined, common, dev, short, tiny.  发现 defaultEncoding 并不起作用。
+  server.use(Morgan('development'===server.get('env')?'dev':'combined')) // , {stream:require('fs').createWriteStream(path.join(__dirname+'/Data.log', 'http.log'), {flags: 'a', defaultEncoding: 'utf8'})})) // format: combined, common, dev, short, tiny.  发现 defaultEncoding 并不起作用。
   server.use(MethodOverride())
+  //server.use(Session({store: new Redis({host: "127.0.0.1", port: 6379}), resave:false, saveUninitialized:false, name: 'server.sid', secret: wo.Config.tokenKey, cookie: {  maxAge: wo.Config.SESSION_LIFETIME*1000 }})) // name: 'connect.sid'
   server.use(CookieParser())
-  server.use(BodyParser.json({limit: '50mb'})) // 用于过滤 POST 参数
-  server.use(BodyParser.urlencoded({ limit: '50mb', extended: true }))
+  server.use(BodyParser.json({limit: wo.Config.HTTP_BODY_LIMIT})) // 用于过滤 POST 参数
+  server.use(BodyParser.urlencoded({ limit: wo.Config.HTTP_BODY_LIMIT, extended: true }))
   server.use(Cors())
   server.use(Express.static(__dirname+'/Web')) // 可以指定到 node应用之外的目录上。windows里要把 \ 换成 /。
+  //server.use(Favicon(__dirname + '/www/favicon.ico'))
+  //server.use('webpath', Express.static('filepath'))
 
   /*** 路由中间件 ***/
 
-  server.all('/:_api/:_who/:_act', async function(ask, reply){ 
-    // http://address:port/api/Block/getBlockList
+  server.all('/:_api/:_who/:_act', async function(ask, reply){ // http://address/api/Block/getBlockList
 
     /* 把前端传来的json参数，重新解码成对象 */
     var option={}
@@ -157,10 +181,17 @@ async function init(){  /*** 设置全局对象，启动时光链 ***/
       option[key]=wo.Tool.json2obj(ask.body[key])
     }
     /////////// authentication ///////////////////
+    option._token=wo.Tool.verifyToken(option._token)||{} // aiid, pwdClient, whenTokenCreated
+    option._token.isOnline=function(){
+      return this.onlineUser?true:false // =0或null时，代表没有登录，是匿名用户。
+    }
+    option._whenStart=new Date()
+    option._req=ask // File_upload, Provice_verifyPay 需要 _req
 
     async function normalize(result){ // 有的实例的normalize 需要当前用户信息，比如 Message 要根据当前用户判断 vote 。所以这个函数定义在这里，把含有当前用户信息的option给它
       if (result && result instanceof wo.Ling){ // 是 Ling 元素。注意，字符串也有 normalize 方法，在WSL16+node9.4里会报错“RangeError: The normalization form should be one of NFC, NFD, NFKC, NFKD.”，所以必须判断是Ling，而不能只判断具有normalize方法。
         await result.normalize(option) // 有的 normalize 需要 option，例如检查当前用户是否投票了某消息
+        // 不进入下一层去递归normalize了。
       }else if (result && typeof result==='object'){ // 是其他对象或数组
         for (var i in result){
           await normalize(result[i])
@@ -172,22 +203,27 @@ async function init(){  /*** 设置全局对象，启动时光链 ***/
     }
 
     reply.setHeader('charset','utf-8')
-    reply.setHeader('Access-Control-Allow-Origin','*')
+// 前面使用 cors 库了，就不需要手动强制。   reply.setHeader('Access-Control-Allow-Origin','*')
     reply.setHeader('Access-Control-Allow-Methods','GET,POST,PUT,DELETE')
     reply.setHeader('Access-Control-Allow-Headers','X-Requested-With,Content-Type')
+  //  reply.setHeader("Content-Type",'json')  // 这一句用于 express 3。在 express 4里，已经 BodyParser.json()了，再加这句导致 TypeError: invalid media type。
 
     let _who=ask.params._who
     let _act=ask.params._act
     let _api=ask.params._api
 
-    try{ 
+    try{ // 把所有可能的exception都捕获起来，防止node死掉。
       if (wo[_who] && wo[_who][_api] && wo[_who][_api].hasOwnProperty(_act) && typeof wo[_who][_api][_act]==='function'){
         var result=await wo[_who][_api][_act](option)
+//        wo.Session.logRequest(ask, option, result)
         reply.json(await normalize(result))  // 似乎 json(...) 相当于 send(JSON.stringify(...))。如果json(undefined或nothing)会什么也不输出给前端，可能导致前端默默出错；json(null/NaN/Infinity)会输出null给前端（因为JSON.stringify(NaN/Infinity)返回"null"）。
+//        reply.send(JSON.stringify(result)) // 注意，如果用 send，null/undefined 会什么也不输出给前端。数字会被解释成http状态码。NaN/Infinity会导致出错。所以，send(JSON.stringify(result))
       }else{
+//        wo.Session.logRequest(ask, option, {badapi:_who+'/'+_act})
         reply.json(null)
       }
     }catch(exception){
+//      wo.Session.logRequest(ask, option, {exception:exception})
       mylog.info(exception)
       reply.json(null)
     }
@@ -195,7 +231,21 @@ async function init(){  /*** 设置全局对象，启动时光链 ***/
   })
 
   server.all('*', function(ask, reply){    /* 错误的API调用进入这里。*/
-    reply.json(null)
+    // 把前端传来的数据参数，重新解码成对象，以便存入日志。因为区块链现在不存储用户请求日志，所以全部注释掉。
+    // var option={}
+    // for (let key in ask.query){ // GET 方法传来的参数
+    //   option[key]=wo.Tool.json2obj(ask.query[key])
+    // }
+    // for (let key in ask.body){ // POST 方法传来的参数
+    //   option[key]=wo.Tool.json2obj(ask.body[key])
+    // }
+    // /////////// authentication ///////////////////
+    // option._token=wo.Tool.verifyToken(option._token)||{} // aiid, pwdClient, whenTokenCreated
+    // option._whenStart=new Date()
+    // option._req=ask // File_upload, Provice_verifyPay 需要 _req
+    // wo.Session.logRequest(ask, option, {badroute:ask.originalUrl})
+
+    reply.json(null) // todo: null
   })
 
   // 错误处理中间件应当在路由加载之后才能加载

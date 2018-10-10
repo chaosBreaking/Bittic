@@ -43,7 +43,7 @@ const getConn=pool.acquire();
   ,
   getNumber: async function(option){
     if (option && option._table && option.where && option.field && option.func && ['sum','avg','max','min','count'].indexOf(option.func)>=0){
-      let sql='select '+option.func+'('+(option.field!=='*'?escapeId(option.field):'*')+') as '+option.func+' from '+escapeId(option._table)+' where '+where2sql(option.where)
+      let sql='select '+option.func+'('+(option.field!=='*'?escapeId(option.field):'*')+') as '+option.func+' from '+escapeId(option._table)+' where '+where2sql(option.where, option.config)
       return await db.use(async (conn)=>{
         let row=await conn.get(sql)
         if (row && row.hasOwnProperty(option.func)) return row
@@ -53,9 +53,9 @@ const getConn=pool.acquire();
     return null
   }
   ,
-  getData: async function(option) {
+  getData: async function(option) { // select * from table where a=98 AND b=10 group by age limit 100 order by desc
     if (option && option._table && option.where) {
-      let sql='select * from '+escapeId(option._table)+' where '+where2sql(option.where)+config2sql(option.config);
+      let sql='select * from '+escapeId(option._table)+' where '+where2sql(option.where, option.config)+config2sql(option.config);
       return await db.use(async (conn)=>{
           let rowList=await conn.all(sql);
           if (rowList) return wo.Tool.json2obj(rowList, 'database');
@@ -68,7 +68,7 @@ const getConn=pool.acquire();
   setData: async function(option) {
     if (option && option._table && option.where && option.set) {
       var self=this;
-      var sql='update '+escapeId(option._table)+' set '+set2sql(option.set)+' where '+where2sql(option.where); //+config2sql(option.config); // sqlite的update语句默认不支持Limit/order
+      var sql='update '+escapeId(option._table)+' set '+set2sql(option.set)+' where '+where2sql(option.where, option.config); //+config2sql(option.config); // sqlite的update语句默认不支持Limit/order
       return await db.use(async function(conn){ 
         let report=await conn.run(sql);
         if (report && report.changes>0) {
@@ -106,7 +106,7 @@ const getConn=pool.acquire();
   hideData: async function(option) { // 或者叫做 delete, remove, erase, cut, drop
     if (option && option._table && option.where) {
       var self=this;
-      var sql='update '+escapeId(option._table)+' set `mark`='+escape(wo.Config.MARK_DELETED)+' where '+where2sql(option.where); //+config2sql(option.config);
+      var sql='update '+escapeId(option._table)+' set `mark`='+escape(wo.Config.MARK_DELETED)+' where '+where2sql(option.where, option.config); //+config2sql(option.config);
       return await db.use(async function(conn){ 
         let report=await conn.run(sql);
         if (report) { // report.affectedRows/changedRows
@@ -124,18 +124,21 @@ const getConn=pool.acquire();
   dropData: async function(option) {
     if (option && option._table && option.where) {
       var self=this;
-      var sql='delete from '+escapeId(option._table)+' where '+where2sql(option.where, true); // 默认不支持limit/order: http://www.sqlite.org/lang_delete.html
+      var sql='delete from '+escapeId(option._table)+' where '+where2sql(option.where, option.config); // 默认不支持limit/order: http://www.sqlite.org/lang_delete.html
       return await db.use(async function(conn) {
         let report=await conn.run(sql)
         if (report && report.changes>0) {
-          return report;
+          return report
         }
-        return null;
-      }).catch(console.log);
+        return null
+      }).catch(console.log)
     }
-    return null;
+    return null
   }
-
+  ,
+  callProc: async function(option) {
+    return null
+  }
 }
 
 function escapeId(key){
@@ -165,89 +168,92 @@ function value2sql(value){ // value 有可能是 Date 类型！
   return escape(value) 
 }
 
-function where2sql(where){ // todo: 注意，mysql 无法比较整个json字段！不能 where json='{}'！！！
-  var sqlWhere='1';
-  var matches, value;
-  where=where||{};
+function where2sql(where, config){ // todo: 注意，mysql 无法比较整个json字段！不能 where json='{}'！！！
+  where=where||{}
+  let logic=['AND','OR'].indexOf(config&&config.logic)>=0?config.logic:'AND'
+  let sqlWhere=(logic==='OR')?'0':'1'
   if (where.rowid){ // 这是特别为了防止，add/setData 内的再次 getData 带来的 where 里有 json 字段。
-    sqlWhere = escapeId('rowid') + ' = ' + escape(where.rowid);
+    sqlWhere = escapeId('rowid') + ' = ' + escape(where.rowid)
     if (where.mark===('!='+wo.Config.MARK_DELETED)) {
-      sqlWhere += ' AND (mark is null or mark != '+escape(wo.Config.MARK_DELETED)+') ';
+      sqlWhere += ' AND (mark is null or mark != '+escape(wo.Config.MARK_DELETED)+') '
     }
   }else{
-    for (var key in where){
+    let matches, value
+    for (let key in where){
       if (!where.hasOwnProperty(key) || typeof(where[key])==='function') continue
   //    if (typeof key==='string' && key.match(/^_/)) continue; // 避免express3的query/body发来奇怪的 {..., __proto__:{}}，并且过滤掉_class, _data等（假如前端没有过滤掉这些）。
 
-      value=where[key];
-      if (value===undefined || value!==value || value===Infinity) continue; // 把undefined/NaN/Infinity值认为是不需要处理的。undefined会被escape成'NULL'，NaN/Infinity会导致mysql出错。
+      value=where[key]
+      if (value===undefined || value!==value || value===Infinity) continue // 把undefined/NaN/Infinity值认为是不需要处理的。undefined会被escape成'NULL'，NaN/Infinity会导致mysql出错。
     
-      key=escapeId(key);
-      sqlWhere += ' AND ';
+      key=escapeId(key)
+      sqlWhere += ` ${logic} `
       if (value===null){ // 问题：前端直接ajax发送对象，null会被变成空字符串''（即xxx:null 被翻译成 xxx=&)，所以不能送来null。解决方案1：在前端发送前JSON.stringify。 2. 在这里允许 value==='=null'
-        sqlWhere += key+' is null ';
+        sqlWhere += key+' is null '
       }else if (value==='!=null'){
-        sqlWhere += key+' is not null ';
+        sqlWhere += key+' is not null '
       }else if (typeof value==='string' && (matches=value.match(/^!=\s*(.*)$/))){ // 注意，\w* 不能接受 - . 这种数字里的符号。
-        sqlWhere += ' ('+key+' is null or '+key+' != '+value2sql(matches[1])+') ';
+        sqlWhere += ' ('+key+' is null or '+key+' != '+value2sql(matches[1])+') '
       }else if (typeof value==='string' && (matches=value.match(/^([<>]=?)\s*(.*)\s*([<>]=?)\s*(.*)$/))){ // 要放在单一的[<>]前面，否则match不到。
-        sqlWhere += key+matches[1]+value2sql(matches[2])+' AND '+key+matches[3]+value2sql(matches[4]);
+        sqlWhere += key+matches[1]+value2sql(matches[2])+' AND '+key+matches[3]+value2sql(matches[4])
       }else if (typeof value==='string' && (matches=value.match(/^([<>]=?)\s*(.*)$/))){
-        sqlWhere +=  key+matches[1]+value2sql(matches[2]); // 注意不要对比较符号去做escape! 否则sql字符串里变成 ...'>'... 就错了。
+        sqlWhere +=  key+matches[1]+value2sql(matches[2]) // 注意不要对比较符号去做escape! 否则sql字符串里变成 ...'>'... 就错了。
       }else if (typeof value==='string' && (matches=value.match(/^~\s*(.*)$/))){ // 前端传来 ~ 代表后面是 Regexp
-        sqlWhere += key+' REGEXP '+value2sql(matches[1]);
+        sqlWhere += key+' REGEXP '+value2sql(matches[1])
       }else if (typeof value==='string' && (matches=value.match(/^(\$[.\[].+)([<>=])(.*)$/))){ // 把简单的json表达 $.xxx[xxx]转换成mysql的json写法
-        sqlWhere += key+'->"'+matches[1]+'"'+matches[2]+value2sql(matches[3]);
+        sqlWhere += key+'->"'+matches[1]+'"'+matches[2]+value2sql(matches[3])
       }else{
-        sqlWhere += key+' = '+value2sql(value);
+        sqlWhere += key+' = '+value2sql(value)
       }
     }
   }
-  return sqlWhere;
+  return sqlWhere
 }
 
 function set2sql(set, insert){ // 把js对象预备存入数据库
-  var sqlSet='', sqlKeySet='(', sqlValueSet='(';
-  var value;
-  set=set||{};
+  var sqlSet='', sqlKeySet='(', sqlValueSet='('
+  var value
+  set=set||{}
   for (var key in set){
     if (!set.hasOwnProperty(key) || typeof(set[key])==='function') continue
 //    if (typeof key==='string' && key.match(/^_/)) continue; // 避免express3的query/body发来奇怪的 {..., __proto__:{}}，并且过滤掉_class, _data等（假如前端没有过滤掉这些）。
     value=set[key];
     if (value===undefined || value!==value || value===Infinity) continue; // 把undefined/NaN/Infinity值认为是不需要处理的。undefined会被escape成'NULL'，NaN/Infinity会导致mysql出错。
 
-    sqlKeySet = sqlKeySet + escapeId(key) + ' , ';
-    sqlValueSet = sqlValueSet + escape(value) + ' , ';
-    sqlSet += escapeId(key)+' = '+escape(value) + ' , '; 
+    sqlKeySet = sqlKeySet + escapeId(key) + ' , '
+    sqlValueSet = sqlValueSet + escape(value) + ' , '
+    sqlSet += escapeId(key)+' = '+escape(value) + ' , '
   }
   return insert?
     (sqlKeySet.replace(/,\s*$/,')') + ' values ' + sqlValueSet.replace(/,\s*$/,')')) // insert into table
-    :sqlSet.replace(/,\s*$/,'');  // update table
+    :sqlSet.replace(/,\s*$/,'')  // update table
 }
 
 function config2sql(config){
   var sqlConfig='';
   if (config && typeof config==='object'){
     if (config.group){
-      sqlConfig += ' group by '+config.group;
+      sqlConfig += ' group by '+config.group
     }
     if (config.order){
       switch (config.order){
-        case 'random': sqlConfig += ' order by rand()'; break;
-        default: sqlConfig += ' order by '+config.order;
+        case 'random': 
+          sqlConfig += ' order by rand()'
+          break
+        default: sqlConfig += ' order by '+config.order
       }
     }
-    if (1<=parseInt(config.limit)) { // && parseInt(config.limit)<=wo.Config.LIMIT_MAX){
-      sqlConfig += ' limit '+parseInt(config.limit);
-//    }else if (wo.Config.LIMIT_MAX<parseInt(config.limit)){
-//      sqlConfig += ' limit '+wo.Config.LIMIT_MAX;
+    if (1<=parseInt(config.limit) && (parseInt(config.limit)<=parseInt(wo.Config.LIMIT_MAX) || !Number.isInteger(wo.Config.LIMIT_MAX))) {
+      sqlConfig += ' limit '+parseInt(config.limit)
+    }else if (parseInt(wo.Config.LIMIT_MAX)<parseInt(config.limit)){
+      sqlConfig += ' limit '+wo.Config.LIMIT_MAX
     }else{
-      sqlConfig += ' limit '+wo.Config.LIMIT_DEFAULT;
+      sqlConfig += ' limit '+wo.Config.LIMIT_DEFAULT||1
     }
   }else{
-    sqlConfig += ' limit '+wo.Config.LIMIT_DEFAULT;
+    sqlConfig += ' limit '+wo.Config.LIMIT_DEFAULT||1
   }
-  return sqlConfig;
+  return sqlConfig
 }
 
 

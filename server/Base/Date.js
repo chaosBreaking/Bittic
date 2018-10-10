@@ -121,3 +121,5 @@ Date.time2epoche=function(option){
   }
   return new Date()
 }
+
+module.exports=Date

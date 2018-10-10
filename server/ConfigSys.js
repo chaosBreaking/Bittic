@@ -9,9 +9,9 @@ module.exports={ // 全大写字母的，代表系统常量，不要在 userConf
   sslKey: null, // ssl key file,
   sslCert: null, // ssl cert file,
   sslCA: null, // ssl ca file,
-  p2p: 'http', // http|udp
+  link: 'http', // http|udp
 
-//  seedSet:["https://node1.bittic.net:6842"],
+  seedSet:[], // 系统默认的种子节点
   
   dbType:'sqlite',
   dbName:'Data.sqlite/tic.sqlite',
@@ -36,7 +36,7 @@ module.exports={ // 全大写字母的，代表系统常量，不要在 userConf
   PEER_POOL_CAPACITY:12, // 保持几个邻居节点
 
   GENESIS_EPOCHE:new Date('2019-06-06T00:00:00.000Z'), // 主网的创世时刻。1515341898018
-  GENESIS_EPOCHE_TESTNET:new Date('2018-10-10T13:43:00.000Z'), // 测试网的创世时刻。
+  GENESIS_EPOCHE_TESTNET:new Date('2018-10-01T00:00:00.000Z'), // 测试网的创世时刻。
   GENESIS_MESSAGE:'History is Future, Future is Now',
   GENESIS_MESSAGE_TESTNET:'The Cabinet Office minister David Lidington today defended Philip Hammond’s decision to issue a new warning that a no-deal Brexit would significantly damage the economy.',
   GENESIS_MESSAGE_DEVNET:'some big things start out small',
@@ -48,14 +48,16 @@ module.exports={ // 全大写字母的，代表系统常量，不要在 userConf
   SIGNER_THRESHOLD:0,
   PACKER_THRESHOLD:600,
 
+  /* 数据库，HTTP 等设置（与时光链本身无关） */
+  HTTP_BODY_LIMIT:'50mb',
+  UPLOAD_LIMIT:1048576, // 单位: Byte。
+  SESSION_LIFETIME:60*60*24*7, // 一星期
+  // todo: 改名为 DB_*
   LIMIT_DEFAULT:12,
   LIMIT_MAX:1000,
-  SESSION_LIFETIME:60*60*24*7, // 一星期
-
   MARK_DELETED:'MARK_DELETED',
   MARK_LINKED:'MARK_LINKED', // 建立了关系（care, know, join 等）
   MARK_RELEASED:'MARK_RELEASED', // 解除了关系（care, know, join 等）
-  UPLOAD_LIMIT:1048576, // 单位: Byte。
 
   MIN_FEE_ActTransfer:0,
   MIN_FEE_ActStorage:0,

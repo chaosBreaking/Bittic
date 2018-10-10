@@ -38,12 +38,12 @@ try {
   .option('-c, --consensus <type>', 'Consensus type: Pot (default), Pow, Alone, etc.')
   .option('--dbType <type>', 'Database type mysql|sqlite')
   .option('--dbName <name>', 'Database name')
-  .option('-h, --host <host>', 'host ip or domain name')
+  .option('-H, --host <host>', 'host ip or domain name')
   .option('-n, --netType <net>', 'devnet/testnet/mainnet')
   .option('-o, --ownerSecword <secword>', 'Node owner\'s secword')
   .option('-P, --protocol <protocol>', 'Server protocol http|https|httpall, default '+Config.protocol)
   .option('-p, --port <port>', 'Server port, default'+Config.port)
-  .option('--p2p <p2p>', 'P2P protocol: http|udp')
+  .option('-l, --link <link>', 'P2P protocol: http|udp')
   .option('-s, --seedSet <seedSet>', 'Peers array in JSON, such as \'["http://ip_or_dn:port"]\'')
   .option('--sslCert <cert>', 'SSL cert file')
   .option('--sslKey <key>', 'SSL privkey file')
@@ -61,14 +61,29 @@ try {
   Config.ownerSecword = commander.ownerSecword || Config.ownerSecword
   Config.protocol=commander.protocol || Config.protocol
   Config.port=parseInt(commander.port) || parseInt(Config.port) || (Config.protocol==='http'?6842:Config.protocol==='https'?6842:undefined) // 端口默认为6842(http,https), 或80|443(httpall)
-  Config.p2p=commander.p2p || Config.p2p
+  Config.link=commander.link || Config.link
   Config.seedSet= commander.seedSet ? JSON.parse(commander.seedSet) : Config.seedSet
   Config.sslCert=commander.sslCert || Config.sslCert
   Config.sslKey=commander.sslKey || Config.sslKey
   Config.sslCA=commander.sslCA || Config.sslCA
 
-  mylog.info('Configuration is ready.')
+  switch (Config.netType){
+    case 'mainnet':
+      break
+    case 'testnet':
+      Config.GENESIS_EPOCHE=Config.GENESIS_EPOCHE_TESTNET
+      Config.GENESIS_MESSAGE=Config.GENESIS_MESSAGE_TESTNET
+      Config.INITIAL_ACCOUNT=Config.INITIAL_ACCOUNT_TESTNET
+      Config.dbName=Config.dbName+'.'+Config.netType
+      break
+    case 'devnet': default:
+      Config.GENESIS_EPOCHE= require('./Base/Date.js').time2epoche({type:'prevHour'}) // nextMin: 下一分钟（单机测试）， prevHour: 前一小时（多机测试），或 new Date('2018-07-03T10:15:00.000Z') // 为了方便开发，暂不使用固定的创世时间，而是生成当前时刻之后的第一个0秒，作为创世时间
+      Config.GENESIS_MESSAGE=Config.GENESIS_MESSAGE_DEVNET
+      Config.INITIAL_ACCOUNT=Config.INITIAL_ACCOUNT_DEVNET
+      Config.dbName=Config.dbName+'.'+Config.netType
+  }
 
+  mylog.info('Configuration is ready.')
   return Config
 }
 async function masterInit(){
@@ -88,21 +103,6 @@ async function masterInit(){
     wo.Store = await require('./Ling/Store.js')('redis')  //  必须指定数据库,另外不能_init(),否则会覆盖子进程已经设定好的内容
     wo.Consensus = require('./Ling/'+wo.Config.consensus+'.js') 
 
-    if (wo.Config.consensus==='ConsPot'){
-        switch (wo.Config.netType){
-          case 'mainnet':
-            break
-          case 'testnet':
-            wo.Config.GENESIS_EPOCHE=wo.Config.GENESIS_EPOCHE_TESTNET
-            wo.Config.GENESIS_MESSAGE=wo.Config.GENESIS_MESSAGE_TESTNET
-            wo.Config.INITIAL_ACCOUNT=wo.Config.INITIAL_ACCOUNT_TESTNET
-            break
-          case 'devnet': default:
-            wo.Config.GENESIS_EPOCHE= Date.time2epoche({type:'prevHour'}) // nextMin: 下一分钟（单机测试）， prevHour: 前一小时（多机测试），或 new Date('2018-07-03T10:15:00.000Z') // 为了方便开发，暂不使用固定的创世时间，而是生成当前时刻之后的第一个0秒，作为创世时间
-            wo.Config.GENESIS_MESSAGE=wo.Config.GENESIS_MESSAGE_DEVNET
-            wo.Config.INITIAL_ACCOUNT=wo.Config.INITIAL_ACCOUNT_DEVNET
-        }
-    }
 }
 async function workerInit(){
   global.mylog=require('./Base/Logger.js')

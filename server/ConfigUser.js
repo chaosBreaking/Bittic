@@ -1,4 +1,8 @@
-module.exports={ // 全节点主人的个性化配置。做成 module.exports 的 js，而不是 json文件，这样就可以写得更自由，可以添加注释
-// ownerSecword: 应当在 ConfigSecret.js 中覆盖
-  ownerSecword: 'window air repeat sense bring smoke legend shed accuse loan spy fringe', // 默认为和INITIAL_ACCOUNT一样
+module.exports={ // 
+  ownerSecword: 'clever journey cave maze luxury juice trigger discover bamboo net shoot put', // ownerSecword: 应当在 ConfigSecret.js 中覆盖，或在命令行参数中设置。测试网的第一个节点应当使用测试网初始账户。
+  // 如果使用 https 协议，必须在 ConfigSecret.js 中覆盖，或在命令行参数中设置。不同网的第一个节点都应当用该网的初始账户。默认为devnet的初始账户。
+  sslKey: '/etc/letsencrypt/live/.../privkey.pem', // ssl key file,
+  sslCert: '/etc/letsencrypt/live/.../cert.pem', // ssl cert file,
+  sslCA: '/etc/letsencrypt/live/.../fullchain.pem', // ssl ca file,
+  seedSet: [], // 节点主人设置的种子节点
 }
