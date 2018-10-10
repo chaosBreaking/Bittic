@@ -104,7 +104,7 @@ async function masterInit(){
         }
     }
 }
-async function chainInit(){
+async function workerInit(){
   global.mylog=require('./Base/Logger.js')
   global.wo={}
   wo.Tool=new (require('./Base/Egg.js'))().extendMe(require('./Base/Webtoken.js'))
@@ -255,14 +255,28 @@ function serverInit(){ // 配置并启动 Web 服务
         var mylog = require('./Base/Logger.js');
         var worker = cluster.fork();
         cluster.on('message',async (worker, message) => {
-            mylog.warn(`[Master] 收到消息码 `+message.code)
             switch (message.code) {
                 case 200:
-                    mylog.warn(`[Master] 主程序初始化完毕，启动共识模块......`);
-                    await masterInit();
-                    wo.eventBus = require('./Ling/eventBus.js')(worker);
-                    wo.Consensus._init(worker);
-                    cluster.on('message', wo.eventBus.masterHandler);
+                  mylog.warn(`[Master] 主程序初始化完毕，启动共识模块......`);
+                  await masterInit();
+                  wo.eventBus = require('./Ling/eventBus.js')(worker);
+                  wo.Consensus._init(worker);
+                case 210:
+                  return 0;
+                case 220:
+                  return 0;
+                case 231:   //[Worker] createBlock完毕
+                  if (wo.Config.consensus==='ConsPot') 
+                    wo.Store.pushInRBS(message.data);
+                  wo.Peer.broadcast('/Consensus/mineWatcher', { Block: message.data })
+                  mylog.info('本节点出块的哈希为：' + message.data.hash)
+                  return 0;
+                case 232:   //[Worker] appendBlock完毕
+                  if (wo.Config.consensus==='ConsPot') 
+                    wo.Store.pushInRBS(message.data);
+                  wo.Peer.broadcast('/Consensus/mineWatcher', { Block: message.data })
+                  mylog.info('添加最新区块，哈希为：' + message.data.hash)
+                  return 0;
             }
         });
         cluster.on('exit', function(worker, code, signal) {
@@ -271,9 +285,10 @@ function serverInit(){ // 配置并启动 Web 服务
         });
     }
     else{
-        await chainInit();
+        await workerInit();
         cluster.worker.on('message', wo.eventBus.workerHandler);
         serverInit();
+        wo.eventBus.mount(process);
         process.send({
           code : 200
         });

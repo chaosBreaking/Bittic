@@ -2,18 +2,18 @@ var Ling = wo.Ling
 
 /******************** Public of instance ********************/
 
-const DAD=module.exports=function Action(prop) {
-  this._class=this.constructor.name
+const DAD = module.exports = function Action(prop) {
+  this._class = this.constructor.name
   this.setProp(prop)
 }
-DAD.__proto__=Ling
-DAD._table=DAD.name
-const MOM=DAD.prototype
-MOM.__proto__=Ling.prototype
+DAD.__proto__ = Ling
+DAD._table = DAD.name
+const MOM = DAD.prototype
+MOM.__proto__ = Ling.prototype
 
 /******************** Shared by instances ********************/
-MOM._tablekey='hash'
-MOM._model= {
+MOM._tablekey = 'hash'
+MOM._model = {
   hash:           { default:undefined, sqlite:'TEXT UNIQUE',     mysql:'VARCHAR(64) PRIMARY KEY' }, // 不纳入签名和哈希
   version:        { default:0,         sqlite:'INTEGER' },
   type:           { default:'Action',  sqlite:'TEXT',     mysql:'VARCHAR(100)' }, // 是否放在 assets里更好？这里该放action自己的version
@@ -85,12 +85,23 @@ DAD.execute=function(){ // 子类应当覆盖本方法。把action的影响，�
 DAD.calculateFee = function(){
   return 1000
 }
-
-// DAD._init=async function(){
-//   await DAD.__proto__._init() // create database table at first
-//   await DAD.actionLoop() 
-//   return this
-// }
+/**
+ * 获取一批交易，在出块时调用。调用actionPool的内容被深拷贝到currentActionPool后自动清空。
+ * 所以在一次出块期间只能调用一次
+ */
+DAD.getActionBatch = function(){
+  let actionBatch = {
+    actionPool : JSON.parse(JSON.stringify(DAD.actionPool)),
+    totalAmount : DAD.actionPoolInfo.totalAmount,
+    totalFee : DAD.actionPoolInfo.totalFee
+  };
+  DAD.actionPool = {};
+  DAD.actionPoolInfo = {
+    totalAmount : 0,
+    totalFee : 0
+  }
+  return actionBatch;
+}
 
 /*********************** Public of class *******************/
 DAD.api={}
@@ -109,11 +120,13 @@ DAD.api.prepare=async function(option){
     if( DAD.verifyAddress(option.Action) && 
         DAD.verifySig(option.Action) && 
         DAD.verifyHash(option.Action) &&
-        wo[option.Action.type].validater(option.Action)
+        (await wo[option.Action.type].validater(option.Action))
       ) 
     {
-      DAD.actionPool[option.Action.hash] = option.Action
-      wo.Peer.broadcast('/Action/prepare', option)
+      DAD.actionPool[option.Action.hash] = option.Action;
+      DAD.actionPoolInfo.totalAmount += option.Action.amount||0;
+      DAD.actionPoolInfo.totalFee +=  option.Action.fee||0;
+      wo.Peer.broadcast('/Action/prepare', option);
       return option.Action
     }
   }
@@ -122,8 +135,9 @@ DAD.api.prepare=async function(option){
 
 /********************** Private in class *******************/
 
-DAD.actionPool = {} // 随时不断接收新的交易请求
-DAD.currentActionPool = {} // 仅包含0~40秒的交易,40~59秒的交易将被堆积到actionPool。
-
-const my = {
+DAD.actionPool = {} // 交易池，在执行getActionBatch时被清空
+// DAD.currentActionPool = {} // 仅包含0~40秒的交易,40~59秒的交易将被堆积到actionPool。
+DAD.actionPoolInfo = {
+  totalAmount : 0,
+  totalFee : 0
 }

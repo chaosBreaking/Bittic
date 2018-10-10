@@ -9,10 +9,10 @@ DAD.__proto__= Action
 const MOM=DAD.prototype
 MOM.__proto__=Action.prototype
 
-DAD.validater = function(action){
-  // return wo.Crypto.isAddress(this.toAddress)
-  return action.fee >= wo.Config.MIN_FEE_ActTransfer && action.toAddress != action.actorAddress
-  // && wo.Account.accountPool[this.actorAddress].balance>this.amount+this.fee   //Todo:引入缓存账户
+DAD.validater = async function(action){
+  // if (sender && sender.type !== 'multisig' && action.toAddress != action.actorAddress && sender.balance >= action.amount + action.fee){
+  let sender = await wo.Store.getBalance(action.actorAddress);
+  return sender >= action.amount + action.fee && action.fee >= wo.Config.MIN_FEE_ActTransfer && action.toAddress != action.actorAddress
 }
 
 DAD.execute = async function(action){

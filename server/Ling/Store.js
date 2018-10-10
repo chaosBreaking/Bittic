@@ -15,6 +15,10 @@ function Store(dbType,option){
             value : storeAPI(dbType, option),
             writable:false,
             enumerable:false
+        },
+        "worldState":{
+            value : {},
+            enumerable : true
         }
     });
 }
@@ -26,7 +30,12 @@ Store.prototype._init = async function(){
     ]);
     return this
 }
-
+Store.prototype.setCurrentPhase = function(phase){
+    this.worldState.currentPhase = phase;
+}
+Store.prototype.getCurrentPhase = function(){
+    return this.worldState.currentPhase;
+}
 Store.prototype.getBalance = async function(address){
     return JSON.parse(await this.storeAPI.getKey(address));
 }

@@ -67,34 +67,19 @@ DAD.signOnce = async function(){
   mylog.info('此刻本机链的最高块 : ' + (await wo.Store.getTopBlock()).height)
 
   if (heightNow === (await wo.Store.getTopBlock()).height+1 && new Date().getSeconds()<15 ) { // 注意，前面的同步可能花了20多秒，到这里已经是在竞选阶段。所以再加个当前秒数的限制。
-    wo.eventBus.send(110);
-    mylog.info(new Date()+'：签名阶段开始 for block='+((await wo.Store.getTopBlock()).height+1)+' using block='+(await wo.Store.getTopBlock()).height)
+    mylog.info(new Date()+'：签名阶段开始 for block='+((await wo.Store.getTopBlock()).height+1))
     mylog.info('重置sigPool/packerPool/selfPot/bestPot，来接收这一轮的签名。')
     my.signerPool = {}
     my.packerPool = {}
     my.selfPot = {} // 注意，不要 my.selfPot=my.bestPot={} 这样指向了同一个对象！
     my.bestPot = {} // 如果设signature=null，就可能会===compareSig返回的null，就产生错误了。因此保留为undefined.
-    // 作为节点，把自己签名直接交给自己。这是因为，全网刚起步时，很可能还没有终端用户，这时需要节点进行签名。
-    let myAddress = wo.Crypto.secword2address(wo.Config.ownerSecword)
-    let myBalance = await wo.Store.getBalance(myAddress)
-    if (myBalance > wo.Config.PACKER_THRESHOLD){
-      let message = { timestamp:new Date(), blockHash:wo.Store.getTopBlock().hash, height:heightNow }
-      let signature = wo.Crypto.sign(message, wo.Crypto.secword2keypair(wo.Config.ownerSecword).seckey)
-      let pubkey = wo.Crypto.secword2keypair(wo.Config.ownerSecword).pubkey
-      my.signerPool[pubkey] = { message:message, signature:signature }
-      my.selfPot.signature = signature
-      my.selfPot.message = message
-      my.selfPot.pubkey = pubkey
-      mylog.info('本节点主人（地址'+myAddress+'）的时间证明签名：'+JSON.stringify(signature))
-    }
-    else{
-      mylog.info('本节点主人（地址'+myAddress+'）的账户余额不足，无法参加本轮时间证明签名')
-    }
     my.currentPhase='signing';
-    wo.eventBus.send(110);
+    wo.eventBus.emit(110);
+    signForOwner();
+    return 0;
   }
   else{
-    await DAD.calibrate();
+    return await DAD.calibrate();
   }
 }
 
@@ -134,20 +119,17 @@ DAD.api.signWatcher=async function(option) { // 监听收集终端用户的签�
 // 第二阶段：竞选
 DAD.electOnce = async function(){
   if (Date.time2height()===(await wo.Store.getTopBlock()).height+1) {
-    wo.eventBus.send(120);
     mylog.info(new Date()+'：竞选阶段开始 for block='+((await wo.Store.getTopBlock()).height+1)+' using block='+(await wo.Store.getTopBlock()).height)
-    my.currentPhase='electing'
-//    let sigList=Object.keys(my.signerPool)
-//    mylog.info('sigList['+sigList.length+']='+JSON.stringify(sigList))
+    my.currentPhase = 'electing';
     if (my.selfPot.signature) { // todo: 更好的是核对（签名针对的区块高度===当前竞选针对的区块高度） 
-//      wo.Crypto.sortSigList(wo.Store.getTopBlock().hash, sigList) // 对签名池排序
-      my.bestPot.signature = my.selfPot.signature // 把本节点收到的用户最佳签名，暂时记为全网最佳。
-      my.bestPot.message = my.selfPot.message
-      my.bestPot.pubkey = my.selfPot.pubkey
+      my.bestPot.signature = my.selfPot.signature; // 把本节点收到的用户最佳签名，暂时记为全网最佳。
+      my.bestPot.message = my.selfPot.message;
+      my.bestPot.pubkey = my.selfPot.pubkey;
       my.signBlock = new wo.Block({winnerMessage:my.selfPot.message, winnerSignature:my.selfPot.signature, winnerPubkey:my.selfPot.pubkey, type:'SignBlock'}) // 把候选签名打包进本节点的虚拟块
-      await my.signBlock.packMe([], wo.Store.getTopBlock(), wo.Crypto.secword2keypair(wo.Config.ownerSecword))
-      mylog.info('广播本节点的赢家的预签名空块：'+my.signBlock.hash)
-      wo.Peer.broadcast('/Consensus/electWatcher', {Block:JSON.stringify(my.signBlock)})
+      my.signBlock.packMe({}, wo.Store.getTopBlock(), wo.Crypto.secword2keypair(wo.Config.ownerSecword))
+      wo.eventBus.emit(120);
+      mylog.info('广播本节点的赢家的预签名空块：'+my.signBlock.hash);
+      wo.Peer.broadcast('/Consensus/electWatcher', {Block:JSON.stringify(my.signBlock)});
     }
     else{
       mylog.info('本节点没有收集到时间证明，本轮不参与竞选')
@@ -155,7 +137,7 @@ DAD.electOnce = async function(){
   }
   else{
     mylog.info('本节点的最高块高度为'+(await wo.Store.getTopBlock()).height+', 不匹配当前时刻所属块的高度'+Date.time2height()+'，不参与本轮竞选')
-    await DAD.calibrate()
+    return await DAD.calibrate()
   }
 }
 DAD.api.electWatcher = async function(option) { // 互相转发最优的签名块
@@ -230,8 +212,7 @@ DAD.api.electWatcher = async function(option) { // 互相转发最优的签名�
   }
   return null
 }
-DAD.api.shareWinner = async function(option){
-  // if (option.winnerSignature === my.bestPot.signature)
+DAD.api.shareWinner = async function(){
   return my.signBlock
 }
 
@@ -386,18 +367,46 @@ DAD.api.getRBS = function(target){
     return my.recBlockStack
   }
 } 
+
+async function signForOwner(){
+    // 作为节点，把自己签名直接交给自己。这是因为，全网刚起步时，很可能还没有终端用户，这时需要节点进行签名。
+    let myAddress = wo.Crypto.secword2address(wo.Config.ownerSecword)
+    let myBalance = await wo.Store.getBalance(myAddress)
+    if (myBalance > wo.Config.PACKER_THRESHOLD){
+      let message = { timestamp:new Date(), blockHash:wo.Store.getTopBlock().hash, height:heightNow }
+      let signature = wo.Crypto.sign(message, wo.Crypto.secword2keypair(wo.Config.ownerSecword).seckey)
+      let pubkey = wo.Crypto.secword2keypair(wo.Config.ownerSecword).pubkey
+      my.signerPool[pubkey] = { message:message, signature:signature }
+      my.selfPot.signature = signature
+      my.selfPot.message = message
+      my.selfPot.pubkey = pubkey
+      mylog.info('本节点主人（地址'+myAddress+'）的时间证明签名：'+JSON.stringify(signature))
+    }
+    else{
+      mylog.info('本节点主人（地址'+myAddress+'）的账户余额不足，无法参加本轮时间证明签名')
+    }
+}
+
 /********************** Private in class *********************/
 
 const my = {}
-my.signerPool={} // use enduser pubkey as key, {signature, message} as value
+my.signerPool = {} // use enduser pubkey as key, {signature, message} as value
 my.packerPool={} // use fullnode pubkey as key, signBlock as value
 my.bestPot={} // 全网最佳时间证明：{签名，时间申明，公钥}
 my.selfPot={} // 本节点最佳时间证明：{签名，时间申明，公钥}
-my.currentPhase
 my.signBlock={} // 抽签块
 my.recBlockStack=[]   //缓存最近的5个区块
 my.scheduleJobs=[]
-
+my._currentPhase;
+Object.defineProperty(my, "currentPhase", {
+  get(){
+    return my._currentPhase;
+  },
+  set(phase){
+    my._currentPhase = phase;
+    wo.Store.setCurrentPhase(phase);
+  }
+})
 /**
  * 100:共识校对完毕，启动定时器任务
  * 110:签名阶段开始

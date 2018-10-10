@@ -36,47 +36,33 @@ DAD._init=async function(){
 
   await DAD.createGenesis()
   await DAD.verifyChainFromDb()
-  await DAD.updateChainFromPeer() // todo: 里面多处用到了 Consensus 里的共识特定的方法，导致 Chain 对共识方法产生依赖，这不好。
+  await DAD.updateChainFromPeer()
 
-  var rule = new Schedule.RecurrenceRule();
-  rule.second=[]
-  for(let i =0;i<=39;i++) rule.second.push(i)
-  my.scheduleJobs[0]=Schedule.scheduleJob(rule, DAD.actionLoop)
-  
   return this
 }
 
-DAD.createGenesis=async function(){
+DAD.createGenesis = async function(){
   mylog.info('创世时分 GENESIS_EPOCHE='+wo.Config.GENESIS_EPOCHE.toJSON())
   my.genesis=new wo.Block({
     timestamp:wo.Config.GENESIS_EPOCHE,
     message:wo.Config.GENESIS_MESSAGE
   })
-  await my.genesis.packMe([], null, wo.Crypto.secword2keypair(wo.Config.GENESIS_ACCOUNT.secword))
+  my.genesis.packMe({}, null, wo.Crypto.secword2keypair(wo.Config.GENESIS_ACCOUNT.secword))
+  DAD.pushTopBlock(my.genesis)
   mylog.info('genesis is created and verified: '+my.genesis.verifySig())
 
-  DAD.pushTopBlock(my.genesis)
 
   mylog.info('清空并初始化账户...')
-  await wo.Account.dropAll({Account:{balance:'!=0'}})
-  // await wo.Account.addOne({Account:{ balance: wo.Config.COIN_INIT_AMOUNT, address:wo.Config.INITIAL_ACCOUNT.address }})
-  await  wo.Store.increase(wo.Config.INITIAL_ACCOUNT.address, wo.Config.COIN_INIT_AMOUNT)  
   mylog.info('net ================ '+wo.Config.netType)
+  await wo.Account.dropAll({Account:{balance:'!=0'}})
+  await  wo.Store.increase(wo.Config.INITIAL_ACCOUNT.address, wo.Config.COIN_INIT_AMOUNT)  
   if (wo.Config.netType==='devnet') // 在开发链上，自动给当前用户预存一笔，使其能够挖矿
-    // await wo.Account.addOne({Account:{ balance: 100000, address:wo.Crypto.secword2address(wo.Config.ownerSecword)}})
   await  wo.Store.increase(wo.Crypto.secword2address(wo.Config.ownerSecword), 100000)
   return my.genesis
 }
 
 DAD.verifyChainFromDb=async function(){ // 验证本节点已有的区块链
   mylog.info('开始验证数据库中的区块')
-  // await wo.Account.dropAll({Account:{version:'!=null'}})
-  // await wo.Account.addOne({Account:{ balance: wo.Config.COIN_INIT_AMOUNT, address:wo.Config.INITIAL_ACCOUNT.address }})
-  // if (wo.Config.netType==='devnet') // 在开发链上，自动给当前用户预存一笔，使其能够挖矿
-  //   await wo.Account.addOne({Account:{ balance: 100000, address:wo.Crypto.secword2address(wo.Config.ownerSecword)}})
-
-  //  let top=(await wo.Block.getCount()).count
-  //  mylog.info('共有'+top+'个区块在数据库')
   await wo.Block.dropAll({Block:{height:'<='+wo.Config.GENESIS_HEIGHT}}) // 极端罕见的可能，有错误的（为了测试，手工加入的）height<创世块的区块，也删掉它。  
   let blockList = await wo.Block.getAll({Block:{height:'>' + my.topBlock.height}, config:{limit:100, order:'height ASC'}})
   while (Array.isArray(blockList) && blockList.length > 0 && my.topBlock.height < Date.time2height() - 1){ // 遍历数据库里的区块链，保留有效的区块，删除所有错误的。
@@ -141,8 +127,8 @@ DAD.updateChainFromPeer=async function(){ // 向其他节点获取自己缺少�
   mylog.info('开始向邻居节点同步区块');
   if(my.addingLock) return 0;
   my.addingLock = 1;
-  for (let count = 0; wo.Config.consensus==="ConsPot" && Date.time2height() > (my.topBlock.height + 1) && count < 10; count++){ // 确保更新到截至当前时刻的最高区块。
-    mylog.info(`向全网广播同步请求-->开始第${count}轮同步`)
+  for (let count = 0; wo.Config.consensus==="ConsPot" && Date.time2height() > (my.topBlock.height + 1) && count < 3; count++){ // 确保更新到截至当前时刻的最高区块。
+    mylog.info(`向全网广播同步请求-->开始第${count}轮同步`);
     let blockList=await wo.Peer.randomcast('/Block/getBlockList', { Block:{height:'>'+my.topBlock.height}, config:{limit:100, order:'height ASC'} })
     while (Array.isArray(blockList) && blockList.length>0){
       for (let block of blockList){
@@ -162,7 +148,7 @@ DAD.updateChainFromPeer=async function(){ // 向其他节点获取自己缺少�
               }
             }
           }
-          await block.addMe()
+          await block.addMe();
           if (wo.Config.consensus==='ConsPot') wo.Store.pushInRBS(block)
           DAD.pushTopBlock(block)
           mylog.info(`高度${block.height}区块同步成功`)
@@ -200,42 +186,31 @@ DAD.createVirtBlock=async function(){
 
 DAD.createBlock=async function(block){
   block = (block instanceof wo.Block)? block : (new wo.Block(block)) // POT 里调用时，传入的可能是普通对象，需要转成 Block
-  block.message='矿工留言在第'+(my.topBlock.height+1)+'区块'
-  await block.packMe(wo.Action.currentActionPool, my.topBlock, wo.Crypto.secword2keypair(wo.Config.ownerSecword))//算出默克根、hash、交易表
-  await block.addMe()     //将区块写入数据库
-  await wo.Store.increase(wo.Crypto.pubkey2address(block.winnerPubkey), block.rewardWinner);
-  await wo.Store.increase(wo.Crypto.pubkey2address(block.packerPubkey), block.rewardPacker);
+  block.message = block.message || '矿工留言在第'+(my.topBlock.height+1)+'区块'
+  let actionBatch = wo.Action.getActionBatch();
+  block.packMe(actionBatch, my.topBlock, wo.Crypto.secword2keypair(wo.Config.ownerSecword))//算出默克根、hash、交易表
   DAD.pushTopBlock(block);
+  block.addMe();     //将区块写入数据库
+  DAD.addReward(block);
   wo.eventBus.send(231, block);
-  if (wo.Config.consensus==='ConsPot') wo.Store.pushInRBS(block);
-  block.runActionList(wo.Action.currentActionPool); //无需等待交易执行
-  wo.Action.currentActionPool = {};
+  block.runActionList(actionBatch.actionPool);
   return block
 }
 
-DAD.appendBlock=async function(block){ // 添加别人打包的区块
+//因为异步操作会重复添加，先将锁锁定，防止因为没有及时pushTopBlock多次添加符合条件的区块
+//先判断是否符合条件、符合条件的块 才加锁
+DAD.appendBlock=async function(block){
   block = (block instanceof wo.Block)?block:(new wo.Block(block)) // POT 里调用时，传入的可能是普通对象，需要转成 Block
   if (!my.addingLock && block.lastBlockHash === my.topBlock.hash && block.height === my.topBlock.height + 1 && block.verifySig() && block.verifyHash()){
-    // todo: push action into database
-    //因为异步操作会重复添加，先将锁锁定，防止因为没有及时pushTopBlock多次添加符合条件的区块
-    //先判断是否符合条件、符合条件的块 才加锁
     my.addingLock = true;
-    if (block.type==="SignBlock") {
-      block.rewardPacker = block.getReward({rewardType:'packerPenalty'})
-      await wo.Store.increase(wo.Crypto.pubkey2address(block.winnerPubkey), block.rewardWinner);
-      await wo.Store.increase(wo.Crypto.pubkey2address(block.packerPubkey), block.rewardPacker);
-    }
-    else{
-      await wo.Store.increase(wo.Crypto.pubkey2address(block.winnerPubkey), block.rewardWinner);
-      await wo.Store.increase(wo.Crypto.pubkey2address(block.packerPubkey), block.rewardPacker);  
-    }
-    await block.addMe();
-    block.runActionList(wo.Action.currentActionPool); //无需等待交易的执行
+    let actionBatch = wo.Action.getActionBatch();
     DAD.pushTopBlock(block);
-    if (wo.Config.consensus==='ConsPot') wo.Store.pushInRBS(block);
-    //区块添加完毕后 释放锁
+    await block.addMe();
+    DAD.addReward(block);
+    wo.eventBus.send(232, block);
+    block.runActionList(actionBatch.actionPool);
     mylog.info(block.timestamp.toJSON() + ' : block '+block.height+' is added');
-    my.addingLock = false;
+    my.addingLock = false;    //区块添加完毕后 释放锁
     return block;
   }
   return null
@@ -247,16 +222,15 @@ DAD.pushTopBlock = function(topBlock){ // 保留最高和次高的区块
   wo.Store.pushTopBlock(topBlock);
 }
 
-DAD.actionLoop = function(){
-  //事务处理循环：拿出actionPool里的事务--->执行并放入currentActionPool--->从删除actionPool删除
-  //出块时调用的是 currentActionPool
-  while(my.currentPhase!=='mining' && Object.keys(wo.Action.actionPool).length>0){
-      action = Object.values(wo.Action.actionPool).shift()
-      // if(!action) return 0
-      wo.Action.currentActionPool[action.hash] = action
-      wo.Block.totalAmount += action.amount||0
-      wo.Block.totalFee +=  action.fee||0
-      delete wo.Action.actionPool[action.hash]
+DAD.addReward = async function(block){
+  if (block.type === "SignBlock") {
+    block.rewardPacker = block.getReward({rewardType:'packerPenalty'})
+    await wo.Store.increase(wo.Crypto.pubkey2address(block.winnerPubkey), block.rewardWinner);
+    await wo.Store.increase(wo.Crypto.pubkey2address(block.packerPubkey), block.rewardPacker);
+  }
+  else{
+    await wo.Store.increase(wo.Crypto.pubkey2address(block.winnerPubkey), block.rewardWinner);
+    await wo.Store.increase(wo.Crypto.pubkey2address(block.packerPubkey), block.rewardPacker);  
   }
 }
 

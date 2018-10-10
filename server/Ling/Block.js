@@ -66,49 +66,48 @@ MOM.getSupply= function (height) { // 计算当前流通总数：预发行数+�
   return supply
 }
 
-MOM.packMe = async function (actionPool, lastBlock, keypair) { // 后台节点挖矿者的公私钥
-  this.height = lastBlock ? lastBlock.height + 1 : wo.Config.GENESIS_HEIGHT
-  this.rewardWinner = this.getReward({rewardType:'rewardWinner'})
-  this.rewardPacker = this.getReward({rewardType:'rewardPacker'})
-  this.totalFee = 0
-  this.totalAmount = 0
-  this.version = wo.Config.VERSION
-  this.packerPubkey = keypair.pubkey
-  this.lastBlockHash = lastBlock?lastBlock.hash:null
-  this.timestamp = lastBlock?new Date():wo.Config.GENESIS_EPOCHE
+MOM.packMe = function (actionBatch, lastBlock, keypair) { // 后台节点挖矿者的公私钥
+  this.height = lastBlock ? lastBlock.height + 1 : wo.Config.GENESIS_HEIGHT;
+  this.rewardWinner = this.getReward({rewardType:'rewardWinner'});
+  this.rewardPacker = this.getReward({rewardType:'rewardPacker'});
+  this.totalFee = 0;
+  this.totalAmount = 0;
+  this.version = wo.Config.VERSION;
+  this.packerPubkey = keypair.pubkey;
+  this.lastBlockHash = lastBlock?lastBlock.hash:null;
+  this.timestamp = lastBlock?new Date():wo.Config.GENESIS_EPOCHE;
 
   if(this.type!=="SignBlock")
   {
-    this.totalAmount = wo.Block.totalAmount
-    this.totalFee = wo.Block.totalFee
-    this.actionHashList = Object.keys(actionPool)
-    this.actionHashRoot = wo.Crypto.getMerkleRoot(this.actionHashList)
-    this.numberAction = this.actionHashList.length
+    this.totalAmount = actionBatch.totalAmount;
+    this.totalFee = actionBatch.totalFee;
+    this.actionHashList = Object.keys(actionBatch.actionPool ? actionBatch.actionPool : {});
+    this.actionHashRoot = wo.Crypto.getMerkleRoot(this.actionHashList);
+    this.numberAction = this.actionHashList.length;
   }
   
-  this.signMe(keypair.seckey)
-  this.hashMe()
-  if(this.type!=="SignBlock")
-    mylog.info('block '+this.height+' is created with '+this.numberAction+' actions')
+  this.signMe(keypair.seckey);
+  this.hashMe();
+  if(this.type !== "SignBlock")
+    mylog.info('block '+this.height+' is created with '+this.numberAction+' actions');
   return this
 }
-MOM.runActionList = async function(currentActionPool)
-{
-  if(this.actionHashList.length && this.actionHashList.length > 0){
+MOM.runActionList = async function (actionPool) {
+  //缺少某交易时向其他节点请求，添加别人创建的区块，传入的actionPool里多余的交易加回到交易池
+  if (this.actionHashList.length && this.actionHashList.length > 0) {
     for (let actionHash of this.actionHashList) {
-      currentActionPool[actionHash].blockHash = this.hash
-      mylog.error()
-      await wo[currentActionPool[actionHash].type].addOne({[currentActionPool[actionHash].type]:currentActionPool[actionHash]})
-      wo[currentActionPool[actionHash].type].execute(currentActionPool[actionHash]) //执行速度比交易写入数据库快
+      actionPool[actionHash].blockHash = this.hash;
+      await wo[actionPool[actionHash].type].addOne({ [actionPool[actionHash].type]: actionPool[actionHash] });
+      wo[actionPool[actionHash].type].execute(actionPool[actionHash]);
+      delete actionPool[actionHash];
     }
-    mylog.info(`共 ${this.actionHashList.length} Action写入数据库`)
-    wo.Block.totalAmount = 0;
-    wo.Block.totalFee = 0;
+    //残余交易处理
+    if(Object.keys(actionPool).length === 0)
+      mylog.info(`共 ${this.actionHashList.length} Action写入数据库`);
+    else
+      Object.assign(wo.Action.actionPool, actionPool);
   }
-  else
-  {
-    return null
-  }
+  return null
 }
 
 MOM.hashMe = function(){
@@ -224,8 +223,6 @@ DAD.api.getActionList=async function(option) {
   }
   return null
 }
-DAD.totalAmount = 0,
-DAD.totalFee = 0
 
 /********************** Private members in class *******************/
 
