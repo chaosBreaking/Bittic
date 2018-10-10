@@ -147,7 +147,7 @@ function serverInit(){ // 配置并启动 Web 服务
 
   /*** 通用中间件 ***/
 
-  // server.use(Morgan('development'===server.get('env')?'dev':'combined')) // , {stream:require('fs').createWriteStream(path.join(__dirname+'/Data.log', 'http.log'), {flags: 'a', defaultEncoding: 'utf8'})})) // format: combined, common, dev, short, tiny.  发现 defaultEncoding 并不起作用。
+  server.use(Morgan('development'===server.get('env')?'dev':'combined')) // , {stream:require('fs').createWriteStream(path.join(__dirname+'/Data.log', 'http.log'), {flags: 'a', defaultEncoding: 'utf8'})})) // format: combined, common, dev, short, tiny.  发现 defaultEncoding 并不起作用。
   server.use(MethodOverride())
   server.use(CookieParser())
   server.use(BodyParser.json({limit: '50mb'})) // 用于过滤 POST 参数
@@ -170,7 +170,7 @@ function serverInit(){ // 配置并启动 Web 服务
       option[key]=wo.Tool.json2obj(ask.body[key])
     }
     /////////// authentication ///////////////////
-
+    option._req = ask;
     async function normalize(result){ // 有的实例的normalize 需要当前用户信息，比如 Message 要根据当前用户判断 vote 。所以这个函数定义在这里，把含有当前用户信息的option给它
       if (result && result instanceof wo.Ling){ // 是 Ling 元素。注意，字符串也有 normalize 方法，在WSL16+node9.4里会报错“RangeError: The normalization form should be one of NFC, NFD, NFKC, NFKD.”，所以必须判断是Ling，而不能只判断具有normalize方法。
         await result.normalize(option) // 有的 normalize 需要 option，例如检查当前用户是否投票了某消息
