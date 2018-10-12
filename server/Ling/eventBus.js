@@ -6,6 +6,7 @@ function EventBus(obj) {
   if (!new.target)
     return new EventBus(obj);
   this.obj = obj;
+  this.api = api;
 }
 
 EventBus.prototype.mount = function (worker) {
@@ -61,11 +62,15 @@ EventBus.prototype.call = function (who, api, act, param) {
   return 1;
 }
 
-EventBus.prototype.api = {
+const api = {}
 
-  remoteCall : function(option){
-    this.call(option.who, option.api, option.act ,option.param);
+api.remoteCall = function(option){
+  if(option && option.data){
+    mylog.info('remotecall');
+    return wo.EventBus.call(option.data.who, option.data.api, option.data.act ,option.data.param);
   }
+  return null
 }
+
 
   module.exports = EventBus

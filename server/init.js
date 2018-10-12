@@ -105,7 +105,8 @@ async function masterInit(worker) {
   wo.Peer = await require('./Ling/Peer.js')._init()
   wo.Store = await require('./Ling/Store.js')('redis') //  必须指定数据库,另外不能_init(),否则会覆盖子进程已经设定好的内容
   wo.EventBus = require('./Ling/EventBus.js')(worker).mount(worker);
-  wo.Consensus = await require('./Ling/' + wo.Config.consensus + '.js')._init(worker);
+  wo.Consensus = await require('./Ling/' + wo.Config.consensus + '.js')
+  wo.Consensus._init(worker);
 }
 async function workerInit() {
   global.mylog = require('./Base/Logger.js')
@@ -289,6 +290,10 @@ function serverInit() { // 配置并启动 Web 服务
             Block: message.data
           })
           mylog.info('添加最新区块，哈希为：' + message.data.hash)
+          return 0;
+        case "call":
+          message.data.api ? wo[message.data.who]['api'][message.data.act](message.data.param)
+          : wo[message.data.who][message.data.act](message.data.param)
           return 0;
       }
     });
