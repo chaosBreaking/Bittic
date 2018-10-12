@@ -60,7 +60,12 @@ EventBus.prototype.call = function (who, api, act, param) {
   }
   return 1;
 }
-EventBus.prototype.api.remoteCall = function(option){
-  this.call(option.who, option.api, option.act ,option.param);
+
+EventBus.prototype.api = {
+
+  remoteCall : function(option){
+    this.call(option.who, option.api, option.act ,option.param);
+  }
 }
-module.exports = EventBus
+
+  module.exports = EventBus
