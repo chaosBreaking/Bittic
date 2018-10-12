@@ -104,7 +104,7 @@ async function masterInit(worker) {
   wo.Block = require('./Ling/Block.js')
   wo.Peer = await require('./Ling/Peer.js')._init()
   wo.Store = await require('./Ling/Store.js')('redis') //  必须指定数据库,另外不能_init(),否则会覆盖子进程已经设定好的内容
-  wo.eventBus = require('./Ling/eventBus.js')(worker).mount(worker);
+  wo.EventBus = require('./Ling/EventBus.js')(worker).mount(worker);
   wo.Consensus = await require('./Ling/' + wo.Config.consensus + '.js')._init(worker);
 }
 async function workerInit() {
@@ -131,7 +131,7 @@ async function workerInit() {
   wo.Peer = await require('./Ling/Peer.js')._init()
   wo.Block = await require('./Ling/Block.js')._init()
   wo.Store = await require('./Ling/Store.js')('redis')._init()
-  wo.eventBus = require('./Ling/eventBus.js')(process)
+  wo.EventBus = require('./Ling/EventBus.js')(process)
   wo.Chain = await require('./Ling/Chain.js')._init()
 }
 
@@ -277,9 +277,9 @@ function serverInit() { // 配置并启动 Web 服务
         case 231: //[Worker] createBlock完毕
           if (wo.Config.consensus === 'ConsPot')
             wo.Store.pushInRBS(message.data);
-          wo.Peer.broadcast('/Consensus/mineWatcher', {
-            Block: message.data
-          })
+          // wo.Peer.broadcast('/Consensus/mineWatcher', {
+          //   Block: message.data
+          // })
           mylog.info('本节点出块的哈希为：' + message.data.hash)
           return 0;
         case 232: //[Worker] appendBlock完毕
@@ -301,7 +301,7 @@ function serverInit() { // 配置并启动 Web 服务
         if(worker.id !== 1) return 0;//拦截其他进程的信号
         switch (message.code) {
           case 200:
-            wo.eventBus = require('./Ling/eventBus.js')(worker).mount(worker);
+            wo.EventBus = require('./Ling/EventBus.js')(worker).mount(worker);
           case 210:
             return 0;
           case 220:
@@ -327,7 +327,7 @@ function serverInit() { // 配置并启动 Web 服务
     });
   } 
   else {
-    const eventHandler = require('./Ling/workerHandler.js')
+    const eventHandler = require('./Ling/WorkerHandler.js')
     cluster.worker.on('message', eventHandler);
     await workerInit();
     serverInit();

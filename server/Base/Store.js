@@ -11,11 +11,7 @@ class redisStore extends redis{
     }
     async getKey(key){
         return JSON.parse(await this.get(key))
-    }
-    async pushKey(key, value){
-
-    }
-    
+    }    
 }
 
 function Store(dbType,option){

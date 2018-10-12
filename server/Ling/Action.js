@@ -120,7 +120,9 @@ DAD.api.prepare=async function(option){
     if( DAD.verifyAddress(option.Action) && 
         DAD.verifySig(option.Action) && 
         DAD.verifyHash(option.Action) &&
+        !DAD.actionPool[option.Action.hash] &&
         (await wo[option.Action.type].validater(option.Action))
+      
       ) 
     {
       DAD.actionPool[option.Action.hash] = option.Action;

@@ -192,8 +192,9 @@ DAD.createBlock=async function(block){
   DAD.pushTopBlock(block);
   block.addMe();     //将区块写入数据库
   DAD.addReward(block);
-  wo.eventBus.send(231, block);
+  wo.EventBus.send(231, block);
   block.runActionList(actionBatch.actionPool);
+  wo.Peer.broadcast('/Consensus/mineWatcher', {Block:JSON.stringify(block)})
   return block
 }
 
@@ -207,10 +208,11 @@ DAD.appendBlock=async function(block){
     DAD.pushTopBlock(block);
     await block.addMe();
     DAD.addReward(block);
-    wo.eventBus.send(232, block);
+    wo.EventBus.send(232, block);
     block.runActionList(actionBatch.actionPool);
     mylog.info(block.timestamp.toJSON() + ' : block '+block.height+' is added');
     my.addingLock = false;    //区块添加完毕后 释放锁
+    // wo.Peer.broadcast('/Consensus/mineWatcher', {Block:JSON.stringify(wo.Store.getTopBlock())})
     return block;
   }
   return null

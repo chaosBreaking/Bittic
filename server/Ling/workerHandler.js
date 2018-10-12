@@ -15,7 +15,7 @@ module.exports = async function (message) {
       case 'get':
         let res = message.data.api ? wo[message.data.who]['api'][message.data.act](message.data.param)
           : wo[message.data.who][message.data.act](message.data.param)
-        return await wo.Store.storeAPI.setKey(message.data.id, res);
+        return await wo.Store.storeAPI.setKey(message.data.id, JSON.stringify(res));
       case 'call':  //内部函数调用
         message.data.api ? wo[message.data.who]['api'][message.data.act](message.data.param)
           : wo[message.data.who][message.data.act](message.data.param)
