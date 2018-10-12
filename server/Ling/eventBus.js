@@ -7,12 +7,36 @@ function eventBus(obj) {
     return new eventBus(obj);
   this.obj = obj;
 }
+
 eventBus.prototype.mount = function (worker) {
   workerPool.push(worker);
+  return this;
+}
+eventBus.prototype.link = function (worker) {
+  this.obj = worker;
+  return this;
 }
 eventBus.prototype.send = function (code, data = '') {
-  if (this.obj && this.obj.send)
-    this.obj.send({ code, data });
+  if (this.obj && this.obj.send){
+    try {
+      this.obj.send({ code, data });
+      return 1;
+    } catch (error) {
+      mylog.error('[EventBus] Dead Worker');
+      return 0;
+    }
+  }
+}
+eventBus.prototype.emit = async function (code, data) {
+  for (let worker of workerPool) {
+    try {
+      worker.send({ code, data })
+    } catch (error) {
+      workerPool.splice(workerPool.indexOf(worker),1);    
+      mylog.warn('deleted dead worker')
+    }
+  }
+  return 0;
 }
 eventBus.prototype.get = async function (who, api, act, param) {
   let id = String(Math.random()).slice(2, 18);
@@ -35,46 +59,6 @@ eventBus.prototype.call = function (who, api, act, param) {
     });
   }
   return 1;
-}
-/**
- * 
- * 子进程的信号处理代码
- * @param {*} message 
- */
-eventBus.prototype.workerHandler = async function (message) {
-  if (message && message.code) {
-    switch (message.code) {
-      //子进程处理Master触发的事件
-      case 100:
-        mylog.warn('[Worker] 100 -- 主进程启动共识');
-        return 0;
-      case 110:
-        return 0;
-      case 120:
-        return 0;
-      case 130:
-        mylog.info('[Worker]: 收到出块阶段预告......')
-        return 0;
-      case 'get':
-        let res = message.data.api ? wo[message.data.who]['api'][message.data.act](message.data.param)
-          : wo[message.data.who][message.data.act](message.data.param)
-        return wo.Store.storeAPI.setKey(message.data.id, res);
-      case 'call':
-        message.data.api ? wo[message.data.who]['api'][message.data.act](message.data.param)
-          : wo[message.data.who][message.data.act](message.data.param)
-        return 0;
-    }
-  }
-  return 0
-}
-
-//主进程的信号处理代码因为启动顺序制约只能写在init.js里
-
-eventBus.prototype.emit = async function (code, data) {
-  for (let worker of workerPool) {
-    worker.send({ code, data });
-  }
-  return 0
 }
 
 module.exports = eventBus

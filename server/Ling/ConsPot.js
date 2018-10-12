@@ -19,7 +19,7 @@ DAD._init = async function(){
     var signing = my.scheduleJobs[0] = Schedule.scheduleJob({ second:0 }, DAD.signOnce) // 每分钟的第0秒
     var electing = my.scheduleJobs[1] = Schedule.scheduleJob({second:20}, DAD.electOnce)
     var mining = my.scheduleJobs[2] = Schedule.scheduleJob({second:40}, DAD.mineOnce)
-    wo.eventBus.send(100);
+    wo.eventBus.emit(100);
     if(new Date().getSeconds()<17 && !my.selfPot.signature)
       DAD.signOnce()
   }
@@ -27,6 +27,7 @@ DAD._init = async function(){
     await DAD.calibrate();
     setTimeout(DAD._init,60 - new Date().getSeconds())
   }
+  return this
 }
 
 DAD.calibrate = async function(){
@@ -37,7 +38,6 @@ DAD.calibrate = async function(){
   }
   // mylog.info(`此刻时间对应的区块高度 : ${heightNow}`);
   // mylog.info('此刻本机链的最高块 : ' + (await wo.Store.getTopBlock()).height);
-  wo.eventBus.emit(100, '校对');
   if (heightNow === (await wo.Store.getTopBlock()).height + 2 && my.signBlock && (await wo.Store.getTopBlock()).height === my.signBlock.height - 1) { 
     // 上一块没有及时出现
     let result = await wo.Peer.randomcast('/Block/getBlock', { Block:{height : (await wo.Store.getTopBlock()).height + 1} })
@@ -57,8 +57,15 @@ DAD.calibrate = async function(){
     mylog.info('heightNow = ' + heightNow +' 当前本机链的最高块 = ' + (await wo.Store.getTopBlock()).height+'...准备更新缺少的区块')
     wo.eventBus.call('Chain', '', 'updateChainFromPeer')
   }
+  return 0;
 }
 
+DAD.stop = function(){
+  mylog.error('stop')
+  my.scheduleJobs[0].cancel()
+  my.scheduleJobs[1].cancel()
+  my.scheduleJobs[2].cancel()
+}
 // 第一阶段：签名
 DAD.signOnce = async function(){
   //  todo: 检查高度是否正确，如果不正确，把my.signBlock添加进去
