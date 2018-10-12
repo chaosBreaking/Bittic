@@ -194,7 +194,7 @@ DAD.createBlock=async function(block){
   DAD.addReward(block);
   wo.EventBus.send(231, block);
   block.runActionList(actionBatch.actionPool);
-  wo.Peer.broadcast('/Consensus/mineWatcher', {Block:JSON.stringify(block)})
+  wo.Peer.broadcast('/EventBus/remoteCall', {who:'Consensus',api:'',act:'mineWatcher', data:{Block:JSON.stringify(block)}})
   return block
 }
 

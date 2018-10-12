@@ -8,6 +8,8 @@ module.exports = async function (message) {
       case 110: //[Master] 签名阶段
         return 0;
       case 120: //[Master] 竞选阶段
+        mylog.info('广播本节点的赢家的预签名空块--' + message.data.hash);
+        wo.Peer.broadcast('/EventBus/remoteCall', {who:'Consensus',api:'',act:'electWatcher',data:{Block:JSON.stringify(message.data)}});
         return 0;
       case 130: //[Master] 出块阶段
         mylog.info('[Worker]: 收到出块阶段预告')

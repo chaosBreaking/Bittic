@@ -294,7 +294,7 @@ function serverInit() { // 配置并启动 Web 服务
     });
     cluster.on('exit', function (worker, code, signal) {
       mylog.error('worker ' + worker.process.pid + ' died, Restarting');
-      wo.Consensus.stop();
+      // wo.Consensus.stop();
       var worker = cluster.fork();
       worker.id = 1;
       cluster.on('message', async (worker, message) => {
@@ -321,6 +321,11 @@ function serverInit() { // 配置并启动 Web 服务
               Block: message.data
             })
             mylog.info('添加最新区块，哈希为：' + message.data.hash)
+            return 0;
+          case 'call':  //内部函数调用
+            mylog.warn('主进程内部调用')
+            message.data.api ? wo[message.data.who]['api'][message.data.act](message.data.param)
+              : wo[message.data.who][message.data.act](message.data.param)
             return 0;
         }
       });

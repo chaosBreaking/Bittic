@@ -135,9 +135,7 @@ DAD.electOnce = async function(){
       my.bestPot.pubkey = my.selfPot.pubkey;
       my.signBlock = new wo.Block({winnerMessage:my.selfPot.message, winnerSignature:my.selfPot.signature, winnerPubkey:my.selfPot.pubkey, type:'SignBlock'}) // 把候选签名打包进本节点的虚拟块
       my.signBlock.packMe({}, wo.Store.getTopBlock(), wo.Crypto.secword2keypair(wo.Config.ownerSecword))
-      wo.EventBus.emit(120);
-      mylog.info('广播本节点的赢家的预签名空块：'+my.signBlock.hash);
-      wo.Peer.broadcast('/Consensus/electWatcher', {Block:JSON.stringify(my.signBlock)});
+      wo.EventBus.emit(120, my.signBlock);
     }
     else{
       mylog.info('本节点没有收集到时间证明，本轮不参与竞选')
