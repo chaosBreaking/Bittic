@@ -75,14 +75,14 @@ DAD.signOnce = async function(){
   mylog.info('此刻本机链的最高块 : ' + (await wo.Store.getTopBlock()).height)
 
   if (heightNow === (await wo.Store.getTopBlock()).height+1 && new Date().getSeconds()<15 ) { // 注意，前面的同步可能花了20多秒，到这里已经是在竞选阶段。所以再加个当前秒数的限制。
-    mylog.info(new Date()+'：签名阶段开始 for block='+((await wo.Store.getTopBlock()).height+1))
-    mylog.info('重置sigPool/packerPool/selfPot/bestPot，来接收这一轮的签名。')
     my.signerPool = {}
     my.packerPool = {}
     my.selfPot = {} // 注意，不要 my.selfPot=my.bestPot={} 这样指向了同一个对象！
     my.bestPot = {} // 如果设signature=null，就可能会===compareSig返回的null，就产生错误了。因此保留为undefined.
     my.currentPhase='signing';
     wo.EventBus.emit(110);
+    mylog.info(new Date()+'：签名阶段开始 for block='+((await wo.Store.getTopBlock()).height+1))
+    mylog.info('重置sigPool/packerPool/selfPot/bestPot，来接收这一轮的签名。')
     signForOwner();
     return 0;
   }
@@ -126,8 +126,8 @@ DAD.api.signWatcher=async function(option) { // 监听收集终端用户的签�
 
 // 第二阶段：竞选
 DAD.electOnce = async function(){
+  my.currentPhase = 'electing';
   if (Date.time2height()===(await wo.Store.getTopBlock()).height+1) {
-    my.currentPhase = 'electing';
     mylog.info(new Date()+'：竞选阶段开始 for block='+((await wo.Store.getTopBlock()).height+1)+' using block='+(await wo.Store.getTopBlock()).height)
     if (my.selfPot.signature) { // todo: 更好的是核对（签名针对的区块高度===当前竞选针对的区块高度） 
       my.bestPot.signature = my.selfPot.signature; // 把本节点收到的用户最佳签名，暂时记为全网最佳。
@@ -224,8 +224,8 @@ DAD.api.shareWinner = async function(){
 
 // 第三阶段：出块，或接收获胜者打包广播的区块
 DAD.mineOnce = async function(){
+  my.currentPhase='mining';
   if (Date.time2height()===(await wo.Store.getTopBlock()).height+1) {
-    my.currentPhase='mining'
     wo.EventBus.emit(130);
     mylog.info(new Date()+'：出块阶段开始 for block='+((await wo.Store.getTopBlock()).height+1)+' using block='+(await wo.Store.getTopBlock()).height)
     mylog.info('全网最终获胜签名='+my.bestPot.signature+'，来自地址地址 '+wo.Crypto.pubkey2address(my.bestPot.pubkey))

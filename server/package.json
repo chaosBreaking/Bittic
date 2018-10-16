@@ -47,7 +47,8 @@
     "setup": "npm install",
     "start": "cross-env NODE_ENV=development supervisor -i Data.log,node_modules,Data.sqlite --harmony server.js",
     "inspect": "cross-env NODE_ENV=development supervisor -i Data.log,node_modules,Data.sqlite --inspect --harmony server.js",
-    "service": "cross-env NODE_ENV=production supervisor -i Data.log,node_modules,Data.sqlite --harmony server.js -P https > Data.log/service.log"
+    "service": "cross-env NODE_ENV=production supervisor -i Data.log,node_modules,Data.sqlite --harmony server.js -P https > Data.log/service.log",
+    "dev":"node init.js -n devnet"
   },
   "author": ""
 }

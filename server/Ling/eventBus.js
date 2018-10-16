@@ -66,7 +66,6 @@ const api = {}
 
 api.remoteCall = function(option){
   if(option && option.data){
-    mylog.info('remotecall');
     return wo.EventBus.call(option.data.who, option.data.api, option.data.act ,option.data.param);
   }
   return null

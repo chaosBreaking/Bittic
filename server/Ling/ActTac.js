@@ -1,10 +1,14 @@
 const Action = require('./Action.js')
-const Methods = ["create","transfer","exchange","mount"]
-function actValidater(action){
+const Methods = ["create", "transfer", "exchange", "mount"]
+async function actValidater(action){
   switch(action.method){
     case "create":
-      if( action.name && action.symbol && action.decimals && Number.isSafeInteger(Number(action.decimals)) && !await wo.Tac.getOne({Tac:{name:action.name,symbol:action.symbol}}))    
+      if( action.data.name && action.data.symbol && action.data.decimals &&
+          Number.isSafeInteger(Number(action.data.decimals)) && 
+          !await wo.Tac.getOne({Tac:{name:action.data.name, symbol:action.data.symbol}})
+        )
         return true
+      return false
     case "transfer":  
       return true
     case "exchange":
@@ -23,17 +27,27 @@ class ActTac extends Action {
       value:"ActTac",
       enumerable:true,
       writable:false
-    })  
+    }),
+    Object.defineProperty(this,"type",{
+      value:"ActTac",
+      enumerable:true,
+      writable:false
+    }),    
+    Object.defineProperty(this, "data",{
+      value:prop,
+      enumerable:true,
+      writable:false
+    })
   }
-  static validater(action){
-    return Methods.includes(action.method) && actValidater(action)
+  static async validater(action){
+    return Methods.includes(action.method) && await actValidater(action)
   }
   
   static async execute(action){
     if(action && action.method){
-      let res
       switch(action.method){
         case "create":
+          delete action._class;
           return await wo.Tac.create(action);
         case "transfer":
           //内部交易，转发到应用链进程来处理
@@ -50,4 +64,6 @@ class ActTac extends Action {
     return 0
   }
 }
+
+module.exports = ActTac
 

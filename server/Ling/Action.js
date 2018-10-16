@@ -27,13 +27,14 @@ MOM._model = {
   fee:            { default:0,         sqlite:'NUMERIC',  mysql:'BIGINT' },
   message:        { default:undefined, sqlite:'TEXT',     mysql:'VARCHAR(256)' },
   dataIndex:      { default:undefined, sqlite:'TEXT',     mysql:'VARCHAR(50)'}, //用于索引json中存储数据，
-  method:         { default:undefined, sqlite:'TEXT' }
+  method:         { default:undefined, sqlite:'TEXT' },
+  data:           { default:undefined, sqlite:'TEXT' },
 }
 
 MOM.packMe = function(keypair){ // 由前端调用，后台不创建
-  this.actorPubkey=keypair.pubkey
-  this.actorAddress=wo.Crypto.pubkey2address(keypair.pubkey)
-  this.timestamp=new Date()
+  this.actorPubkey = keypair.pubkey
+  this.actorAddress = wo.Crypto.pubkey2address(keypair.pubkey)
+  this.timestamp = new Date()
   
   this.signMe(keypair.seckey)
   this.hashMe()

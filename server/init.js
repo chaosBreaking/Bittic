@@ -119,21 +119,23 @@ async function workerInit() {
     process.exit()
   }
   mylog.info('Initializing database......')
-  wo.Data = await require('./Data/' + wo.Config.dbType)._init(wo.Config.dbName)
-  mylog.info('Loading classes and Creating tables......')
-  wo.Ling = require('./Ling/_Ling.js')
-  wo.Account = await require('./Ling/Account.js')._init()
-  wo.Action = await require('./Ling/Action.js')._init()
-  wo.ActTransfer = require('./Ling/ActTransfer.js')
-  wo.ActStorage = require('./Ling/ActStorage.js')
-  wo.ActMultisig = require('./Ling/ActMultisig.js')
-  wo.Bancor = require('./Ling/Bancor.js')._init()
-  mylog.info('Initializing chain............')
-  wo.Peer = await require('./Ling/Peer.js')._init()
-  wo.Block = await require('./Ling/Block.js')._init()
-  wo.Store = await require('./Ling/Store.js')('redis')._init()
-  wo.EventBus = require('./Ling/EventBus.js')(process)
-  wo.Chain = await require('./Ling/Chain.js')._init()
+  wo.Data = await require('./Data/' + wo.Config.dbType)._init(wo.Config.dbName);
+  mylog.info('Loading classes and Creating tables......');
+  wo.Ling = require('./Ling/_Ling.js');
+  wo.Account = await require('./Ling/Account.js');
+  wo.Action = await require('./Ling/Action.js')._init();
+  wo.Tac = await require('./Ling/Tac.js')._init();
+  wo.ActTransfer = require('./Ling/ActTransfer.js');
+  wo.ActStorage = require('./Ling/ActStorage.js');
+  wo.ActMultisig = require('./Ling/ActMultisig.js');
+  wo.ActTac = require('./Ling/ActTac.js');
+  wo.Bancor = require('./Ling/Bancor.js')._init();
+  mylog.info('Initializing chain............');
+  wo.Peer = await require('./Ling/Peer.js')._init();
+  wo.Block = await require('./Ling/Block.js')._init();
+  wo.Store = await require('./Ling/Store.js')('redis')._init();
+  wo.EventBus = require('./Ling/EventBus.js')(process);
+  wo.Chain = await require('./Ling/Chain.js')._init();
 }
 
 function serverInit() { // 配置并启动 Web 服务
@@ -278,9 +280,6 @@ function serverInit() { // 配置并启动 Web 服务
         case 231: //[Worker] createBlock完毕
           if (wo.Config.consensus === 'ConsPot')
             wo.Store.pushInRBS(message.data);
-          // wo.Peer.broadcast('/Consensus/mineWatcher', {
-          //   Block: message.data
-          // })
           mylog.info('本节点出块的哈希为：' + message.data.hash)
           return 0;
         case 232: //[Worker] appendBlock完毕
@@ -299,7 +298,6 @@ function serverInit() { // 配置并启动 Web 服务
     });
     cluster.on('exit', function (worker, code, signal) {
       mylog.error('worker ' + worker.process.pid + ' died, Restarting');
-      // wo.Consensus.stop();
       var worker = cluster.fork();
       worker.id = 1;
       cluster.on('message', async (worker, message) => {
