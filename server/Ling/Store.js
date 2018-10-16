@@ -62,7 +62,9 @@ Store.prototype.pushTopBlock = async function(block){
 Store.prototype.getTopBlock = async function(){
     return JSON.parse(await this.storeAPI.getKey('topBlock'));
 }
-
+Store.prototype.getRBS = async function(){
+  return await this.storeAPI.getKey('recBlockStack');
+}
 module.exports = Store
 
 

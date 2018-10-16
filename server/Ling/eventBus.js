@@ -64,12 +64,4 @@ EventBus.prototype.call = function (who, api, act, param) {
 
 const api = {}
 
-api.remoteCall = function(option){
-  if(option && option.data){
-    return wo.EventBus.call(option.data.who, option.data.api, option.data.act ,option.data.param);
-  }
-  return null
-}
-
-
-  module.exports = EventBus
+module.exports = EventBus

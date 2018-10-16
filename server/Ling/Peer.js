@@ -148,7 +148,7 @@ DAD.addPeer2Pool=async function (peerData){ // 把peer原始数据转成peer对�
   return peer
 }
 
-DAD._init=async function(){
+DAD._init=async function(port){
   if (wo.Config.seedSet && Array.isArray(wo.Config.seedSet)){
     // 建立种子节点库
     for (var seed of wo.Config.seedSet){
@@ -158,7 +158,7 @@ DAD._init=async function(){
         body:{ Peer:JSON.stringify(my.self.setProp()) }, // 告诉对方，我是谁，以及发出ping的时间
         json:true
       }).then(async function(result){
-        return await DAD.addPeer2Pool({accessPoint:seed, ownerAddress:result.remoteAddress})
+        return await DAD.addPeer2Pool({accessPoint:port?`${seed}:${port}` : seed, ownerAddress:result.remoteAddress})
       }).catch(function(err){
   //        mylog.warn('WARNING : ping has no response from '+peer.ip)
         return null

@@ -102,7 +102,7 @@ async function masterInit(worker) {
   wo.Ling = require('./Ling/_Ling.js')
   mylog.info('Initializing Consensus......')
   wo.Block = require('./Ling/Block.js')
-  wo.Peer = await require('./Ling/Peer.js')._init()
+  wo.Peer = await require('./Ling/Peer.js')._init('6888')
   wo.Store = await require('./Ling/Store.js')('redis') //  必须指定数据库,另外不能_init(),否则会覆盖子进程已经设定好的内容
   wo.EventBus = require('./Ling/EventBus.js')(worker).mount(worker);
   wo.Consensus = await require('./Ling/' + wo.Config.consensus + '.js')
@@ -138,7 +138,7 @@ async function workerInit() {
   wo.Chain = await require('./Ling/Chain.js')._init();
 }
 
-function serverInit() { // 配置并启动 Web 服务
+function serverInit(port) { // 配置并启动 Web 服务
 
   mylog.info("★★★★★★★★ Starting Server......")
 
@@ -232,6 +232,14 @@ function serverInit() { // 配置并启动 Web 服务
   }
 
   /*** 启动 Web 服务 ***/
+  if(port){
+    mylog.info(port)
+    let webServer = require('http').createServer(server)
+    webServer.listen(port, function (err) {
+      mylog.info(`Server listening on ${port} for Consensus`)
+    })
+    return server;
+  }
   if ('http' === wo.Config.protocol) { // 如果在本地localhost做开发，就启用 http。注意，从https网页，不能调用http的socket.io。Chrome/Firefox都报错：Mixed Content: The page at 'https://localhost/yuncai/' was loaded over HTTPS, but requested an insecure XMLHttpRequest endpoint 'http://localhost:6327/socket.io/?EIO=3&transport=polling&t=LoRcACR'. This request has been blocked; the content must be served over HTTPS.
     let webServer = require('http').createServer(server)
     webServer.listen(wo.Config.port, function (err) {
@@ -273,6 +281,7 @@ function serverInit() { // 配置并启动 Web 服务
         case 200:
           mylog.warn(`[Master] 主程序初始化完毕，启动共识模块......`);
           await masterInit(worker);
+          serverInit('6888');
         case 210:
           return 0;
         case 220:
@@ -280,7 +289,7 @@ function serverInit() { // 配置并启动 Web 服务
         case 231: //[Worker] createBlock完毕
           if (wo.Config.consensus === 'ConsPot')
             wo.Store.pushInRBS(message.data);
-          mylog.info('本节点出块的哈希为：' + message.data.hash)
+          mylog.info('本节点出块的哈希为：' + message.data.hash);
           return 0;
         case 232: //[Worker] appendBlock完毕
           if (wo.Config.consensus === 'ConsPot')

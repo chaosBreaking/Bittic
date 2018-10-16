@@ -232,9 +232,8 @@ DAD.mineOnce = async function(){
     mylog.info('本节点的候选签名='+my.selfPot.signature+'，来自地址地址 '+wo.Crypto.pubkey2address(my.selfPot.pubkey))
     if (my.selfPot.signature && my.bestPot.signature === my.selfPot.signature) { // 全网最终获胜者是我自己，于是打包并广播。注意防止 bestPot===selfPot===undefined，这是跳过竞选阶段直接从前两阶段开始会发生的。
       mylog.info('本节点获胜，开始出块...')
-      // await wo.Chain.createBlock({winnerMessage:my.selfPot.message,winnerSignature:my.selfPot.signature, winnerPubkey:my.selfPot.pubkey})
       wo.EventBus.call('Chain','','createBlock',{winnerMessage:my.selfPot.message,winnerSignature:my.selfPot.signature, winnerPubkey:my.selfPot.pubkey})
-      // wo.Peer.broadcast('/Consensus/mineWatcher', {Block:JSON.stringify(wo.Store.getTopBlock())})
+      wo.Peer.broadcast('/Consensus/mineWatcher', {Block:JSON.stringify(wo.Store.getTopBlock())})
       // mylog.info('本节点出块的哈希为：'+ wo.Store.getTopBlock().hash)
     }
     else{
@@ -367,12 +366,13 @@ DAD.pushInRBS = function(obj){
   }
 }
 
-DAD.api.getRBS = function(target){
-  if(target.packerPubkey===wo.Config.packerPubkey){
-    mylog.info("收到分享缓存区块请求")
-    return my.recBlockStack
-  }
-} 
+DAD.api.getRBS = async function(target){
+  // if(target.packerPubkey===wo.Config.packerPubkey){
+  //   mylog.info("收到分享缓存区块请求")
+  //   return my.recBlockStack
+  // }
+  return await wo.Store.getRBS()
+}
 
 async function signForOwner(){
     // 作为节点，把自己签名直接交给自己。这是因为，全网刚起步时，很可能还没有终端用户，这时需要节点进行签名。
