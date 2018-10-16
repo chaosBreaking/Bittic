@@ -130,7 +130,7 @@ DAD.updateChainFromPeer=async function(){ // 向其他节点获取自己缺少�
   for (let count = 0; wo.Config.consensus==="ConsPot" && Date.time2height() > (my.topBlock.height + 1) && count < 3; count++){ // 确保更新到截至当前时刻的最高区块。
     mylog.info(`向全网广播同步请求-->开始第${count}轮同步`);
     let blockList=await wo.Peer.randomcast('/Block/getBlockList', { Block:{height:'>'+my.topBlock.height}, config:{limit:100, order:'height ASC'} })
-    while (Array.isArray(blockList) && blockList.length>0){
+    if (Array.isArray(blockList) && blockList.length>0){
       for (let block of blockList){
         block = new wo.Block(block) // 通过 Peer 返回的是原始数据，要转换成对象。
         if (block.lastBlockHash===my.topBlock.hash && block.verifySig() && block.verifyHash())

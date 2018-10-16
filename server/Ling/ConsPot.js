@@ -136,6 +136,7 @@ DAD.electOnce = async function(){
       my.signBlock = new wo.Block({winnerMessage:my.selfPot.message, winnerSignature:my.selfPot.signature, winnerPubkey:my.selfPot.pubkey, type:'SignBlock'}) // 把候选签名打包进本节点的虚拟块
       my.signBlock.packMe({}, await wo.Store.getTopBlock(), wo.Crypto.secword2keypair(wo.Config.ownerSecword))
       wo.EventBus.emit(120, my.signBlock);
+      wo.Peer.broadcast('/Consensus/electWatcher', {Block:JSON.stringify(my.signBlock)})
     }
     else{
       mylog.info('本节点没有收集到时间证明，本轮不参与竞选')
@@ -233,8 +234,6 @@ DAD.mineOnce = async function(){
     if (my.selfPot.signature && my.bestPot.signature === my.selfPot.signature) { // 全网最终获胜者是我自己，于是打包并广播。注意防止 bestPot===selfPot===undefined，这是跳过竞选阶段直接从前两阶段开始会发生的。
       mylog.info('本节点获胜，开始出块...')
       wo.EventBus.call('Chain','','createBlock',{winnerMessage:my.selfPot.message,winnerSignature:my.selfPot.signature, winnerPubkey:my.selfPot.pubkey})
-      wo.Peer.broadcast('/Consensus/mineWatcher', {Block:JSON.stringify(wo.Store.getTopBlock())})
-      // mylog.info('本节点出块的哈希为：'+ wo.Store.getTopBlock().hash)
     }
     else{
       mylog.info('本节点没有赢:(')

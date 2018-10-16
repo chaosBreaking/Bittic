@@ -158,7 +158,7 @@ DAD._init=async function(port){
         body:{ Peer:JSON.stringify(my.self.setProp()) }, // 告诉对方，我是谁，以及发出ping的时间
         json:true
       }).then(async function(result){
-        return await DAD.addPeer2Pool({accessPoint:port?`${seed}:${port}` : seed, ownerAddress:result.remoteAddress})
+        return await DAD.addPeer2Pool({accessPoint:seed, ownerAddress:result.remoteAddress})
       }).catch(function(err){
   //        mylog.warn('WARNING : ping has no response from '+peer.ip)
         return null
