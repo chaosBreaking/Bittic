@@ -2,6 +2,7 @@ module.exports = {
   root: true,
   env: {
     browser: true,
+    node: true,
   },
   'extends': [
     // https://github.com/vuejs/eslint-plugin-vue#priority-a-essential-error-prevention
