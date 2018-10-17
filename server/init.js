@@ -136,6 +136,7 @@ async function workerInit() {
   wo.Block = await require('./Ling/Block.js')._init();
   wo.Store = await require('./Ling/Store.js')('redis')._init();
   wo.EventBus = require('./Ling/EventBus.js')(process);
+  wo.Consensus = wo.EventBus;
   wo.Chain = await require('./Ling/Chain.js')._init();
 }
 

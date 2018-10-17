@@ -32,6 +32,7 @@ DAD.api={} // 面向前端应用的API
 
 DAD.api.ping=function(option) { // 响应邻居节点发来的ping请求。
   if (option && option.Peer && option.Peer.ownerAddress){
+    
     // 记录发来请求的节点到 fromPeerPool
     var req=option._req
     var fromHost=req.headers['x-forwarded-for'] || req.connection.remoteAddress || req.socket.remoteAddress || req.connection.socket.remoteAddress
@@ -48,6 +49,7 @@ DAD.api.ping=function(option) { // 响应邻居节点发来的ping请求。
     option.Peer.lastResponse=Date.now() // 记录我发回response的时间
     return option.Peer // 把远方节点的信息添加一些资料后，返回给远方节点
   }
+  mylog.info('节点记录失败');
   return null
 }
 
@@ -152,6 +154,10 @@ DAD._init=async function(port){
   if (wo.Config.seedSet && Array.isArray(wo.Config.seedSet)){
     // 建立种子节点库
     for (var seed of wo.Config.seedSet){
+      let list = seed.split(":")
+      list.pop()
+      list.push(wo.Config.port);
+      seed = list.join(":")
       await RequestPromise({
         method:'post',
         uri: url.resolve(seed, '/api/Peer/ping'), 

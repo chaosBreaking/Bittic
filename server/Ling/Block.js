@@ -150,27 +150,28 @@ MOM.verifyActionList = async function(){
     return true
 
   let actionList = await wo.Action.getAll({Action:{blockHash:this.hash}, config:{limit:this.actionHashList.length}})
-  let actionHashList = wo.Tool.extend([], this.actionHashList)
-  for (let action of actionList){
-    if(actionHashList.indexOf(action.hash) !== -1)
-    {
-      await wo[action.type].execute(action)  //每次重启Account被清空，所以要在这里重建
-      actionHashList.splice(actionHashList.indexOf(action.hash), 1);
+  let actionHashList = wo.Tool.extend([], this.actionHashList);
+  if(actionList && actionList.length > 0){
+    for (let action of actionList){
+      if(actionHashList.indexOf(action.hash) !== -1)
+      {
+        await wo[action.type].execute(action)  //每次重启Account被清空，所以要在这里重建
+        actionHashList.splice(actionHashList.indexOf(action.hash), 1);
+      }
+      else  //没找到
+      {
+        mylog.info("丢弃一个错误Action")
+        await wo[action].dropOne({[action.type]:action})
+      }
     }
-    else  //没找到
-    {
-      mylog.info("丢弃一个错误Action")
-      await wo[action].dropOne({[action.type]:action})
-    }
+    if(actionHashList.length === 0 )  //双向检查完毕，直接返回
+      return true
   }
-  if(actionHashList.length === 0 )  //双向检查完毕，直接返回
-    return true
 
   //丢失一些Action 开始向外同步
-  let actionHash = null
   while (actionHashList.length > 0){
-    actionHash = actionHashList.pop()
-    for(let count = 0; count<10; count++){
+    let actionHash = actionHashList.pop()
+    for(let count = 0; count < 4; count++){
       var missAction = await wo.Peer.randomcast('/Action/getAction', { Action:{ hash:actionHash } })
       if(missAction){
         if (wo[missAction.type].validater(missAction)){
@@ -179,7 +180,7 @@ MOM.verifyActionList = async function(){
         }
         break
       }
-      else if(count > 9 && !missAction)
+      else if(count = 3 && !missAction)
       {
         return false
       }

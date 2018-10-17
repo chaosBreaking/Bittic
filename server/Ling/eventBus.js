@@ -40,28 +40,42 @@ EventBus.prototype.emit = async function (code, data) {
   return 0;
 }
 EventBus.prototype.get = async function (who, api, act, param) {
-  let id = String(Math.random()).slice(2, 18);
   if (this.obj && this.obj.send) {
     this.obj.send({
       code : 'get', 
       data : {
-        who, api, act, id, param
+        who, api, act, param
       }
     });
-    return await wo.Store.storeAPI.getKey(id);
+    return new Promise((resolve,reject)=>{
+      this.obj.once('message',(data)=>{
+        resolve(data);
+      })
+    })
   }
 }
 EventBus.prototype.call = function (who, api, act, param) {
   if (this.obj && this.obj.send) {
+    let res = new Promise((resolve,reject)=>{
+      this.obj.once('message',(data)=>{
+        resolve(data);
+      })
+    });
     this.obj.send({
       code: 'call', data: {
         who, api, act, param
       }
     });
+    return res
   }
-  return 1;
+  throw new Error("Can't find Call Object")
 }
 
-const api = {}
+const api = {
+  call:async (option)=>{
+    mylog.info(option.Call)
+    return await wo.EventBus.call(option.Call.who, option.Call.api, option.Call.act, option.Call.param,)
+  }
+}
 
 module.exports = EventBus
