@@ -23,7 +23,7 @@ DAD._init = async function(){
       DAD.signOnce();
   }
   else{
-    await DAD.calibrate();
+    // await DAD.calibrate();
     setTimeout(DAD._init,60 - new Date().getSeconds());
   }
   return this
@@ -44,6 +44,7 @@ DAD.calibrate = async function(){
     {
       let topBlock = new wo['Block'](result)
       wo.EventBus.call('Chain','','appendBlock',topBlock)
+      mylog.info('成功添加区块')
     }
     if(!result)
     {
@@ -55,7 +56,7 @@ DAD.calibrate = async function(){
   else if (heightNow > (await wo.Store.getTopBlock()).height + 1) {
     mylog.info('heightNow = ' + heightNow +' 当前本机链的最高块 = ' + (await wo.Store.getTopBlock()).height+'...准备更新缺少的区块')
     wo.EventBus.call('Chain', '', 'updateChainFromPeer');
-    mylog.error('call update');
+    mylog.warn('update Chain');
   }
   return 0;
 }
@@ -226,11 +227,12 @@ DAD.mineOnce = async function(){
     mylog.info('本节点的候选签名='+my.selfPot.signature+'，来自地址地址 '+wo.Crypto.pubkey2address(my.selfPot.pubkey))
     if (my.selfPot.signature && my.bestPot.signature === my.selfPot.signature) { // 全网最终获胜者是我自己，于是打包并广播。注意防止 bestPot===selfPot===undefined，这是跳过竞选阶段直接从前两阶段开始会发生的。
       mylog.info('本节点获胜，开始出块...')
-      wo.EventBus.call('Chain','','createBlock',{winnerMessage:my.selfPot.message,winnerSignature:my.selfPot.signature, winnerPubkey:my.selfPot.pubkey})
+      let res = await wo.EventBus.call('Chain','','createBlock',{winnerMessage:my.selfPot.message,winnerSignature:my.selfPot.signature, winnerPubkey:my.selfPot.pubkey})
+      mylog.info('本节点出块哈希为： ',res.hash)
+      wo.Peer.broadcast('/Consensus/mineWatcher', {Block:res});
+      return 0;
     }
-    else{
-      mylog.info('本节点没有赢:(')
-    }
+    mylog.info('本节点没有赢:(')
   }
   return 0
 }
@@ -380,7 +382,9 @@ async function signForOwner(){
       mylog.info('本节点主人（地址'+myAddress+'）的账户余额不足，无法参加本轮时间证明签名')
     }
 }
-
+DAD.api.test = async function(target){
+  return 'success'
+}
 /********************** Private in class *********************/
 
 const my = {}

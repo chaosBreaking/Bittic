@@ -138,6 +138,7 @@ async function workerInit() {
   wo.EventBus = require('./Ling/EventBus.js')(process);
   wo.Consensus = wo.EventBus;
   wo.Chain = await require('./Ling/Chain.js')._init();
+  return 0;
 }
 
 function serverInit() { // 配置并启动 Web 服务
@@ -269,34 +270,13 @@ function serverInit() { // 配置并启动 Web 服务
 (async function Start() {
   if (cluster.isMaster) {
     var worker = cluster.fork();
-    cluster.on('message', async (worker, message) => {
-      if(worker.id !== 1) return 0;//拦截其他进程的信号
-      switch (message.code) {
-        case 200:
+    cluster.once('message', async (worker, message) => {
+      if(worker.id !== 1) 
+        return 0;//拦截其他进程的信号
+      if (message.code==200) {
           mylog.warn(`[Master] 主程序初始化完毕，启动共识模块......`);
           await masterInit(worker,'6888');
-          serverInit();
-        case 210:
-          return 0;
-        case 220:
-          return 0;
-        case 231: //[Worker] createBlock完毕
-          if (wo.Config.consensus === 'ConsPot')
-            wo.Store.pushInRBS(message.data);
-          mylog.info('本节点出块的哈希为：' + message.data.hash);
-          wo.Peer.broadcast('/Consensus/mineWatcher', {Block:message.data});
-          return 0;
-        case 232: //[Worker] appendBlock完毕
-          if (wo.Config.consensus === 'ConsPot')
-            wo.Store.pushInRBS(message.data);
-          wo.Peer.broadcast('/Consensus/mineWatcher', {
-            Block: message.data
-          })
-          mylog.info('添加最新区块，哈希为：' + message.data.hash)
-          return 0;
-        case "call":
-          message.data.api ? wo[message.data.who]['api'][message.data.act](message.data.param)
-          : wo[message.data.who][message.data.act](message.data.param)
+          // serverInit();
           return 0;
       }
     });
@@ -305,42 +285,18 @@ function serverInit() { // 配置并启动 Web 服务
       var worker = cluster.fork();
       worker.id = 1;
       cluster.on('message', async (worker, message) => {
-        if(worker.id !== 1) return 0;//拦截其他进程的信号
-        switch (message.code) {
-          case 200:
-            wo.EventBus = require('./Ling/EventBus.js')(worker).mount(worker);
-          case 210:
-            return 0;
-          case 220:
-            return 0;
-          case 231: //[Worker] createBlock完毕
-            if (wo.Config.consensus === 'ConsPot')
-              wo.Store.pushInRBS(message.data);
-            wo.Peer.broadcast('/Consensus/mineWatcher', {
-              Block: message.data
-            })
-            mylog.info('本节点出块的哈希为：' + message.data.hash)
-            return 0;
-          case 232: //[Worker] appendBlock完毕
-            if (wo.Config.consensus === 'ConsPot')
-              wo.Store.pushInRBS(message.data);
-            wo.Peer.broadcast('/Consensus/mineWatcher', {
-              Block: message.data
-            })
-            mylog.info('添加最新区块，哈希为：' + message.data.hash)
-            return 0;
-          case 'call':  //内部函数调用
-            mylog.warn('主进程内部调用')
-            message.data.api ? wo[message.data.who]['api'][message.data.act](message.data.param)
-              : wo[message.data.who][message.data.act](message.data.param)
+        if(worker.id !== 1) 
+          return 0;//拦截其他进程的信号
+        if (message.code==200) {
+            mylog.warn(`[Master] 主程序初始化完毕，启动共识模块......`);
+            await masterInit(worker,'6888');
+            // serverInit();
             return 0;
         }
       });
     });
   } 
   else {
-    const eventHandler = require('./Ling/WorkerHandler.js')
-    cluster.worker.on('message', eventHandler);
     await workerInit();
     serverInit();
     process.send({

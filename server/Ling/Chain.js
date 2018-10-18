@@ -192,7 +192,7 @@ DAD.createBlock=async function(block){
   DAD.pushTopBlock(block);
   block.addMe();     //将区块写入数据库
   DAD.addReward(block);
-  wo.EventBus.send(231, block);
+  // wo.EventBus.send(231, block);
   block.runActionList(actionBatch.actionPool);
   return block
 }
@@ -238,7 +238,9 @@ DAD.addReward = async function(block){
 DAD.getTopBlock = DAD.api.getTopBlock = function(){
   return my.topBlock
 }
-
+DAD.api.test = async function(){
+  return await wo.EventBus.call('Consensus','api','test')
+}
 
 
 /********************** Private in class *******************/

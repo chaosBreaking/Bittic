@@ -1,13 +1,26 @@
 'use strict'
-
+const EventEmitter = require('events');
+const util = require('util');
 const workerPool = [];
 
 function EventBus(obj) {
   if (!new.target)
     return new EventBus(obj);
   this.obj = obj;
-  this.api = api;
+  this.obj.on('message', async (message) => {
+    if(message && message.code && message.code !== 'call'){
+      this.emit(message.code, message);
+      // this.removeAllListeners(message.code); //监听器为once触发，就不需要移除
+    }
+    else{
+      var callres = message.data.api ? await wo[message.data.who]['api'][message.data.act](message.data.param)
+      :await wo[message.data.who][message.data.act](message.data.param)
+      wo.EventBus.send(message.data.id, callres);
+      return 0;
+    }
+  });
 }
+util.inherits(EventBus, EventEmitter);
 
 EventBus.prototype.mount = function (worker) {
   workerPool.push(worker);
@@ -28,54 +41,22 @@ EventBus.prototype.send = function (code, data = '') {
     }
   }
 }
-EventBus.prototype.emit = async function (code, data) {
-  for (let worker of workerPool) {
-    try {
-      worker.send({ code, data })
-    } catch (error) {
-      workerPool.splice(workerPool.indexOf(worker),1);    
-      mylog.warn('deleted dead worker')
-    }
-  }
-  return 0;
-}
-EventBus.prototype.get = async function (who, api, act, param) {
-  if (this.obj && this.obj.send) {
-    this.obj.send({
-      code : 'get', 
-      data : {
-        who, api, act, param
-      }
-    });
-    return new Promise((resolve,reject)=>{
-      this.obj.once('message',(data)=>{
-        resolve(data);
-      })
-    })
-  }
-}
 EventBus.prototype.call = function (who, api, act, param) {
   if (this.obj && this.obj.send) {
-    let res = new Promise((resolve,reject)=>{
-      this.obj.once('message',(data)=>{
-        resolve(data);
-      })
+    let id = Math.random().toString().slice(2,10)
+    let res = new Promise((resolve,reject) => {
+      this.once(id, (msg)=>{
+        resolve(msg.data);
+      });
     });
     this.obj.send({
       code: 'call', data: {
-        who, api, act, param
+        who, api, act, param, id
       }
     });
     return res
   }
   throw new Error("Can't find Call Object")
-}
-
-const api = {
-  call:async (option)=>{
-    mylog.info(option.Call)
-    return await wo.EventBus.call(option.Call.who, option.Call.api, option.Call.act, option.Call.param,)
-  }
 }
 
 module.exports = EventBus
