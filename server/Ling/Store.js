@@ -1,7 +1,10 @@
 'use strict'
 const storeAPI = require('../Base/Store.js');
-
-
+/**
+ * Store存储层，记录世界状态。
+ * @param {*} dbType 
+ * @param {*} option 
+ */
 function Store(dbType,option){
     if(!new.target)
         return new Store(dbType,option)
@@ -28,7 +31,7 @@ Store.prototype._init = async function(){
         this.storeAPI.setKey('recBlockStack',[]),
         this.storeAPI.setKey('topBlock',''),
     ]);
-    return this
+    return this;
 }
 Store.prototype.setCurrentPhase = function(phase){
     this.worldState.currentPhase = phase;

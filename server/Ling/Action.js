@@ -123,7 +123,6 @@ DAD.api.prepare=async function(option){
         DAD.verifyHash(option.Action) &&
         !DAD.actionPool[option.Action.hash] &&
         (await wo[option.Action.type].validater(option.Action))
-      
       ) 
     {
       DAD.actionPool[option.Action.hash] = option.Action;

@@ -7,10 +7,18 @@ class redisStore extends redis{
         this.dbType = 'redis';
     }
     async setKey(key, value){
+      try {
         return await this.set(key,JSON.stringify(value))
+      } catch (error) {
+        return false
+      }
     }
     async getKey(key){
+      try {
         return JSON.parse(await this.get(key))
+      } catch (error) {
+        return false
+      }
     }    
 }
 

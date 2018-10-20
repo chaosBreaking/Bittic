@@ -276,7 +276,7 @@ function serverInit() { // 配置并启动 Web 服务
       if (message.code==200) {
           mylog.warn(`[Master] 主程序初始化完毕，启动共识模块......`);
           await masterInit(worker,'6888');
-          // serverInit();
+          serverInit();
           return 0;
       }
     });
@@ -284,13 +284,13 @@ function serverInit() { // 配置并启动 Web 服务
       mylog.error('worker ' + worker.process.pid + ' died, Restarting');
       var worker = cluster.fork();
       worker.id = 1;
-      cluster.on('message', async (worker, message) => {
+      cluster.once('message', async (worker, message) => {
         if(worker.id !== 1) 
           return 0;//拦截其他进程的信号
         if (message.code==200) {
             mylog.warn(`[Master] 主程序初始化完毕，启动共识模块......`);
             await masterInit(worker,'6888');
-            // serverInit();
+            serverInit();
             return 0;
         }
       });
@@ -298,9 +298,9 @@ function serverInit() { // 配置并启动 Web 服务
   } 
   else {
     await workerInit();
-    serverInit();
     process.send({
       code: 200
     });
+    serverInit();
   }
 })()

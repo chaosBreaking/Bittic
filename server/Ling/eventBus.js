@@ -43,7 +43,7 @@ EventBus.prototype.send = function (code, data = '') {
 }
 EventBus.prototype.call = function (who, api, act, param) {
   if (this.obj && this.obj.send) {
-    let id = Math.random().toString().slice(2,10)
+    let id = Math.random().toString().slice(2,10);
     let res = new Promise((resolve,reject) => {
       this.once(id, (msg)=>{
         resolve(msg.data);
@@ -54,7 +54,7 @@ EventBus.prototype.call = function (who, api, act, param) {
         who, api, act, param, id
       }
     });
-    return res
+    return res;
   }
   throw new Error("Can't find Call Object")
 }

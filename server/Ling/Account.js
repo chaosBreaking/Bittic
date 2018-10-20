@@ -13,7 +13,7 @@ MOM.__proto__=Ling.prototype
 
 /******************** Shared by instances ********************/
 MOM._tablekey='hash'
-MOM._model={
+MOM._model = {
   type:           { default:'user',  sqlite:'TEXT',     mysql:'VARCHAR(100)' },
   user:           { default:undefined, sqlite:'TEXT',   mysql:'String' }, // 隶属于哪个真人用户
   address:        { default:undefined, sqlite:'TEXT UNIQUE',   mysql:'String(50)' },
@@ -40,21 +40,6 @@ DAD.api.getAccount = async function(option){ // 根据 address 返回已有账�
   }
   return null
 }
-
-DAD.api.openAccount=async function(option){ // 根据 pubkey 返回已有账户或新建一个。用于登录。
-  if (option && typeof option.Account==='object' && option.Account.pubkey && option.signature && option.msg){
-    if (option.msg.timestamp && (option.msg.timestamp-Date.now())<60*1000 // 让前端用户对当前时间签名，60秒内有效，证明自己拥有私钥，从而防止恶意前端窃取别人的一次签名后，反复使用来登陆别人账号。
-      && wo.Crypto.verify( option.msg, option.signature, option.Account.pubkey)) {
-      let account=await DAD.getOne({ Account:{ address: wo.Crypto.pubkey2address(option.Account.pubkey) } }) // 已有账户
-        || await DAD.addOne( { Account:{ pubkey: option.Account.pubkey, address:wo.Crypto.pubkey2address(option.Account.pubkey) } }) // 新建一个
-      if (account){
-        return account
-      }
-    }
-  }
-  return null
-}
-
 
 DAD.getBalance=DAD.api.getBalance=async function(option){
   if (option && option.Account && option.Account.address){
