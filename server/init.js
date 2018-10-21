@@ -1,7 +1,7 @@
 'use strict'
 const fs = require('fs');
 const cluster = require('cluster');
-const mylog = require('./Base/Logger.js');
+const mylog = require('./util/Logger.js');
 
 function config() {
   // 配置参数（按优先级从低到高）：
@@ -56,7 +56,7 @@ function config() {
 
   Config.dbType = commander.dbType || Config.dbType
   Config.dbName = commander.dbName || Config.dbName
-  Config.host = commander.host || Config.host || require('./Base/Network.js').getMyIp() // // 本节点的从外部可访问的 IP or Hostname，不能是 127.0.0.1 或 localhost
+  Config.host = commander.host || Config.host || require('./util/Network.js').getMyIp() // // 本节点的从外部可访问的 IP or Hostname，不能是 127.0.0.1 或 localhost
   Config.netType = commander.netType || Config.netType
   Config.ownerSecword = commander.ownerSecword || Config.ownerSecword
   Config.protocol = commander.protocol || Config.protocol
@@ -78,7 +78,7 @@ function config() {
       break
     case 'devnet':
     default:
-      Config.GENESIS_EPOCHE = require('./Base/Date.js').time2epoche({
+      Config.GENESIS_EPOCHE = require('./util/Date.js').time2epoche({
         type: 'prevHour'
       }) // nextMin: 下一分钟（单机测试）， prevHour: 前一小时（多机测试），或 new Date('2018-07-03T10:15:00.000Z') // 为了方便开发，暂不使用固定的创世时间，而是生成当前时刻之后的第一个0秒，作为创世时间
       Config.GENESIS_MESSAGE = Config.GENESIS_MESSAGE_DEVNET
@@ -90,11 +90,11 @@ function config() {
   return Config
 }
 async function masterInit(worker, port) {
-  global.mylog = require('./Base/Logger.js')
+  global.mylog = require('./util/Logger.js')
   global.wo = {}
-  wo.Tool = new(require('./Base/Egg.js'))().extendMe(require('./Base/Webtoken.js'))
+  wo.Tool = new(require('./util/Egg.js'))()
   wo.Config = config()
-  wo.Crypto = require('./Base/Crypto.js')
+  wo.Crypto = require('./util/Crypto.js')
   if (!wo.Crypto.isSecword(wo.Config.ownerSecword)) {
     mylog.error('Invalid secword! Please setup a secword in ConfigSecret.js')
     process.exit()
@@ -102,19 +102,19 @@ async function masterInit(worker, port) {
   wo.Config.port = port;
   wo.Ling = require('./Ling/_Ling.js')
   mylog.info('Initializing Consensus......')
-  wo.Block = require('./Ling/Block.js')
-  wo.Peer = await require('./Ling/Peer.js')._init('6888')
-  wo.Store = await require('./Ling/Store.js')('redis') //  必须指定数据库,另外不能_init(),否则会覆盖子进程已经设定好的内容
-  wo.EventBus = require('./Ling/EventBus.js')(worker).mount(worker);
-  wo.Consensus = await require('./Ling/' + wo.Config.consensus + '.js')
+  wo.Block = require('./Module/Chain/Block.js')
+  wo.Peer = await require('./Module/P2P/Peer.js')._init('6888')
+  wo.Store = await require('./Module/util/Store.js')('redis') //  必须指定数据库,另外不能_init(),否则会覆盖子进程已经设定好的内容
+  wo.EventBus = require('./Module/util/EventBus.js')(worker).mount(worker);
+  wo.Consensus = await require('./Module/Consensus/' + wo.Config.consensus + '.js')
   wo.Consensus._init(worker);
 }
 async function workerInit() {
-  global.mylog = require('./Base/Logger.js')
+  global.mylog = require('./util/Logger.js')
   global.wo = {}
-  wo.Tool = new(require('./Base/Egg.js'))().extendMe(require('./Base/Webtoken.js'))
+  wo.Tool = new(require('./util/Egg.js'))()
   wo.Config = config()
-  wo.Crypto = require('./Base/Crypto.js')
+  wo.Crypto = require('./util/Crypto.js')
   if (!wo.Crypto.isSecword(wo.Config.ownerSecword)) {
     mylog.error('Invalid secword! Please setup a secword in ConfigSecret.js')
     process.exit()
@@ -123,21 +123,21 @@ async function workerInit() {
   wo.Data = await require('./Data/' + wo.Config.dbType)._init(wo.Config.dbName);
   mylog.info('Loading classes and Creating tables......');
   wo.Ling = require('./Ling/_Ling.js');
-  wo.Account = await require('./Ling/Account.js');
-  wo.Action = await require('./Ling/Action.js')._init();
-  wo.Tac = await require('./Ling/Tac.js')._init();
-  wo.ActTransfer = require('./Ling/ActTransfer.js');
-  wo.ActStorage = require('./Ling/ActStorage.js');
-  wo.ActMultisig = require('./Ling/ActMultisig.js');
-  wo.ActTac = require('./Ling/ActTac.js');
-  wo.Bancor = require('./Ling/Bancor.js')._init();
+  wo.Account = await require('./Module/Token/Account.js');
+  wo.Action = await require('./Module/Action/Action.js')._init();
+  wo.Tac = await require('./Module/Token/Tac.js')._init();
+  wo.ActTransfer = require('./Module/Action/ActTransfer.js');
+  wo.ActStorage = require('./Module/Action/ActStorage.js');
+  wo.ActMultisig = require('./Module/Action/ActMultisig.js');
+  wo.ActTac = require('./Module/Action/ActTac.js');
+  wo.Bancor = require('./Module/Token/Bancor.js')._init();
   mylog.info('Initializing chain............');
-  wo.Peer = await require('./Ling/Peer.js')._init();
-  wo.Block = await require('./Ling/Block.js')._init();
-  wo.Store = await require('./Ling/Store.js')('redis')._init();
-  wo.EventBus = require('./Ling/EventBus.js')(process);
+  wo.Peer = await require('./Module/P2P/Peer.js')._init();
+  wo.Block = await require('./Module/Chain/Block.js')._init();
+  wo.Store = await require('./Module/util/Store.js')('redis')._init();
+  wo.EventBus = require('./Module/util/EventBus.js')(process);
   wo.Consensus = wo.EventBus;
-  wo.Chain = await require('./Ling/Chain.js')._init();
+  wo.Chain = await require('./Module/Chain/Chain.js')._init();
   return 0;
 }
 

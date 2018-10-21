@@ -1,6 +1,6 @@
 /* 所有对象实例的原型。 Ling=Logical Thing 逻辑对象，或 Living Thing 生物体 */
 
-const Tool=new (require('../Base/Egg.js'))() // 用以解除对 wo.Tool 的依赖
+const Tool=new (require('../util/Egg.js'))() // 用以解除对 wo.Tool 的依赖
 
 const DAD=module.exports=function Ling(){  // 一定要这样写，才能得到 Ling.name==='Ling'。不要写 var Ling=function()...，这样会 Ling.name===''。
   /** 1 private members of object 每个实例对象的私有成员：var ???; function ???(){} **/

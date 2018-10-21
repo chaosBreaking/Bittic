@@ -1,4 +1,4 @@
-const Ling = require('./_Ling.js')
+const Ling = require('../../Ling/_Ling.js')
 
 class Tac extends Ling {
   constructor(prop){
