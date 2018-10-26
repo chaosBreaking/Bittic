@@ -10,3 +10,4 @@ package-lock.json
 .gitattributes
 test.js
 ConfigUser.*
+.idea

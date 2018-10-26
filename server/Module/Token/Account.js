@@ -41,7 +41,7 @@ DAD.api.getAccount = async function(option){ // 根据 address 返回已有账�
   return null
 }
 
-DAD.getBalance=DAD.api.getBalance=async function(option){
+DAD.getBalance = DAD.api.getBalance=async function(option){
   if (option && option.Account && option.Account.address){
     return await wo.Store.getBalance(option.Account.address)
   }

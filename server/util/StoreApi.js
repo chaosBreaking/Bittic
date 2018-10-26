@@ -19,6 +19,13 @@ class redisStore extends redis{
       } catch (error) {
         return false
       }
+    }
+    async delKey(key){
+      try {
+        return await this.del(key)
+      } catch (error) {
+        return false
+      }
     }    
 }
 

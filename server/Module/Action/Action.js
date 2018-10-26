@@ -92,7 +92,7 @@ DAD.calculateFee = function(){
  */
 DAD.getActionBatch = function(){
   let actionBatch = {
-    actionPool : JSON.parse(JSON.stringify(DAD.actionPool)),
+    actionPool : JSON.parse(JSON.stringify(DAD.actionPool)),  //deep copy
     totalAmount : DAD.actionPoolInfo.totalAmount,
     totalFee : DAD.actionPoolInfo.totalFee
   };
@@ -122,7 +122,7 @@ DAD.api.prepare=async function(option){
         DAD.verifySig(option.Action) && 
         DAD.verifyHash(option.Action) &&
         !DAD.actionPool[option.Action.hash] &&
-        (await wo[option.Action.type].validater(option.Action))
+        (await wo[option.Action.type].validator(option.Action))
       ) 
     {
       DAD.actionPool[option.Action.hash] = option.Action;

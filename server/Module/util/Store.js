@@ -1,5 +1,5 @@
 'use strict'
-const storeAPI = require('../../util/Store.js');
+const storeAPI = require('../../util/StoreApi.js');
 /**
  * Store存储层，记录世界状态。
  * @param {*} dbType 

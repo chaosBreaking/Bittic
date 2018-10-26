@@ -201,15 +201,15 @@ DAD.api.electWatcher = async function(option) { // 互相转发最优的签名�
   }
   else // 通常，假如本节点具有全网赢家，我发给别人后，别人会再发给我，就会走到这里来。
   {
-    // mylog.info('收到的签名块无效：'+JSON.stringify(option.Block.hash))
-    // if (option.Block.packerPubkey===wo.Crypto.secword2keypair(wo.Config.ownerSecword).pubkey) 
-    //   mylog.info('是本节点打包的')
-    // if (my.packerPool.hasOwnProperty(option.Block.packerPubkey))
-    //   mylog.info('该节点已经提交过区块')
-    // if (option.Block.winnerSignature===my.bestPot.signature)
-    //   mylog.info('重复接收该签名')
-    // if (my.signBlock && option.Block.hash === my.signBlock.hash)
-    //   mylog.info('已是本节点已知的最佳块')
+    mylog.info('收到的签名块无效：'+JSON.stringify(option.Block.hash))
+    if (option.Block.packerPubkey===wo.Crypto.secword2keypair(wo.Config.ownerSecword).pubkey) 
+      mylog.info('是本节点打包的')
+    if (my.packerPool.hasOwnProperty(option.Block.packerPubkey))
+      mylog.info('该节点已经提交过区块')
+    if (option.Block.winnerSignature===my.bestPot.signature)
+      mylog.info('重复接收该签名')
+    if (my.signBlock && option.Block.hash === my.signBlock.hash)
+      mylog.info('已是本节点已知的最佳块')
   }
   return null
 }

@@ -27,4 +27,5 @@
 
 
 入口：init.js
-默认加载masterInit.js和workerInit.js
+共识端口:6888
+RPC端口:6842

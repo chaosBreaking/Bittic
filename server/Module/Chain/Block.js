@@ -92,26 +92,13 @@ MOM.packMe = function (actionBatch, lastBlock, keypair) { // 后台节点挖矿�
     mylog.info('block '+this.height+' is created with '+this.numberAction+' actions');
   return this
 }
-MOM.runActionList = async function (actionPool) {
-  //缺少某交易时向其他节点请求，添加别人创建的区块，传入的actionPool里多余的交易加回到交易池
-  if (this.actionHashList.length && this.actionHashList.length > 0) {
-    for (let actionHash of this.actionHashList) {
-      actionPool[actionHash].blockHash = this.hash;
-      await wo[actionPool[actionHash].type].addOne({ [actionPool[actionHash].type]: actionPool[actionHash] });
-      wo[actionPool[actionHash].type].execute(actionPool[actionHash]);
-      delete actionPool[actionHash];
-    }
-    //残余交易处理
-    if(Object.keys(actionPool).length === 0)
-      mylog.info(`共 ${this.actionHashList.length} Action写入数据库`);
-    else
-      Object.assign(wo.Action.actionPool, actionPool);
-  }
-  return null
-}
-
 MOM.hashMe = function(){
   this.hash=wo.Crypto.hash(this.getJson({exclude:['hash']}))
+  return this
+}
+MOM.signMe = function(seckey){ // 全节点对自己生成的区块签字
+  let json=this.getJson({exclude:['hash','packerSignature']})
+  this.packerSignature=wo.Crypto.sign(json, seckey)
   return this
 }
 MOM.verifyHash=function(){
@@ -121,11 +108,6 @@ MOM.verifyHash=function(){
 DAD.verifyHash = function(blockData){
   let block = new DAD(blockData)
   return block.verifyHash()
-}
-MOM.signMe = function(seckey){ // 全节点对自己生成的区块签字
-  let json=this.getJson({exclude:['hash','packerSignature']})
-  this.packerSignature=wo.Crypto.sign(json, seckey)
-  return this
 }
 MOM.verifySig = function () { // 验证其他节点发来的block
   if (this.type==='VirtBlock') return true
@@ -188,6 +170,23 @@ MOM.verifyActionList = async function(){
     }
   }
   return true
+}
+MOM.executeActions = async function (actionPool) {
+  //缺少某交易时向其他节点请求，添加别人创建的区块，传入的actionPool里多余的交易加回到交易池
+  if (this.actionHashList.length && this.actionHashList.length > 0) {
+    for (let actionHash of this.actionHashList) {
+      actionPool[actionHash].blockHash = this.hash;
+      await wo[actionPool[actionHash].type].addOne({ [actionPool[actionHash].type]: actionPool[actionHash] });
+      wo[actionPool[actionHash].type].execute(actionPool[actionHash]);
+      delete actionPool[actionHash];
+    }
+    //残余交易处理
+    if(Object.keys(actionPool).length === 0)
+      mylog.info(`共 ${this.actionHashList.length} Action写入数据库`);
+    else
+      Object.assign(wo.Action.actionPool, actionPool);
+  }
+  return null
 }
 
 MOM.normalize=function(){

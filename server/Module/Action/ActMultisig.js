@@ -121,7 +121,7 @@ step2:所有人签名
 }
 step3:发起人申请执行
 {
-    "ActToken":{
+    "ActMultisig":{
         "amount": 100,
         "fee": 1,
         "actorPubkey": "actorPubkey",
@@ -138,7 +138,7 @@ step3:发起人申请执行
     }
 }
 */
-MOM.validate=function(){
+MOM.validator = async function(){
     if(this.json.act === 'createTransfer')  //创建挂起的多重签名事务
     {
         DAD.pendingPool[this.hash] = this
@@ -151,9 +151,9 @@ MOM.validate=function(){
     }
     else{
         return wo.Crypto.isAddress(this.toAddress)
-        // && this.fee>=wo.Config.MIN_FEE_ActTransfer
-        // && wo.Account.accountPool[this.actorAddress].balance>this.amount+this.fee   //Todo:引入缓存账户
-        &&this.toAddress != this.actorAddress
+        && this.fee >= wo.Config.MIN_FEE_ActTransfer
+        && (await wo.Store.getBalance(action.actorAddress)) >= this.amount + this.fee   //Todo:引入缓存账户
+        && this.toAddress != this.actorAddress
     }
 }
 

@@ -1,6 +1,7 @@
 'use strict'
 const fs = require('fs');
 const cluster = require('cluster');
+const socket = require('socket.io');
 const mylog = require('./util/Logger.js');
 
 function config() {
@@ -89,7 +90,7 @@ function config() {
   mylog.info('Configuration is ready.')
   return Config
 }
-async function masterInit(worker, port) {
+async function masterInit(worker) {
   global.mylog = require('./util/Logger.js')
   global.wo = {}
   wo.Tool = new(require('./util/Egg.js'))()
@@ -99,11 +100,11 @@ async function masterInit(worker, port) {
     mylog.error('Invalid secword! Please setup a secword in ConfigSecret.js')
     process.exit()
   }
-  wo.Config.port = port;
+  wo.Config.port = wo.Config.consPort;
   wo.Ling = require('./Ling/_Ling.js')
   mylog.info('Initializing Consensus......')
   wo.Block = require('./Module/Chain/Block.js')
-  wo.Peer = await require('./Module/P2P/Peer.js')._init('6888')
+  wo.Peer = await require('./Module/P2P/Peer.js')
   wo.Store = await require('./Module/util/Store.js')('redis') //  必须指定数据库,另外不能_init(),否则会覆盖子进程已经设定好的内容
   wo.EventBus = require('./Module/util/EventBus.js')(worker).mount(worker);
   wo.Consensus = await require('./Module/Consensus/' + wo.Config.consensus + '.js')
@@ -132,7 +133,7 @@ async function workerInit() {
   wo.ActTac = require('./Module/Action/ActTac.js');
   wo.Bancor = require('./Module/Token/Bancor.js')._init();
   mylog.info('Initializing chain............');
-  wo.Peer = await require('./Module/P2P/Peer.js')._init();
+  wo.Peer = await require('./Module/P2P/Peer.js');
   wo.Block = await require('./Module/Chain/Block.js')._init();
   wo.Store = await require('./Module/util/Store.js')('redis')._init();
   wo.EventBus = require('./Module/util/EventBus.js')(process);
@@ -140,7 +141,21 @@ async function workerInit() {
   wo.Chain = await require('./Module/Chain/Chain.js')._init();
   return 0;
 }
-
+async function p2pInit(){
+  global.mylog = require('./util/Logger.js')
+  global.wo = {}
+  wo.Tool = new(require('./util/Egg.js'))()
+  wo.Config = config()
+  wo.Config.port = wo.Config.consPort;
+  wo.Crypto = require('./util/Crypto.js')
+  if (!wo.Crypto.isSecword(wo.Config.ownerSecword)) {
+    mylog.error('Invalid secword! Please setup a secword in ConfigSecret.js')
+    process.exit()
+  }
+  wo.Ling = require('./Ling/_Ling.js');
+  serverInit();
+  wo.Peers = await require('./Module/P2P/Peers.js')._init();
+}
 function serverInit() { // 配置并启动 Web 服务
 
   mylog.info("★★★★★★★★ Starting Server......")
@@ -239,15 +254,19 @@ function serverInit() { // 配置并启动 Web 服务
     let webServer = require('http').createServer(server)
     webServer.listen(wo.Config.port, function (err) {
       mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, wo.Config.port, server.settings.env)
-    })
+    });
+    if(cluster.isWorker)
+      wo.Socket = socket.listen(webServer);
   } else if ('https' === wo.Config.protocol) { // 启用 https。从 http或https 网页访问 https的ticnode/socket 都可以，socket.io 内容也是一致的。
     let webServer = require('https').createServer({
       key: fs.readFileSync(wo.Config.sslKey),
       cert: fs.readFileSync(wo.Config.sslCert) // , ca: [ fs.readFileSync(wo.Config.sslCA) ] // only for self-signed certificate: https://nodejs.org/api/tls.html#tls_tls_createserver_options_secureconnectionlistener
-    }, server)
+    }, server);
     webServer.listen(wo.Config.port, function (err) {
       mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, wo.Config.port, server.settings.env)
-    })
+    });
+    if(cluster.isWorker)
+      wo.Socket = socket.listen(webServer);
   } else if ('httpall' === wo.Config.protocol) { // 同时启用 http 和 https
     let portHttp = wo.Config.port ? wo.Config.port : 80 // 如果port参数已设置，使用它；否则默认为80
     let httpServer = require('http').createServer(server)
@@ -263,44 +282,49 @@ function serverInit() { // 配置并启动 Web 服务
     httpsServer.listen(portHttps, function (err) {
       mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, portHttps, server.settings.env)
     })
+    if(cluster.isWorker)
+      wo.Socket = socket.listen(webServer);
   }
-
+  wo.Socket.sockets.on('connection',(socket)=>{
+    // 处理操作
+    mylog.info('new client connected');
+  });
 }
 
 (async function Start() {
   if (cluster.isMaster) {
-    var worker = cluster.fork();
+    // var worker = cluster.fork();
+    var p2pWorker = cluster.fork();
     cluster.once('message', async (worker, message) => {
-      if(worker.id !== 1) 
-        return 0;//拦截其他进程的信号
       if (message.code==200) {
           mylog.warn(`[Master] 主程序初始化完毕，启动共识模块......`);
-          await masterInit(worker,'6888');
-          serverInit();
+          await masterInit(worker);
           return 0;
       }
     });
     cluster.on('exit', function (worker, code, signal) {
       mylog.error('worker ' + worker.process.pid + ' died, Restarting');
       var worker = cluster.fork();
-      worker.id = 1;
       cluster.once('message', async (worker, message) => {
-        if(worker.id !== 1) 
-          return 0;//拦截其他进程的信号
         if (message.code==200) {
             mylog.warn(`[Master] 主程序初始化完毕，启动共识模块......`);
-            await masterInit(worker,'6888');
+            await masterInit(worker);
             serverInit();
             return 0;
         }
       });
     });
-  } 
-  else {
+  }
+  else if(cluster.worker.id === 1) {
+    /**BlockChain以及RPC服务进程 */
     await workerInit();
     process.send({
       code: 200
     });
     serverInit();
+  }
+  else{
+    mylog.info(`${cluster.worker.id}号p2p进程启动`)
+    await p2pInit();
   }
 })()

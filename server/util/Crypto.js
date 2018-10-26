@@ -349,7 +349,7 @@ module.exports = {
     return num
   }
   ,
-  getMerkleRoot:function(hashList, option){
+  getMerkleRootHash:function(hashList, option){
     // merkle算法略有难度，暂时用最简单的hash代替
     if(Array.isArray(hashList)){
       option=option||{}
@@ -361,8 +361,33 @@ module.exports = {
       return hasher.digest(output)
     }
     return null
-  }
-  ,
+  },
+  getMerkleRoot:function(hashList, option){
+    if(!Array.isArray(hashList))
+      return null
+    var border = hashList.length;
+    if(border == 0)
+      return this.hash('')
+    if(border == 1)
+      return this.hash(hashList[0]);
+    while(1){
+      let i = 1,j = 0;
+      for(; i < border; i = i + 2){
+        hashList[j] = this.hash(hashList[i - 1] + hashList[i]);
+        if(border == 2){
+          return hashList[0];
+        }
+        if(i + 1 == border) break;
+        j = j + 1;
+        if(i + 2 == border){
+          i = i + 1;
+          hashList[j] = this.hash(hashList[i]);
+          break;
+        }
+      }
+      border = j + 1;
+    }   
+  }  ,
   distanceSig:function(hash, sig){ // hash为64hex字符，sig为128hex字符。返回用hex表达的距离。
     if (this.isSignature(sig) && this.isHash(hash)){
       var hashSig=this.hash(sig) // 把签名也转成32字节的哈希，同样长度方便比较

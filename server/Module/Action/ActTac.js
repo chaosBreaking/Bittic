@@ -1,6 +1,6 @@
 const Action = require('./Action.js')
 const Methods = ["create", "transfer", "exchange", "mount"]
-async function actValidater(action){
+async function actValidator(action){
   switch(action.method){
     case "create":
       if( action.data.name && action.data.symbol && action.data.decimals &&
@@ -39,7 +39,7 @@ class ActTac extends Action {
       writable:false
     })
   }
-  static async validater(action){
+  static async validator(action){
     return Methods.includes(action.method) && await actValidater(action)
   }
   
