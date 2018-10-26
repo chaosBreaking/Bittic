@@ -46,7 +46,7 @@ Peers.updatePool = async function () { // 从节点池取出第一个节点，�
     peer.lastRequest = Date.now() // 发起ping的时刻 
     var result = await RequestPromise({
       method: 'post',
-      uri: url.resolve(peer.accessPoint + wo.Config.port, '/api/Peers/ping'),
+      uri: url.resolve(peer.accessPoint + ':' + wo.Config.port, '/api/Peers/ping'),
       body: { Peer: JSON.stringify(my.self.setProp({ lastRequest: peer.lastRequest })) }, // 告诉对方，我是谁，以及发出ping的时间
       json: true
     }).catch(function (err) {
@@ -87,7 +87,7 @@ Peers.broadcast = async function (api, message, peerSet) { // api='/类名/方�
   peerSet = peerSet || Object.values(await my.getPeers());
   var result = await Promise.all(peerSet.map((peer, index) => RequestPromise({
     method: 'post',
-    uri: url.resolve(peer.accessPoint + wo.Config.port, '/api' + api),
+    uri: url.resolve(peer.accessPoint + ':' + wo.Config.port, '/api' + api),
     body: message,
     json: true
   }).catch(function (err) {
@@ -103,7 +103,7 @@ Peers.randomcast = async function (api, message, peerSet) { // 随机挑选一�
   if (peer instanceof Peers) {
     var result = await RequestPromise({
       method: 'post',
-      uri: url.resolve(peer.accessPoint + wo.Config.port, '/api' + api),
+      uri: url.resolve(peer.accessPoint + ':' + wo.Config.port, '/api' + api),
       body: message,
       json: true
     }).catch(function (err) { mylog.info('点播 ' + api + ' 到随机节点出错: ' + err.message); return null })
@@ -125,14 +125,16 @@ Peers._init = async function () {
   if (wo.Config.seedSet && Array.isArray(wo.Config.seedSet) && wo.Config.seedSet.length > 0) {
     // 建立种子节点库
     for (var seed of wo.Config.seedSet) {
+      mylog.info('add:', url.resolve(seed + ':' + wo.Config.port, '/api/Peers/ping'))
       await RequestPromise({
         method: 'post',
-        uri: url.resolve(seed + wo.Config.port, '/api/Peers/ping'),
+        uri: url.resolve(seed + ':' + wo.Config.port, '/api/Peers/ping'),
         body: { Peer: JSON.stringify(my.self.setProp()) }, // 告诉对方，我是谁，以及发出ping的时间
         json: true
       }).then(async function (result) {
         return await Peers.addPeer2Pool({ accessPoint: seed, ownerAddress: result.remoteAddress })
       }).catch(function (err) {
+        mylog.error(err)
         return null
       })
     }
