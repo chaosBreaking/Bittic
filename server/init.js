@@ -137,7 +137,6 @@ async function workerInit() {
   wo.Block = await require('./Module/Chain/Block.js')._init();
   wo.Store = await require('./Module/util/Store.js')('redis')._init();
   wo.EventBus = require('./Module/util/EventBus.js')(process);
-  wo.Consensus = wo.EventBus;
   wo.Chain = await require('./Module/Chain/Chain.js')._init();
   return 0;
 }
@@ -146,13 +145,14 @@ async function p2pInit(){
   global.wo = {}
   wo.Tool = new(require('./util/Egg.js'))()
   wo.Config = config()
-  wo.Config.port = wo.Config.consPort;
+  wo.Config.port = wo.Config.p2pPort;
   wo.Crypto = require('./util/Crypto.js')
   if (!wo.Crypto.isSecword(wo.Config.ownerSecword)) {
     mylog.error('Invalid secword! Please setup a secword in ConfigSecret.js')
     process.exit()
   }
   wo.Ling = require('./Ling/_Ling.js');
+  wo.EventBus = require('./Module/util/EventBus.js')(process);
   serverInit();
   wo.Peers = await require('./Module/P2P/Peers.js')._init();
 }
@@ -296,9 +296,11 @@ function serverInit() { // 配置并启动 Web 服务
     var worker = cluster.fork();
     var p2pWorker = cluster.fork();
     cluster.once('message', async (worker, message) => {
+      mylog.warn(message);
       if (message.code==200) {
           mylog.warn(`[Master] 主程序初始化完毕，启动共识模块......`);
           await masterInit(worker);
+          serverInit();
           return 0;
       }
     });
@@ -317,13 +319,13 @@ function serverInit() { // 配置并启动 Web 服务
   }
   else if(cluster.worker.id === 1) {
     /**BlockChain以及RPC服务进程 */
-    await workerInit();
-    process.send({
-      code: 200
-    });
-    serverInit();
+    // await workerInit();
+    // process.send({
+    //   code: 200
+    // });
+    // serverInit();
   }
-  else{
+  else {
     mylog.info(`${cluster.worker.id}号p2p进程启动`)
     await p2pInit();
   }

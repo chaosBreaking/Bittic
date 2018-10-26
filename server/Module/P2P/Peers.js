@@ -50,7 +50,7 @@ Peers._init = async function () {
     // 建立邻居节点库
     var peerSetArray = await Peers.broadcast('/Peers/sharePeer', { Peer: JSON.stringify(my.self) })
     mylog.info('get from remote: ', peerSetArray)
-    if(peerSetArray)
+    if (peerSetArray)
       await Peers.addPeer2Pool(peerSetArray);
     my.scheduleJob[0] = Schedule.scheduleJob(`*/10 * * * * *`, Peers.updatePool)
     // setInterval(Peers.updatePool, wo.Config.PEER_CHECKING_PERIOD) 
@@ -86,13 +86,13 @@ Peers.updatePool = async function () { // 从节点池取出第一个节点，�
       peer.lastResponse = result.lastResponse // 对方响应ping的时刻
       peer.lastReception = new Date() // 收到对方ping的时刻
       peer.brokenCount = 0
-    } 
+    }
     else { // 对方peer无响应
       if (['active', 'unknown'].indexOf(peer.link) >= 0) {
         peer.link = 'broken' // 第一次ping不通，设为断线状态
         peer.brokenCount += 1;
         mylog.info('节点无响应：' + peer.ownerAddress + peer.accessPoint)
-      } 
+      }
       else if (peer.link === 'broken') { // 持续 5分钟无法ping通
         peer.brokenCount++;
         if (peer.brokenCount > wo.Config.PEER_CHECKING_TIMEOUT) {
@@ -117,7 +117,7 @@ Peers.updatePool = async function () { // 从节点池取出第一个节点，�
 
 Peers.broadcast = async function (api, message, peers) { // api='/类名/方法名'  向所有邻居发出广播，返回所有结果的数组。可通过 peerSet 参数指定广播对象。
   let peerSet = peers || Object.values(await Peers.getPeers());
-  if(peerSet && peerSet.length > 0)
+  if (peerSet && peerSet.length > 0)
     return await Promise.all(peerSet.map((peer, index) => RequestPromise({
       method: 'post',
       uri: url.resolve(peer.accessPoint + ':' + wo.Config.port, '/api' + api),
@@ -131,7 +131,7 @@ Peers.broadcast = async function (api, message, peers) { // api='/类名/方法�
 
 Peers.randomcast = async function (api, message, peers) { // 随机挑选一个节点发出请求，返回结果。可通过 peerSet 参数指定广播对象。
   let peerSet = peers || Object.values(await Peers.getPeers());
-  if(peerSet && peerSet.length > 0) {
+  if (peerSet && peerSet.length > 0) {
     var peer = peerSet[wo.Crypto.randomNumber({ max: peerSet.length })];
     if (peer && peer.accessPoint) {
       return await RequestPromise({
@@ -146,16 +146,16 @@ Peers.randomcast = async function (api, message, peers) { // 随机挑选一个�
 }
 
 Peers.addPeer2Pool = async function (peerData) { // 把peer原始数据转成peer对象，存入节点池(数组)
-  if(typeof peerData !== 'object'){
+  if (typeof peerData !== 'object') {
     var peer = new Peers(peerData);
-    if (peer.ownerAddress !== wo.Crypto.secword2address(wo.Config.ownerSecword) && !my.peerAddressArray[peer.ownerAddress]) { 
+    if (peer.ownerAddress !== wo.Crypto.secword2address(wo.Config.ownerSecword) && !my.peerAddressArray[peer.ownerAddress]) {
       await Peers.pushPeerPool(peer);
     }
     return peer
   }
-  else{
-    for(let peer of Object.values(peerData)){
-      if (peer.ownerAddress !== wo.Crypto.secword2address(wo.Config.ownerSecword) && !my.peerAddressArray[peer.ownerAddress]) { 
+  else {
+    for (let peer of Object.values(peerData)) {
+      if (peer.ownerAddress !== wo.Crypto.secword2address(wo.Config.ownerSecword) && !my.peerAddressArray[peer.ownerAddress]) {
         await Peers.pushPeerPool(typeof peer === 'string' ? JSON.parse(peer) : peer);
       }
       return peerData
@@ -197,7 +197,7 @@ Peers.shiftPeerPool = async function () {
   let peer = JSON.parse(await store.hget('peers', address))
   if (peer) {
     store.hdel('peers', address);
-    return peer;
+    return peer
   }
   return null
 }
@@ -217,7 +217,7 @@ Peers.getPeers = async function (address) {
   let peers = await store.hgetall('peers');
   let keys = Object.keys(peers);
   for (let peer of keys) {
-    peers[peer] = JSON.parse(peers[peer])
+    peers[peer] = JSON.parse(peers[peer]);
   }
   return peers
 }
