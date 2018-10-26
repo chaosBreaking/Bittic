@@ -84,7 +84,7 @@ Peers.updatePool = async function () { // 从节点池取出第一个节点，�
 }
 
 Peers.broadcast = async function (api, message, peerSet) { // api='/类名/方法名'  向所有邻居发出广播，返回所有结果的数组。可通过 peerSet 参数指定广播对象。
-  peerSet = peerSet || Object.values(await Peers.getPeers());
+  peerSet = peerSet || Object.values(await my.getPeers());
   var result = await Promise.all(peerSet.map((peer, index) => RequestPromise({
     method: 'post',
     uri: url.resolve(peer.accessPoint + wo.Config.port, '/api' + api),
@@ -98,7 +98,7 @@ Peers.broadcast = async function (api, message, peerSet) { // api='/类名/方�
 }
 
 Peers.randomcast = async function (api, message, peerSet) { // 随机挑选一个节点发出请求，返回结果。可通过 peerSet 参数指定广播对象。
-  peerSet = peerSet || Object.values(await Peers.getPeers())
+  peerSet = peerSet || Object.values(await my.getPeers())
   var peer = peerSet[wo.Crypto.randomNumber({ max: peerSet.length })]
   if (peer instanceof Peers) {
     var result = await RequestPromise({
