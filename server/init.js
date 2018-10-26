@@ -255,7 +255,7 @@ function serverInit() { // 配置并启动 Web 服务
     webServer.listen(wo.Config.port, function (err) {
       mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, wo.Config.port, server.settings.env)
     });
-    if(cluster.isWorker)
+    if(cluster.isWorker && cluster.worker.id === 1)
       wo.Socket = socket.listen(webServer);
   } else if ('https' === wo.Config.protocol) { // 启用 https。从 http或https 网页访问 https的ticnode/socket 都可以，socket.io 内容也是一致的。
     let webServer = require('https').createServer({
@@ -265,7 +265,7 @@ function serverInit() { // 配置并启动 Web 服务
     webServer.listen(wo.Config.port, function (err) {
       mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, wo.Config.port, server.settings.env)
     });
-    if(cluster.isWorker)
+    if(cluster.isWorker && cluster.worker.id === 1)
       wo.Socket = socket.listen(webServer);
   } else if ('httpall' === wo.Config.protocol) { // 同时启用 http 和 https
     let portHttp = wo.Config.port ? wo.Config.port : 80 // 如果port参数已设置，使用它；否则默认为80
@@ -282,13 +282,14 @@ function serverInit() { // 配置并启动 Web 服务
     httpsServer.listen(portHttps, function (err) {
       mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, portHttps, server.settings.env)
     })
-    if(cluster.isWorker)
+    if(cluster.isWorker && cluster.worker.id === 1)
       wo.Socket = socket.listen(webServer);
   }
-  wo.Socket.sockets.on('connection',(socket)=>{
-    // 处理操作
-    mylog.info('new client connected');
-  });
+  if(cluster.isWorker && cluster.worker.id === 1)
+    wo.Socket.sockets.on('connection',(socket)=>{
+      // 处理操作
+      mylog.info('new client connected');
+    });
 }
 
 (async function Start() {
@@ -296,7 +297,6 @@ function serverInit() { // 配置并启动 Web 服务
     var worker = cluster.fork();
     var p2pWorker = cluster.fork();
     cluster.once('message', async (worker, message) => {
-      mylog.warn(message);
       if (message.code==200) {
           mylog.warn(`[Master] 主程序初始化完毕，启动共识模块......`);
           await masterInit(worker);
@@ -319,11 +319,11 @@ function serverInit() { // 配置并启动 Web 服务
   }
   else if(cluster.worker.id === 1) {
     /**BlockChain以及RPC服务进程 */
-    // await workerInit();
-    // process.send({
-    //   code: 200
-    // });
-    // serverInit();
+    await workerInit();
+    process.send({
+      code: 200
+    });
+    serverInit();
   }
   else {
     mylog.info(`${cluster.worker.id}号p2p进程启动`)
