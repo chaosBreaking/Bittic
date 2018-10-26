@@ -42,7 +42,6 @@ Peers._init = async function () {
       }).then(async function (result) {
         return await Peers.addPeer2Pool({ accessPoint: seed, ownerAddress: result.remoteAddress })
       }).catch(function (err) {
-        mylog.error(err)
         return null
       })
     }
@@ -69,7 +68,7 @@ Peers.updatePool = async function () { // 从节点池取出第一个节点，�
       peer = null;
     }
   }
-  if (peer && peer.link !== 'dead') { // 是当前还有效的peer。如果已经dead，就不再执行，即不放回 pool 了。
+  if (peer && peer.status !== 'dead') { // 是当前还有效的peer。如果已经dead，就不再执行，即不放回 pool 了。
     peer.checking = 'pending' // 正在检查中，做个标记，以防又重复被检查
     peer.lastRequest = new Date() // 发起ping的时刻 
     var result = await RequestPromise({
@@ -83,21 +82,21 @@ Peers.updatePool = async function () { // 从节点池取出第一个节点，�
       return null
     })
     if (result && result.lastRequest === peer.lastRequest) { // 对方peer还活着
-      peer.link = 'active'
+      peer.status = 'active'
       peer.lastResponse = result.lastResponse // 对方响应ping的时刻
       peer.lastReception = new Date() // 收到对方ping的时刻
       peer.brokenCount = 0
     }
     else { // 对方peer无响应
-      if (['active', 'unknown'].indexOf(peer.link) >= 0) {
-        peer.link = 'broken' // 第一次ping不通，设为断线状态
+      if (['active', 'unknown'].indexOf(peer.status) >= 0) {
+        peer.status = 'broken' // 第一次ping不通，设为断线状态
         peer.brokenCount += 1;
         mylog.info('节点无响应：' + peer.ownerAddress + peer.accessPoint)
       }
-      else if (peer.link === 'broken') { // 持续 5分钟无法ping通
+      else if (peer.status === 'broken') { // 持续 5分钟无法ping通
         peer.brokenCount++;
         if (peer.brokenCount > wo.Config.PEER_CHECKING_TIMEOUT) {
-          peer.link = 'dead' // 连续两次无法ping通，就不要了 
+          peer.status = 'dead' // 连续两次无法ping通，就不要了 
           mylog.info('节点已超时，即将删除：' + JSON.stringify(peer))
         }
       }
