@@ -293,7 +293,7 @@ function serverInit() { // 配置并启动 Web 服务
 
 (async function Start() {
   if (cluster.isMaster) {
-    // var worker = cluster.fork();
+    var worker = cluster.fork();
     var p2pWorker = cluster.fork();
     cluster.once('message', async (worker, message) => {
       if (message.code==200) {
@@ -317,11 +317,11 @@ function serverInit() { // 配置并启动 Web 服务
   }
   else if(cluster.worker.id === 1) {
     /**BlockChain以及RPC服务进程 */
-    await workerInit();
-    process.send({
-      code: 200
-    });
-    serverInit();
+    // await workerInit();
+    // process.send({
+    //   code: 200
+    // });
+    // serverInit();
   }
   else{
     mylog.info(`${cluster.worker.id}号p2p进程启动`)
