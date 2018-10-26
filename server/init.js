@@ -104,7 +104,7 @@ async function masterInit(worker) {
   wo.Ling = require('./Ling/_Ling.js')
   mylog.info('Initializing Consensus......')
   wo.Block = require('./Module/Chain/Block.js')
-  wo.Peer = await require('./Module/P2P/Peer.js')
+  wo.Peer = await require('./Module/P2P/index.js')
   wo.Store = await require('./Module/util/Store.js')('redis') //  必须指定数据库,另外不能_init(),否则会覆盖子进程已经设定好的内容
   wo.EventBus = require('./Module/util/EventBus.js')(worker).mount(worker);
   wo.Consensus = await require('./Module/Consensus/' + wo.Config.consensus + '.js')
@@ -133,7 +133,7 @@ async function workerInit() {
   wo.ActTac = require('./Module/Action/ActTac.js');
   wo.Bancor = require('./Module/Token/Bancor.js')._init();
   mylog.info('Initializing chain............');
-  wo.Peer = await require('./Module/P2P/Peer.js');
+  wo.Peer = await require('./Module/P2P/index.js');
   wo.Block = await require('./Module/Chain/Block.js')._init();
   wo.Store = await require('./Module/util/Store.js')('redis')._init();
   wo.EventBus = require('./Module/util/EventBus.js')(process);
@@ -317,11 +317,11 @@ function serverInit() { // 配置并启动 Web 服务
   }
   else if(cluster.worker.id === 1) {
     /**BlockChain以及RPC服务进程 */
-    // await workerInit();
-    // process.send({
-    //   code: 200
-    // });
-    // serverInit();
+    await workerInit();
+    process.send({
+      code: 200
+    });
+    serverInit();
   }
   else{
     mylog.info(`${cluster.worker.id}号p2p进程启动`)
