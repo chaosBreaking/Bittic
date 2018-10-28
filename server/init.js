@@ -248,29 +248,25 @@ function serverInit() { // 配置并启动 Web 服务
       showStack: true
     }))
   }
-
   /*** 启动 Web 服务 ***/
+  let webServer
   if ('http' === wo.Config.protocol) { // 如果在本地localhost做开发，就启用 http。注意，从https网页，不能调用http的socket.io。Chrome/Firefox都报错：Mixed Content: The page at 'https://localhost/yuncai/' was loaded over HTTPS, but requested an insecure XMLHttpRequest endpoint 'http://localhost:6327/socket.io/?EIO=3&transport=polling&t=LoRcACR'. This request has been blocked; the content must be served over HTTPS.
-    let webServer = require('http').createServer(server)
+    webServer = require('http').createServer(server)
     webServer.listen(wo.Config.port, function (err) {
       mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, wo.Config.port, server.settings.env)
     });
-    if(cluster.isWorker && cluster.worker.id === 1)
-      wo.Socket = socket.listen(webServer);
   } else if ('https' === wo.Config.protocol) { // 启用 https。从 http或https 网页访问 https的ticnode/socket 都可以，socket.io 内容也是一致的。
-    let webServer = require('https').createServer({
+    webServer = require('https').createServer({
       key: fs.readFileSync(wo.Config.sslKey),
       cert: fs.readFileSync(wo.Config.sslCert) // , ca: [ fs.readFileSync(wo.Config.sslCA) ] // only for self-signed certificate: https://nodejs.org/api/tls.html#tls_tls_createserver_options_secureconnectionlistener
     }, server);
     webServer.listen(wo.Config.port, function (err) {
       mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, wo.Config.port, server.settings.env)
     });
-    if(cluster.isWorker && cluster.worker.id === 1)
-      wo.Socket = socket.listen(webServer);
   } else if ('httpall' === wo.Config.protocol) { // 同时启用 http 和 https
     let portHttp = wo.Config.port ? wo.Config.port : 80 // 如果port参数已设置，使用它；否则默认为80
-    let httpServer = require('http').createServer(server)
-    httpServer.listen(portHttp, function (err) {
+    webServer = require('http').createServer(server)
+    webServer.listen(portHttp, function (err) {
       mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, portHttp, server.settings.env)
     })
 
@@ -282,26 +278,24 @@ function serverInit() { // 配置并启动 Web 服务
     httpsServer.listen(portHttps, function (err) {
       mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, portHttps, server.settings.env)
     })
-    if(cluster.isWorker && cluster.worker.id === 1)
-      wo.Socket = socket.listen(webServer);
   }
-  if(cluster.isWorker && cluster.worker.id === 1)
-    wo.Socket.sockets.on('connection',(socket)=>{
-      // 处理操作
-      mylog.info('new client connected');
-    });
+  return webServer
 }
 
 (async function Start() {
   if (cluster.isMaster) {
-    var worker = cluster.fork();
-    var p2pWorker = cluster.fork();
+    let p2pWorker = cluster.fork();
     cluster.once('message', async (worker, message) => {
-      if (message.code==200) {
-          mylog.warn(`[Master] 主程序初始化完毕，启动共识模块......`);
-          await masterInit(worker);
-          serverInit();
-          return 0;
+      if (message.code == 200) {
+        let worker = cluster.fork();
+        cluster.once('message', async (worker, message) => {
+          if(message.code == 300){
+            mylog.warn(`[Master] 主程序初始化完毕，启动共识模块......`);
+            await masterInit(worker);
+            serverInit();
+            return 0;
+          }
+        });
       }
     });
     cluster.on('exit', function (worker, code, signal) {
@@ -318,15 +312,27 @@ function serverInit() { // 配置并启动 Web 服务
     });
   }
   else if(cluster.worker.id === 1) {
-    /**BlockChain以及RPC服务进程 */
-    await workerInit();
+    /**P2P网络进程 */
+    mylog.info(`${cluster.worker.id}号p2p进程启动`)
+    await p2pInit();
     process.send({
       code: 200
     });
-    serverInit();
   }
   else {
-    mylog.info(`${cluster.worker.id}号p2p进程启动`)
-    await p2pInit();
+    /**BlockChain以及RPC服务进程 */
+    await workerInit();
+    let webServer = serverInit();
+    wo.Socket = socket.listen(webServer);
+    wo.Socket.sockets.on("open",()=>{
+      mylog.info('Socket started');
+    })
+    wo.Socket.sockets.on('connection',(socket)=>{
+      // 处理操作
+      mylog.info('new client connected');
+    });
+    process.send({
+      code: 300
+    });
   }
 })()

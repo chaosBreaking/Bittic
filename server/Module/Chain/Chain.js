@@ -50,14 +50,17 @@ DAD.createGenesis = async function () {
   my.genesis.packMe({}, null, wo.Crypto.secword2keypair(wo.Config.GENESIS_ACCOUNT.secword))
   DAD.pushTopBlock(my.genesis)
   mylog.info('Genesis is created and verified: ' + my.genesis.verifySig())
-
-
   mylog.info('清空并初始化账户...')
-  mylog.info('net ================ ' + wo.Config.netType)
+  mylog.info('Net ================ ' + wo.Config.netType)
   // await wo.Account.dropAll({Account:{balance:'!=0'}})
   await wo.Store.increase(wo.Config.INITIAL_ACCOUNT.address, wo.Config.COIN_INIT_AMOUNT)
-  if (wo.Config.netType === 'devnet') // 在开发链上，自动给当前用户预存一笔，使其能够挖矿
-    await wo.Store.increase(wo.Crypto.secword2address(wo.Config.ownerSecword), 100000)
+  if (wo.Config.netType === 'devnet')
+  {
+    // 在开发链上，自动给当前用户预存一笔，使其能够挖矿
+    //给两个账户加钱，防止两机测试时互不相认
+    await wo.Store.increase('Ttm24Wb877P6EHbNKzswoK6yvnTQqFYaqo', 100000);
+    await wo.Store.increase('TxAEimQbqVRUoPncGLrrpmP82yhtoLmxJE', 100000);
+  } 
   return my.genesis
 }
 
@@ -189,7 +192,7 @@ DAD.createBlock = async function (block) {
   DAD.addReward(block);
   block.addMe();     //将区块写入数据库
   block.executeActions(actionBatch.actionPool);
-  wo.Socket.emit('newBlock',JSON.stringify(block));
+  // wo.Socket.emit('newBlock',JSON.stringify(block));
   return block
 }
 
