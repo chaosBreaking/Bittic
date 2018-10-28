@@ -3,7 +3,7 @@ const url = require('url');
 const Schedule = require('node-schedule');
 const RequestPromise = require('request-promise-native'); // request-promise/-native。https://www.npmjs.com/package/request-promise. 还看到一个方法：Bluebird.promisifyAll(require("request"));
 const store = require('../../util/StoreApi.js')('redis', {
-  db: 0
+  db: 1 //如果用db0,会被链进程的存储初始化程序给flush掉
 })
 
 class Peers extends Ling {
@@ -31,6 +31,9 @@ Peers.prototype._model = { // 数据模型，用来初始化每个对象的数�
 module.exports = Peers
 
 Peers._init = async function () {
+  // if(Object.keys(await store.hgetall('peers')).length === 0){
+  //   store.hset('peers',JSON.stringify({}))
+  // }
   if (wo.Config.seedSet && Array.isArray(wo.Config.seedSet) && wo.Config.seedSet.length > 0) {
     // 建立种子节点库
     for (var seed of wo.Config.seedSet) {
@@ -48,8 +51,8 @@ Peers._init = async function () {
     // 建立邻居节点库
     var peerSetArray = await Peers.broadcast('/Peers/sharePeer', { Peer: JSON.stringify(my.self) })
     if (peerSetArray)
-      peerSetArray.forEach(async (peerSet, index, ary)=>{
-          await Peers.addPeer2Pool(peerSet);
+      peerSetArray.forEach(async (peerSet, index, ary) => {
+        await Peers.addPeer2Pool(peerSet);
       })
     my.scheduleJob[0] = Schedule.scheduleJob(`*/10 * * * * *`, Peers.updatePool)
     // setInterval(Peers.updatePool, wo.Config.PEER_CHECKING_PERIOD) 
@@ -77,7 +80,7 @@ Peers.updatePool = async function () { // 从节点池取出第一个节点，�
       body: { Peer: JSON.stringify(my.self.setProp({ lastRequest: peer.lastRequest })) }, // 告诉对方，我是谁，以及发出ping的时间
       json: true
     }).catch(function (err) {
-      mylog.warn(`节点${peer.ownerAddress}(${peer.accessPoint})无响应`);
+      mylog.warn(`节点${peer.ownerAddress}(${peer.accessPoint}:${wo.Config.port})无响应`);
       peer.brokenCount += 1;
       return null
     })
@@ -117,7 +120,7 @@ Peers.updatePool = async function () { // 从节点池取出第一个节点，�
 
 Peers.broadcast = async function (api, message, peers) { // api='/类名/方法名'  向所有邻居发出广播，返回所有结果的数组。可通过 peerSet 参数指定广播对象。
   let peerSet = peers || Object.values(await Peers.getPeers());
-  if (peerSet && peerSet.length > 0){
+  if (peerSet && peerSet.length > 0) {
     let res = await Promise.all(peerSet.map((peer, index) => RequestPromise({
       method: 'post',
       uri: url.resolve(peer.accessPoint + ':' + wo.Config.port, '/api' + api),

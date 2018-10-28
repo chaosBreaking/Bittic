@@ -34,7 +34,7 @@ module.exports = { // 全大写字母的，代表系统常量，不要在 userCo
   BLOCK_PERIOD: 60 * 1000, // 出块周期。毫秒数
   BLOCK_MAX_SIZE: 1 * 1024 * 1024, // 每个区块的最大容量：1M字节
   PEER_CHECKING_PERIOD: 60 * 1000, // 每隔多久ping一个邻居
-  PEER_CHECKING_TIMEOUT: 5, // *60*1000, // 5分钟没有响应就认为邻居节点死了
+  PEER_CHECKING_TIMEOUT: 10, // *60*1000, // 5分钟没有响应就认为邻居节点死了
   PEER_POOL_CAPACITY: 12, // 保持几个邻居节点
 
   GENESIS_EPOCHE: new Date('2019-06-06T00:00:00.000Z'), // 主网的创世时刻。1515341898018
