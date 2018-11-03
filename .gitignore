@@ -1,5 +1,13 @@
+# 以'#'开始的行，被视为注释.                                                                                                                          
+node_modules
 Data.log/*.log*
 Data.sqlite/*.sqlite*
-node_modules
-.svn
+.sass-cache
 package-lock.json
+.vscode
+.svn
+~*
+.gitattributes
+test.js
+ConfigUser.*
+.idea
