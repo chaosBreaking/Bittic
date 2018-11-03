@@ -80,11 +80,12 @@ Peers.updatePool = async function () { // 从节点池取出第一个节点，�
       body: { Peer: JSON.stringify(my.self.setProp({ lastRequest: peer.lastRequest })) }, // 告诉对方，我是谁，以及发出ping的时间
       json: true
     }).catch(function (err) {
+      mylog.error(err)
       mylog.warn(`节点${peer.ownerAddress}(${peer.accessPoint}:${wo.Config.port})无响应`);
       peer.brokenCount += 1;
-      return null
-    })
-    if (result && result.lastRequest === peer.lastRequest) { // 对方peer还活着
+    });
+    if (result) { // 对方peer还活着
+      mylog.info('收到节点响应',peer.accessPoint)
       peer.status = 'active'
       peer.lastResponse = result.lastResponse // 对方响应ping的时刻
       peer.lastReception = new Date() // 收到对方ping的时刻
@@ -92,12 +93,12 @@ Peers.updatePool = async function () { // 从节点池取出第一个节点，�
     }
     else { // 对方peer无响应
       if (['active', 'unknown'].indexOf(peer.status) >= 0) {
+        mylog.info(peer.accessPoint,'无法ping通',peer.status,'设为断线状态')
         peer.status = 'broken' // 第一次ping不通，设为断线状态
         peer.brokenCount += 1;
         mylog.info('节点无响应：' + peer.ownerAddress + peer.accessPoint)
       }
       else if (peer.status === 'broken') { // 持续 5分钟无法ping通
-        peer.brokenCount++;
         if (peer.brokenCount > wo.Config.PEER_CHECKING_TIMEOUT) {
           peer.status = 'dead' // 连续两次无法ping通，就不要了 
           mylog.info('节点已超时，即将删除：' + JSON.stringify(peer))

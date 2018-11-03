@@ -21,7 +21,7 @@ DAD.broadcast = async function (api, message, peers) { // api='/类名/方法名
       body: message,
       json: true
     }).catch(function (err) {
-      mylog.info('广播 ' + api + ' 到某个节点出错: ' + err.message)
+      mylog.info('广播 ' + api + ' 到,',peer.accessPoint,'节点出错: ' + err.message)
       return null  // 其中一个节点出错，必须要在其catch里返回null，否则造成整个Promise.all出错进入catch了。
     }))).catch(console.log)
 }
@@ -31,6 +31,7 @@ DAD.randomcast = async function (api, message, peers) { // 随机挑选一个节
   if(peerSet && peerSet.length > 0) {
     var peer = peerSet[wo.Crypto.randomNumber({ max: peerSet.length })];
     if (peer && peer.accessPoint) {
+      mylog.info(`调用RPC发送`,message,`到${peer.accessPoint}`)
       return await RequestPromise({
         method: 'post',
         uri: url.resolve(peer.accessPoint + ':' + wo.Config.port, '/api' + api),
