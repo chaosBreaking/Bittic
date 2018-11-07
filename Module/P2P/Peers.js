@@ -80,7 +80,6 @@ Peers.updatePool = async function () { // 从节点池取出第一个节点，�
       body: { Peer: JSON.stringify(my.self.setProp({ lastRequest: peer.lastRequest })) }, // 告诉对方，我是谁，以及发出ping的时间
       json: true
     }).catch(function (err) {
-      mylog.error(err)
       mylog.warn(`节点${peer.ownerAddress}(${peer.accessPoint}:${wo.Config.port})无响应`);
       peer.brokenCount += 1;
     });
@@ -102,6 +101,7 @@ Peers.updatePool = async function () { // 从节点池取出第一个节点，�
         if (peer.brokenCount > wo.Config.PEER_CHECKING_TIMEOUT) {
           peer.status = 'dead' // 连续两次无法ping通，就不要了 
           mylog.info('节点已超时，即将删除：' + JSON.stringify(peer))
+          return 0
         }
       }
     }

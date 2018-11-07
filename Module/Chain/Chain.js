@@ -42,25 +42,22 @@ DAD._init = async function () {
 }
 
 DAD.createGenesis = async function () {
+  mylog.info('Net ================ ' + wo.Config.netType)
   mylog.info('创世时分 GENESIS_EPOCHE=' + wo.Config.GENESIS_EPOCHE.toJSON())
   my.genesis = new wo.Block({
     timestamp: wo.Config.GENESIS_EPOCHE,
     message: wo.Config.GENESIS_MESSAGE
   })
   my.genesis.packMe({}, null, wo.Crypto.secword2keypair(wo.Config.GENESIS_ACCOUNT.secword))
-  DAD.pushTopBlock(my.genesis)
+  await DAD.pushTopBlock(my.genesis)
   mylog.info('Genesis is created and verified: ' + my.genesis.verifySig())
-  mylog.info('清空并初始化账户...')
-  mylog.info('Net ================ ' + wo.Config.netType)
-  // await wo.Account.dropAll({Account:{balance:'!=0'}})
   await wo.Store.increase(wo.Config.INITIAL_ACCOUNT.address, wo.Config.COIN_INIT_AMOUNT)
-  if (wo.Config.netType === 'devnet')
-  {
+  if (wo.Config.netType === 'devnet') {
     // 在开发链上，自动给当前用户预存一笔，使其能够挖矿
     //给两个账户加钱，防止两机测试时互不相认
     await wo.Store.increase('Ttm24Wb877P6EHbNKzswoK6yvnTQqFYaqo', 100000);
     await wo.Store.increase('TxAEimQbqVRUoPncGLrrpmP82yhtoLmxJE', 100000);
-  } 
+  }
   return my.genesis
 }
 
@@ -188,7 +185,7 @@ DAD.createBlock = async function (block) {
   block.message = block.message || '矿工留言在第' + (my.topBlock.height + 1) + '区块'
   let actionBatch = wo.Action.getActionBatch();
   block.packMe(actionBatch, my.topBlock, wo.Crypto.secword2keypair(wo.Config.ownerSecword))//算出默克根、hash、交易表
-  DAD.pushTopBlock(block);
+  await DAD.pushTopBlock(block);
   DAD.addReward(block);
   block.addMe();     //将区块写入数据库
   block.executeActions(actionBatch.actionPool);
@@ -203,23 +200,24 @@ DAD.appendBlock = async function (block) {
   if (!my.addingLock && block.lastBlockHash === my.topBlock.hash && block.height === my.topBlock.height + 1 && block.verifySig() && block.verifyHash()) {
     my.addingLock = true;
     let actionBatch = wo.Action.getActionBatch();
-    DAD.pushTopBlock(block);
+    await DAD.pushTopBlock(block);
     await block.addMe();
     DAD.addReward(block);
-    wo.EventBus.send(232, block);
     block.executeActions(actionBatch.actionPool);
     mylog.info(block.timestamp.toJSON() + ' : block ' + block.height + ' is added');
     my.addingLock = false;    //区块添加完毕后 释放锁
+    // wo.EventBus.send(232, block);
     // wo.Peer.broadcast('/Consensus/mineWatcher', {Block:JSON.stringify(wo.Store.getTopBlock())})
     return block;
   }
   return null
 }
 
-DAD.pushTopBlock = function (topBlock) { // 保留最高和次高的区块
+DAD.pushTopBlock = async function (topBlock) { // 保留最高和次高的区块
   my.lastBlock = my.topBlock;
   my.topBlock = topBlock;
-  wo.Store.pushTopBlock(topBlock);
+  await wo.Store.pushTopBlock(topBlock);
+  return topBlock
 }
 
 DAD.addReward = async function (block) {
