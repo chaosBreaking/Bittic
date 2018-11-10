@@ -145,8 +145,7 @@ DAD.updateChainFromPeer = async function () { // 向其他节点获取自己缺�
             }
           }
           await block.addMe();
-          if (wo.Config.consensus === 'ConsPot') wo.Store.pushInRBS(block)
-          DAD.pushTopBlock(block)
+          await DAD.pushTopBlock(block)
           mylog.info(`高度${block.height}区块同步成功`)
         }
         else { // 碰到一个错的区块，立刻退出
@@ -175,7 +174,6 @@ DAD.createVirtBlock = async function () {
   var block = new wo.Block({ type: 'VirtBlock', timestamp: new Date(), height: my.topBlock.height + 1, hash: my.topBlock.hash, lastBlockHash: my.topBlock.hash })
   await block.addMe()
   DAD.pushTopBlock(block)
-  if (wo.Config.consensus === 'ConsPot') wo.Store.pushInRBS(block)
   mylog.info('virtual block ' + block.height + ' is created')
   return block
 }

@@ -16,7 +16,7 @@ DAD.broadcast = async function (api, message, peers) { // api='/类名/方法名
   let peerSet = peers || Object.values(await Peers.getPeers());
   if(peerSet && peerSet.length > 0){
     mylog.info('调用RPC广播到端口', wo.Config.port, api)
-    return await Promise.all(peerSet.map((peer, index) => RequestPromise({
+    let result = await Promise.all(peerSet.map((peer, index) => RequestPromise({
       method: 'post',
       uri: url.resolve(peer.accessPoint + ':' + wo.Config.port, '/api' + api),
       body: message,
@@ -25,6 +25,7 @@ DAD.broadcast = async function (api, message, peers) { // api='/类名/方法名
       mylog.warn('广播 ' + api + ' 到,',peer.accessPoint,'节点出错: ' + err.message)
       return null  // 其中一个节点出错，必须要在其catch里返回null，否则造成整个Promise.all出错进入catch了。
     }))).catch(console.log)
+    return result
   }
 }
 
@@ -34,12 +35,13 @@ DAD.randomcast = async function (api, message, peers) { // 随机挑选一个节
     var peer = peerSet[wo.Crypto.randomNumber({ max: peerSet.length })];
     if (peer && peer.accessPoint) {
       mylog.info(`调用RPC发送`,message,`到${peer.accessPoint}:${wo.Config.port}`)
-      return await RequestPromise({
+      let result = await RequestPromise({
         method: 'post',
         uri: url.resolve(peer.accessPoint + ':' + wo.Config.port, '/api' + api),
         body: message,
         json: true
       }).catch(function (err) { mylog.warn('点播 ' + api + ' 到随机节点出错: ' + err.message); return null })
+      return result
     }
   }
   return null
