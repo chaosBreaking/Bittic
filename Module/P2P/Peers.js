@@ -63,7 +63,6 @@ Peers._init = async function () {
 
 Peers.updatePool = async function () { // 从节点池取出第一个节点，测试其连通性，把超时无响应的邻居从池中删除。
   let peer = null
-  mylog.info('updating pool')
   while (!peer) {
     peer = await Peers.shiftPeerPool() // 每次取出第一个节点进行检查
     if (peer && peer.checking === 'pending') {
@@ -84,7 +83,7 @@ Peers.updatePool = async function () { // 从节点池取出第一个节点，�
       peer.brokenCount += 1;
     });
     if (result) { // 对方peer还活着
-      mylog.info('收到节点响应',peer.accessPoint)
+      // mylog.info('收到节点响应',peer.accessPoint)
       peer.status = 'active'
       peer.lastResponse = result.lastResponse // 对方响应ping的时刻
       peer.lastReception = new Date() // 收到对方ping的时刻
@@ -182,6 +181,7 @@ Peers.api.ping = async function (option) { // 响应邻居节点发来的ping请
     var req = option._req
     var fromHost = req.headers['x-forwarded-for'] || req.connection.remoteAddress || req.socket.remoteAddress || req.connection.socket.remoteAddress
     var fromPort = req.connection.remotePort
+    mylog.info(`收到远程Ping请求 -- from:${fromHost}:${fromPort}`)
     if (!my.peerAddressArray[option.Peer.ownerAddress]) { // 是新邻居发来的ping？把新邻居加入节点池
       option.Peer.fromHost = fromHost
       option.Peer.fromPort = fromPort
@@ -196,7 +196,8 @@ Peers.api.ping = async function (option) { // 响应邻居节点发来的ping请
 }
 
 Peers.api.sharePeer = async function () { // 响应邻居请求，返回更多节点。option.Peer是邻居节点。
-  return Object.values(await Peers.getPeers() || {}) // todo: 检查 option.Peer.ownerAddress 不要把邻居节点返回给这个邻居自己。
+  let res = Object.values(await Peers.getPeers() || {}) // todo: 检查 option.Peer.ownerAddress 不要把邻居节点返回给这个邻居自己。
+  return res
 }
 
 const my = {}

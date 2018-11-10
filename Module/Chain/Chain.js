@@ -144,6 +144,7 @@ DAD.updateChainFromPeer = async function () { // 向其他节点获取自己缺�
               }
             }
           }
+          DAD.addReward(block);
           await block.addMe();
           await DAD.pushTopBlock(block)
           mylog.info(`高度${block.height}区块同步成功`)
