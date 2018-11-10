@@ -15,7 +15,7 @@ MOM.__proto__ = Ling.prototype
 DAD.broadcast = async function (api, message, peers) { // api='/类名/方法名'  向所有邻居发出广播，返回所有结果的数组。可通过 peerSet 参数指定广播对象。
   let peerSet = peers || Object.values(await Peers.getPeers());
   if(peerSet && peerSet.length > 0){
-    mylog.info('调用RPC广播到端口', wo.Config.port, api)
+    mylog.info('调用RPC广播', `到${peer.accessPoint}:${wo.Config.port}`, api)
     let result = await Promise.all(peerSet.map((peer, index) => RequestPromise({
       method: 'post',
       uri: url.resolve(peer.accessPoint + ':' + wo.Config.port, '/api' + api),

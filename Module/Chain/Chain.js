@@ -136,7 +136,7 @@ DAD.updateChainFromPeer = async function () { // 向其他节点获取自己缺�
             let actionList = await wo.Peer.randomcast('/Block/getActionList', { Block: { hash: block.hash, height: block.height } })
             if (actionList) {
               for (let action of actionList) {
-                if (wo[action.type].validater(action)) {
+                if (wo[action.type] && typeof wo[action.type].validator === 'function' && wo[action.type].validator(action)) {
                   await wo[action.type].execute(action)
                   await wo[action.type].addOne(action)
                   //todo:1.需要计算merkelRoot并且验证于区块actionHashRoot的一致性 2.添加到数据库之前对交易(action)序列化
