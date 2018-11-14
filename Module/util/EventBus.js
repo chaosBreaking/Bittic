@@ -21,7 +21,7 @@ function EventBus(obj) {
 }
 util.inherits(EventBus, EventEmitter);
 /**
- * 在进程内挂载进程至通信对象池
+ * 挂载进程至通信对象池
  */
 EventBus.prototype.mount = function (worker) {
   workerPool.push(worker);
@@ -66,7 +66,7 @@ EventBus.prototype.call = function (who, api, act, param) {
     });
     return res;
   }
-  throw new Error("Can't find Call Object")
+  throw new Error("Can't find Callable Object")
 }
 
 module.exports = EventBus

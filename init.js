@@ -100,15 +100,16 @@ async function masterInit(worker) {
     mylog.error('Invalid secword! Please setup a secword in ConfigSecret.js')
     process.exit()
   }
-  wo.Config.port = wo.Config.consPort;
+  wo.Config.portType = 'consPort'
+  wo.Config.port = wo.Config.consPort
   wo.Ling = require('./Ling/_Ling.js')
   mylog.info('Initializing Consensus......')
   wo.Block = require('./Module/Chain/Block.js')
   wo.Peer = await require('./Module/P2P/index.js')
   wo.Store = await require('./Module/util/Store.js')('redis') //  必须指定数据库,另外不能_init(),否则会覆盖子进程已经设定好的内容
-  wo.EventBus = require('./Module/util/EventBus.js')(worker).mount(worker);
+  wo.EventBus = require('./Module/util/EventBus.js')(worker).mount(worker)
   wo.Consensus = await require('./Module/Consensus/' + wo.Config.consensus + '.js')
-  wo.Consensus._init(worker);
+  wo.Consensus._init(worker)
 }
 async function workerInit() {
   global.mylog = require('./util/Logger.js')
@@ -116,6 +117,7 @@ async function workerInit() {
   wo.Tool = new(require('./util/Egg.js'))()
   wo.Config = config()
   wo.Crypto = require('./util/Crypto.js')
+  wo.Config.portType = 'webPort'
   if (!wo.Crypto.isSecword(wo.Config.ownerSecword)) {
     mylog.error('Invalid secword! Please setup a secword in ConfigSecret.js')
     process.exit()
@@ -145,6 +147,7 @@ async function p2pInit(){
   global.wo = {}
   wo.Tool = new(require('./util/Egg.js'))()
   wo.Config = config()
+  wo.Config.portType = 'p2pPort'
   wo.Config.port = wo.Config.p2pPort;
   wo.Crypto = require('./util/Crypto.js')
   if (!wo.Crypto.isSecword(wo.Config.ownerSecword)) {

@@ -4,7 +4,7 @@ module.exports = { // 全大写字母的，代表系统常量，不要在 userCo
   consensus: null, // 共识机制。可选设为 ConsPot, ConsAlone。
   protocol: 'http', // http|https|httpall
   host: null, // 本节点的从外部可访问的 IP or Hostname，不能是 127.0.0.1 或 localhost
-  port: 6842, // 本节点的 Web服务端口号
+  webPort: 6842, // 本节点的 Web服务端口号
   consPort: 6888, //共识协议交流端口
   p2pPort: 60842, //p2p组网端口
   // 如果使用 https 协议，必须填写以下内容，或在命令行参数中设置：
@@ -13,7 +13,7 @@ module.exports = { // 全大写字母的，代表系统常量，不要在 userCo
   sslCA: null, // ssl ca file,
   link: 'http', // http|udp
 
-  seedSet: [], // 系统默认的种子节点
+  seedSet: [{}], // 系统默认的种子节点
 
   dbType: 'sqlite',
   dbName: 'Data.sqlite/tic.sqlite',
