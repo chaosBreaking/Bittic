@@ -13,3 +13,5 @@ MOM.__proto__ = Ling.prototype
 DAD.broadcast = Peers.broadcast
 
 DAD.randomcast = Peers.randomcast
+
+DAD.getPeers = Peers.getPeers

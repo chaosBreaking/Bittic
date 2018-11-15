@@ -23,7 +23,6 @@ DAD._init = async function () {
       DAD.signOnce();
   }
   else {
-    // await DAD.calibrate();
     setTimeout(DAD._init, 60 - new Date().getSeconds());
   }
   return this

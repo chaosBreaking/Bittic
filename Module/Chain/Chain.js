@@ -235,11 +235,6 @@ DAD.getTopBlock = DAD.api.getTopBlock = function () {
   return my.topBlock
 }
 
-DAD.api.test = async function () {
-  return await wo.EventBus.call('Consensus', 'api', 'test')
-}
-
-
 /********************** Private in class *******************/
 
 const my = {
