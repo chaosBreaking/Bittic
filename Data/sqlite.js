@@ -1,137 +1,137 @@
-const sqlite=require('sqlite-pool');
-// https://github.com/coopernurse/node-pool const genericPool=require('generic-pool');
+const sqlite=require('sqlite') // or sqlite3, sqlite-pool
 // http://www.runoob.com/sqlite/sqlite-data-types.html
 // https://github.com/mapbox/node-sqlite3
 // https://github.com/kriasoft/node-sqlite sqlite3+promise
-// https://github.com/rneilson/node-sqlite-pool
+// https://github.com/coopernurse/node-pool const genericPool=require('generic-pool');
+// https://github.com/rneilson/node-sqlite-pool sqlite3+promise+genericPool
 
-var db;
+//pool var pool
+var conn
 
 module.exports={
   _init:async function(dbName){
-    dbName=dbName||"Data.sqlite/database.sqlite" // dbName 是相对于启动node的目录的。所以要在 server.js 的目录下启动。
-    db=await new sqlite(dbName, {cached:true, min:2, max:10}); // 先等db创建好，不然调用其方法可能 UnhandledPromiseRejectionWarning: Error: SQLITE_BUSY: database is locked
+    dbName=dbName||":memory:" // dbName 是相对于启动node的目录的。所以要在 server.js 的目录下启动。
+//pool    pool=await new sqlite(dbName, {cached:true, min:2, max:10}) // 先等db创建好，不然调用其方法可能 UnhandledPromiseRejectionWarning: Error: SQLITE_BUSY: database is locked
+    conn=await sqlite.open(dbName)
     return this
 /* 或者使用 generic-pool
 const pool=genericPool.createPool({
     create:function(){
-      return new sqlite.open(dbName, {cached:true});
+      return new sqlite.open(dbName, {cached:true})
     },
     destroy:function(conn){
-      conn.close();
+      conn.close()
     }
   },
   {max:10, min:2}
 );
-const getConn=pool.acquire();
+const getConn=pool.acquire()
 */
   }
   ,
   createTable: async function(option){
-    let sql='create table if not exists '+escapeId(option._table)+' (';
+    let sql='create table if not exists '+escapeId(option._table)+' ('
     for (let key in option.set){
       sql = sql+key+' '+option.set[key]+' , '
     }
     sql = sql.replace(/,\s*$/,')')
-    return await db.use(async function(conn){
-//      mylog.info(sql)
-      let report=await conn.run(sql);
-//      mylog.info(report)
-      return report
-    }).catch(console.log)
+//pool return await pool.use(async function(conn){
+      return await conn.run(sql)
+//pool }).catch(console.log)
   }
   ,
   getNumber: async function(option){
     if (option && option._table && option.where && option.field && option.func && ['sum','avg','max','min','count'].indexOf(option.func)>=0){
       let sql='select '+option.func+'('+(option.field!=='*'?escapeId(option.field):'*')+') as '+option.func+' from '+escapeId(option._table)+' where '+where2sql(option.where, option.config)
-      return await db.use(async (conn)=>{
+//pool      return await pool.use(async (conn)=>{
         let row=await conn.get(sql)
         if (row && row.hasOwnProperty(option.func)) return row
         else return null
-      }).catch(console.log)
+//pool      }).catch(console.log)
     }
     return null
   }
   ,
-  getData: async function(option) { // select * from table where a=98 AND b=10 group by age limit 100 order by desc
+  getData: async function(option) {
     if (option && option._table && option.where) {
-      let sql='select * from '+escapeId(option._table)+' where '+where2sql(option.where, option.config)+config2sql(option.config);
-      return await db.use(async (conn)=>{
-          let rowList=await conn.all(sql);
-          if (rowList) return wo.Tool.json2obj(rowList, 'database');
-          return null;
-      }).catch(console.log);
+      let sql='select * from '+escapeId(option._table)+' where '+where2sql(option.where, option.config)+config2sql(option.config)
+//pool      return await pool.use(async (conn)=>{
+          let rowList=await conn.all(sql)
+          if (rowList) return wo.Tool.json2obj(rowList, 'database')
+          else return null
+//pool      }).catch(console.log)
     }
     return null
   }
   ,
   setData: async function(option) {
     if (option && option._table && option.where && option.set) {
-      var self=this;
-      var sql='update '+escapeId(option._table)+' set '+set2sql(option.set)+' where '+where2sql(option.where, option.config); //+config2sql(option.config); // sqlite的update语句默认不支持Limit/order
-      return await db.use(async function(conn){ 
-        let report=await conn.run(sql);
+      var self=this
+      var sql='update '+escapeId(option._table)+' set '+set2sql(option.set)+' where '+where2sql(option.where, option.config) //+config2sql(option.config); // sqlite的update语句默认不支持Limit/order
+//pool      return await pool.use(async function(conn){ 
+        let report=await conn.run(sql)
         if (report && report.changes>0) {
+//          mylog.info(`changes = ${report.changes}`)
           for (var key in option.set){
-            option.where[key]=option.set[key]; // 把新设的值合并到原来的条件里。
+            option.where[key]=option.set[key];// 把新设的值合并到原来的条件里。
           }
 //          option.config=option.config||{};
 //          option.config.limit=report.changes;
-          var result=await self.getData(option); // todo: 万一update后，where能找到更多条目了，怎么办？
-          return result;
+          var result=await self.getData(option) // todo: 万一update后，where能找到更多条目了，怎么办？
+          return result
         }
-        return null;
-      }).catch(console.log);
+        return null
+//pool      }).catch(console.log)
     }
-    return null;
+    return null
   }
   ,
   addData: async function(option) {
     if (option && option._table && option.set) {
-      var self=this;
-      var sql='insert into '+escapeId(option._table)+set2sql(option.set, true);
-      return await db.use(async function(conn) {
+      var self=this
+      var sql='insert into '+escapeId(option._table)+set2sql(option.set, true)
+//pool      return await pool.use(async function(conn) {
           let report=await conn.run(sql)
-          if (report && report.stmt.lastID>0) {
-//            mylog.info('lastID='+report.stmt.lastID)
-            var result = await self.getData({_table:option._table,where:{rowid:report.stmt.lastID},config:{limit:1}}); // 返回数据对象
-            return result;
+          if (report && report.lastID>0) { // for sqlite-pool: report.stmt.lastID
+//            mylog.info(`last id = ${report.lastID}`)
+            var result = await self.getData({_table:option._table,where:{rowid:report.lastID},config:{limit:1}}) // 返回数据对象
+            return result
           }
-        return null;
-      }).catch(console.log);
+        return null
+//pool      }).catch(console.log)
     }
-    return null;
+    return null
   }
   ,
   hideData: async function(option) { // 或者叫做 delete, remove, erase, cut, drop
     if (option && option._table && option.where) {
-      var self=this;
-      var sql='update '+escapeId(option._table)+' set `mark`='+escape(wo.Config.MARK_DELETED)+' where '+where2sql(option.where, option.config); //+config2sql(option.config);
-      return await db.use(async function(conn){ 
-        let report=await conn.run(sql);
+      var self=this
+      var sql='update '+escapeId(option._table)+' set `mark`='+escape(wo.Config.MARK_DELETED)+' where '+where2sql(option.where, option.config) //+config2sql(option.config);
+//pool      return await pool.use(async function(conn){ 
+        let report=await conn.run(sql)
         if (report) { // report.affectedRows/changedRows
-          option.where.mark=wo.Config.MARK_DELETED;
-          option.config=option.config||{};
-//          option.config.limit=report.changes;
-          return await self.getData({_table:option._table, where:option.where, config:option.config}); // todo: 万一update后，where能找到更多条目了，怎么办？
+          option.where.mark=wo.Config.MARK_DELETED
+          option.config=option.config||{}
+//          option.config.limit=report.changes
+          return await self.getData({_table:option._table, where:option.where, config:option.config}) // todo: 万一update后，where能找到更多条目了，怎么办？
         }
-        return null;
-      }).catch(console.log);
+        return null
+//pool      }).catch(console.log)
     }
-    return null;
+    return null
   }
   ,
   dropData: async function(option) {
     if (option && option._table && option.where) {
-      var self=this;
-      var sql='delete from '+escapeId(option._table)+' where '+where2sql(option.where, option.config); // 默认不支持limit/order: http://www.sqlite.org/lang_delete.html
-      return await db.use(async function(conn) {
+      var self=this
+      var sql='delete from '+escapeId(option._table)+' where '+where2sql(option.where, option.config) // 默认不支持limit/order: http://www.sqlite.org/lang_delete.html
+//pool      return await pool.use(async function(conn) {
         let report=await conn.run(sql)
         if (report && report.changes>0) {
           return report
         }
         return null
-      }).catch(console.log)
+//pool      }).catch(console.log)
     }
     return null
   }
@@ -255,21 +255,3 @@ function config2sql(config){
   }
   return sqlConfig
 }
-
-
-// try {
-//   sql="insert into `Test`(`hash` , `num`, `date` ) values ('sdfasdfa', 100, '100' )";
-//   db.use(async function(conn){
-//     return await conn.run(sql)
-//   }).then(function(res){mylog.info(res)})
-// }catch(err){
-//   console.log(err);
-// }
-// try {
-//   sql="select * from `Test` where 1";
-//   db.use(async function(conn){
-//     return await conn.all(sql)
-//   }).then(function(res){mylog.info(res)})
-// }catch(err){
-//   console.log(err);
-// }

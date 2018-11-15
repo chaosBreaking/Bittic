@@ -32,7 +32,7 @@
     "serve-favicon": "^2.4.1",
     "sntp": "^3.0.1",
     "socket.io": "^1.0.6",
-    "sqlite-pool": "^1.2.5",
+    "sqlite": "^3.0.0",
     "tweetnacl": "^1.0.0",
     "uuid": "^3.0.1"
   },
@@ -48,7 +48,7 @@
     "start": "cross-env NODE_ENV=development supervisor -i Data.log,node_modules,Data.sqlite --harmony server.js",
     "inspect": "cross-env NODE_ENV=development supervisor -i Data.log,node_modules,Data.sqlite --inspect --harmony server.js",
     "service": "cross-env NODE_ENV=production supervisor -i Data.log,node_modules,Data.sqlite --harmony server.js -P https > Data.log/service.log",
-    "dev":"node init.js -n devnet"
+    "dev": "node init.js -n devnet"
   },
   "author": ""
 }

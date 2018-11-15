@@ -162,7 +162,7 @@ Peers.randomcast = async function (api, message, peers) { // 随机挑选一个�
   if (peerSet && peerSet.length > 0) {
     var peer = peerSet[wo.Crypto.randomNumber({ max: peerSet.length })];
     if (peer && peer.accessPoint) {
-      mylog.inf(`点播调用${api} 到 ${peer.accessPoint} `)
+      mylog.info(`点播调用${api} 到 ${peer.accessPoint} `)
       var res = await RequestPromise({
         method: 'post',
         uri: url.resolve(getUrl(peer), '/api' + api),

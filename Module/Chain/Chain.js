@@ -68,26 +68,27 @@ DAD.verifyChainFromDb = async function () { // 验证本节点已有的区块链
   while (Array.isArray(blockList) && blockList.length > 0 && my.topBlock.height < Date.time2height() - 1) { // 遍历数据库里的区块链，保留有效的区块，删除所有错误的。
     mylog.info('取出' + blockList.length + '个区块')
     for (let block of blockList) {
-      if (block.height > Date.time2height() - 1) break
-      if (block.type === "VirtBlock")  //如果是虚拟块，尝试从邻居数据库里拿到正常块并替换
-      {
-        let realBlock = await wo.Peer.randomcast('/Block/getBlock', { Block: { height: block.height } })
-        if (realBlock) {
-          realBlock = new wo.Block(realBlock)
-          if (realBlock &&
-            realBlock.type !== "VirtBlock" &&
-            realBlock.lastBlockHash === block.hash &&
-            realBlock.height === block.height &&
-            realBlock.verifyHash() &&
-            realBlock.verifySig()) {
-            await block.dropMe(); //其他节点合法块而本节点是虚拟块，可以直接停止验证而开始向其他节点更新
-            return 0;
-          }
-        }
-        //fallback 没有拿到可以替换虚拟块的合法块
-        DAD.pushTopBlock(block)
-        mylog.info('成功验证区块：' + block.height)
-      }
+      if (block.height > Date.time2height() - 1) 
+        break
+      // if (block.type === "VirtBlock")  //如果是虚拟块，尝试从邻居数据库里拿到正常块并替换
+      // {
+      //  let realBlock = await wo.Peer.randomcast('/Block/getBlock', { Block: { height: block.height } })
+      //   if (realBlock) {
+      //     realBlock = new wo.Block(realBlock)
+      //     if (realBlock &&
+      //       realBlock.type !== "VirtBlock" &&
+      //       realBlock.lastBlockHash === block.hash &&
+      //       realBlock.height === block.height &&
+      //       realBlock.verifyHash() &&
+      //       realBlock.verifySig()) {
+      //       await block.dropMe(); //其他节点合法块而本节点是虚拟块，可以直接停止验证而开始向其他节点更新
+      //       return 0;
+      //     }
+      //   }
+      //   //fallback 没有拿到可以替换虚拟块的合法块
+      //   DAD.pushTopBlock(block)
+      //   mylog.info('成功验证区块：' + block.height)
+      // }
       else if (block.lastBlockHash === my.topBlock.hash && block.verifySig() && block.verifyHash()) {
         if (await block.verifyActionList()) {
           mylog.info('成功验证区块：' + block.height)
