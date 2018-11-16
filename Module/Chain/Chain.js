@@ -61,63 +61,34 @@ DAD.createGenesis = async function () {
   return my.genesis
 }
 
-DAD.verifyChainFromDb = async function () { // 验证本节点已有的区块链
+DAD.verifyChainFromDb = async function () {
   mylog.info('开始验证数据库中的区块')
   await wo.Block.dropAll({ Block: { height: '<=' + wo.Config.GENESIS_HEIGHT } }) // 极端罕见的可能，有错误的（为了测试，手工加入的）height<创世块的区块，也删掉它。  
   let blockList = await wo.Block.getAll({ Block: { height: '>' + my.topBlock.height }, config: { limit: 100, order: 'height ASC' } })
-  while (Array.isArray(blockList) && blockList.length > 0 && my.topBlock.height < Date.time2height() - 1) { // 遍历数据库里的区块链，保留有效的区块，删除所有错误的。
+  while (Array.isArray(blockList) && blockList.length > 0 && my.topBlock.height < Date.time2height() - 1) {
     mylog.info('取出' + blockList.length + '个区块')
     for (let block of blockList) {
-      if (block.height > Date.time2height() - 1) 
-        break
-      // if (block.type === "VirtBlock")  //如果是虚拟块，尝试从邻居数据库里拿到正常块并替换
-      // {
-      //  let realBlock = await wo.Peer.randomcast('/Block/getBlock', { Block: { height: block.height } })
-      //   if (realBlock) {
-      //     realBlock = new wo.Block(realBlock)
-      //     if (realBlock &&
-      //       realBlock.type !== "VirtBlock" &&
-      //       realBlock.lastBlockHash === block.hash &&
-      //       realBlock.height === block.height &&
-      //       realBlock.verifyHash() &&
-      //       realBlock.verifySig()) {
-      //       await block.dropMe(); //其他节点合法块而本节点是虚拟块，可以直接停止验证而开始向其他节点更新
-      //       return 0;
-      //     }
-      //   }
-      //   //fallback 没有拿到可以替换虚拟块的合法块
-      //   DAD.pushTopBlock(block)
-      //   mylog.info('成功验证区块：' + block.height)
-      // }
-      else if (block.lastBlockHash === my.topBlock.hash && block.verifySig() && block.verifyHash()) {
+      if (block.height === my.topBlock + 1 && block.lastBlockHash === my.topBlock.hash && block.verifySig() && block.verifyHash()) {
         if (await block.verifyActionList()) {
           mylog.info('成功验证区块：' + block.height)
           DAD.pushTopBlock(block)
         }
-        else {
-          mylog.warn('block ' + block.height + ' 验证失败！从数据库中删除...')
-          await block.dropMe() // 注意，万一删除失败，会导致无限循环下去
-        }
       }
-      else {
-        //fallback -> 无法通过验证的块
-        mylog.warn('block ' + block.height + ' 验证失败！从数据库中删除...')
-        await block.dropMe() // 注意，万一删除失败，会导致无限循环下去
-      }
+      mylog.warn('block ' + block.height + ' 验证失败！从数据库中删除...')
+      break
+      //取出的区块在验证过程中出错则直接退出循环，从外部同步
     }
-    // 万一还有 height=my.topBlock.height 的区块，需要先删除。因为下一步是直接获取 height>my.topBlock.height
-    // 此外，这一步很危险，如果height存在，hash不存在，那么无法删除；如果height不存在，那么会不会删除所有？？
     await wo.Block.dropAll({ Block: { height: my.topBlock.height, hash: '!=' + my.topBlock.hash } });
     blockList = await wo.Block.getAll({ Block: { height: '>' + my.topBlock.height }, config: { limit: 100, order: 'height ASC' } })
+    if(!blockList || blockList.length === 0)
+      break
   }
   await wo.Block.dropAll({ Block: { height: '>' + my.topBlock.height } })
   mylog.info('...数据库中的区块验证完毕')
-
   if (my.topBlock.height === wo.Config.GENESIS_HEIGHT) {
-    mylog.info('数据库中没有区块，所以清空事务')
-    await wo.Action.dropAll({ Action: { version: '!=null' } })
+    mylog.info('数据库中没有区块，清空所有事务')
+    await wo.Action.dropAll({ Action: { height: '>0' } })
   }
-
   return my.topBlock
 }
 
@@ -145,13 +116,13 @@ DAD.updateChainFromPeer = async function () { // 向其他节点获取自己缺�
               }
             }
           }
-          DAD.addReward(block);
+          await DAD.addReward(block);
           await block.addMe();
           await DAD.pushTopBlock(block)
           mylog.info(`高度${block.height}区块同步成功`)
         }
         else { // 碰到一个错的区块，立刻退出
-          mylog.info(`高度${block.height}区块 同步错误!`)
+          mylog.info(`高度${block.height}区块同步错误!`)
           break
         }
       }
@@ -186,8 +157,8 @@ DAD.createBlock = async function (block) {
   let actionBatch = wo.Action.getActionBatch();
   block.packMe(actionBatch, my.topBlock, wo.Crypto.secword2keypair(wo.Config.ownerSecword))//算出默克根、hash、交易表
   await DAD.pushTopBlock(block);
-  DAD.addReward(block);
-  block.addMe();     //将区块写入数据库
+  await DAD.addReward(block);
+  await block.addMe();     //将区块写入数据库
   block.executeActions(actionBatch.actionPool);
   // wo.Socket.emit('newBlock',JSON.stringify(block));
   return block
@@ -202,7 +173,7 @@ DAD.appendBlock = async function (block) {
     let actionBatch = wo.Action.getActionBatch();
     await DAD.pushTopBlock(block);
     await block.addMe();
-    DAD.addReward(block);
+    await DAD.addReward(block);
     block.executeActions(actionBatch.actionPool);
     mylog.info(block.timestamp.toJSON() + ' : block ' + block.height + ' is added');
     my.addingLock = false;    //区块添加完毕后 释放锁
