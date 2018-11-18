@@ -65,22 +65,29 @@ DAD.verifyChainFromDb = async function () {
   mylog.info('开始验证数据库中的区块')
   await wo.Block.dropAll({ Block: { height: '<=' + wo.Config.GENESIS_HEIGHT } }) // 极端罕见的可能，有错误的（为了测试，手工加入的）height<创世块的区块，也删掉它。  
   let blockList = await wo.Block.getAll({ Block: { height: '>' + my.topBlock.height }, config: { limit: 100, order: 'height ASC' } })
+  let errorFlag = false;
   while (Array.isArray(blockList) && blockList.length > 0 && my.topBlock.height < Date.time2height() - 1) {
     mylog.info('取出' + blockList.length + '个区块')
     for (let block of blockList) {
-      if (block.height === my.topBlock + 1 && block.lastBlockHash === my.topBlock.hash && block.verifySig() && block.verifyHash()) {
+      if (block.height === my.topBlock.height + 1 && block.lastBlockHash === my.topBlock.hash && block.verifySig() && block.verifyHash()) {
         if (await block.verifyActionList()) {
           mylog.info('成功验证区块：' + block.height)
           DAD.pushTopBlock(block)
         }
       }
-      mylog.warn('block ' + block.height + ' 验证失败！从数据库中删除...')
-      break
-      //取出的区块在验证过程中出错则直接退出循环，从外部同步
+      else{
+        //取出的区块在验证过程中出错则直接退出循环，从外部同步
+        mylog.warn('block ' + block.height + ' 验证失败！从数据库中删除...')
+        errorFlag = true;
+        break
+      }
     }
-    await wo.Block.dropAll({ Block: { height: my.topBlock.height, hash: '!=' + my.topBlock.hash } });
-    blockList = await wo.Block.getAll({ Block: { height: '>' + my.topBlock.height }, config: { limit: 100, order: 'height ASC' } })
-    if(!blockList || blockList.length === 0)
+    if(!errorFlag){
+      blockList = await wo.Block.getAll({ Block: { height: '>' + my.topBlock.height }, config: { limit: 100, order: 'height ASC' } })
+      if(!blockList || blockList.length === 0)
+        break
+    }
+    else
       break
   }
   await wo.Block.dropAll({ Block: { height: '>' + my.topBlock.height } })
