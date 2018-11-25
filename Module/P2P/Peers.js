@@ -293,8 +293,12 @@ Peers.api.sharePeer = async function () { // 响应邻居请求，返回更多�
   let res = Object.values(await Peers.getPeers() || {}) // todo: 检查 option.Peer.ownerAddress 不要把邻居节点返回给这个邻居自己。
   return res
 }
-
+Peers.api.test = function() {
+  console.log('ok')
+  return 'ok'
+}
 module.exports = {
+  api: Peers.api,
   _init: Peers._init,
   getPeers: Peers.getPeers,
   broadcast: Peers.broadcast,
