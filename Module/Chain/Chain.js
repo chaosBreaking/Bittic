@@ -155,6 +155,7 @@ DAD.createVirtBlock = async function () {
   await block.addMe()
   DAD.pushTopBlock(block)
   mylog.info('virtual block ' + block.height + ' is created')
+  wo.Socket.emit('newBlock',JSON.stringify(block));
   return block
 }
 
@@ -167,7 +168,7 @@ DAD.createBlock = async function (block) {
   await DAD.addReward(block);
   await block.addMe();     //将区块写入数据库
   block.executeActions(actionBatch.actionPool);
-  // wo.Socket.emit('newBlock',JSON.stringify(block));
+  wo.Socket.emit('newBlock',JSON.stringify(block));
   return block
 }
 
@@ -184,6 +185,7 @@ DAD.appendBlock = async function (block) {
     block.executeActions(actionBatch.actionPool);
     mylog.info(block.timestamp.toJSON() + ' : block ' + block.height + ' is added');
     my.addingLock = false;    //区块添加完毕后 释放锁
+    wo.Socket.emit('newBlock',JSON.stringify(block));
     // wo.EventBus.send(232, block);
     // wo.Peer.broadcast('/Consensus/mineWatcher', {Block:JSON.stringify(wo.Store.getTopBlock())})
     return block;
