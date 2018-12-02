@@ -155,7 +155,8 @@ DAD.createVirtBlock = async function () {
   await block.addMe()
   DAD.pushTopBlock(block)
   mylog.info('virtual block ' + block.height + ' is created')
-  wo.Socket.emit('newBlock',JSON.stringify(block));
+  if(wo.Socket && wo.Socket.emit) //启动初始化时，先启动链后启动服务器，所以一开始没有socket直接调用会程序崩溃
+    wo.Socket.emit('newBlock',JSON.stringify(block));
   return block
 }
 
