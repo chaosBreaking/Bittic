@@ -74,6 +74,11 @@ DAD.verifyChainFromDb = async function () {
           mylog.info('成功验证区块：' + block.height)
           DAD.pushTopBlock(block)
         }
+        else {
+          mylog.error('非法区块' + block.height,'：包含无法获取或验证的交易')
+          errorFlag = true;
+          break
+        }
       }
       else{
         //取出的区块在验证过程中出错则直接退出循环，从外部同步

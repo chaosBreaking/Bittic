@@ -1,4 +1,4 @@
-const Peers = require('./Peers.js')
+const Peers = require('./P2P.js')
 module.exports = {
   broadcast: Peers.broadcast,
   randomcast: Peers.randomcast,

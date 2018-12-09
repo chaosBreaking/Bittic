@@ -21,7 +21,6 @@ Peers.prototype._model = { // 数据模型，用来初始化每个对象的数�
   host:           { default: '' }, // IP or hostname like http://remoteaddress.com or http://101.222.121.111
   port:           { default: '6842' }, //共识协议交流端口
   consPort:       { default: '6888' }, //共识协议交流端口
-  p2pPort:        { default: '60842' }, //p2p组网端口
   status:         { default: 'unknown' }, // unknown是刚加入pool时未知状态。开始检查后，状态是 active, broken, dead
   checking:       { default: 'idle' }, // idle 或 pending
   lastRequest:    { default: '' }, // 上一次 ping 请求的时间
@@ -38,12 +37,15 @@ my.self = new Peers({
   accessPoint: wo.Config.protocol + '://' + wo.Config.host,
   host: wo.Config.host,
   port: wo.Config.webPort,      //web服务端口
-  p2pPort: wo.Config.port,      //p2p组网通信端口
   consPort: wo.Config.consPort, //共识协议交流端口
 })
 
 getUrl = function (peer) {
-  return peer.accessPoint + ':' + (peer[wo.Config.portType] ? peer[wo.Config.portType] : wo.Config.port)
+  if(peer && peer.accessPoint)
+    return peer.accessPoint + ':' + (peer[wo.Config.portType] ? peer[wo.Config.portType] : wo.Config.port)
+  if(peer.split(":")[1])
+    return peer
+  else return peer + ':' + (peer[wo.Config.portType] ? peer[wo.Config.portType] : wo.Config.port)
 }
 
 Peers._init = async function () {
@@ -53,7 +55,7 @@ Peers._init = async function () {
     await Promise.all(wo.Config.seedSet.map((peer, index) => {
       return RequestPromise({
         method: 'post',
-        uri: url.resolve(getUrl(peer), '/api/Peers/ping'),
+        uri: url.resolve(getUrl(peer), '/api/P2P/ping'),
         body: { Peer: JSON.stringify(my.self) }, // 告诉对方，我是谁，以及发出ping的时间
         json: true
       }).then(async function (result) {
@@ -69,14 +71,14 @@ Peers._init = async function () {
       await Promise.all(peers.map((peer, index) => {
         return RequestPromise({
           method: 'post',
-          uri: url.resolve(getUrl(peer), '/api/Peers/sharePeer'),
+          uri: url.resolve(getUrl(peer), '/api/P2P/sharePeer'),
           body: {}, // 告诉对方，我是谁，以及发出ping的时间
           json: true
         }).then(async peerArray => {
           await Peers.addPeer2Pool(peerArray);
-        }).catch(err => mylog.warn(err))
+        }).catch(err => {mylog.warn('获取节点失败')})
       }))
-    my.scheduleJob[0] = Schedule.scheduleJob(`*/10 * * * * *`, Peers.updatePool)
+    my.scheduleJob[0] = Schedule.scheduleJob(`*/59 * * * * *`, Peers.updatePool)
     // setInterval(Peers.updatePool, wo.Config.PEER_CHECKING_PERIOD) 
     // 多久检查一个节点？假设每个节点有12个peer，5秒检查一个，1分钟可检查一圈。而且5秒足够ping响应。
   }
@@ -84,6 +86,7 @@ Peers._init = async function () {
 }
 
 Peers.updatePool = async function () { // 从节点池取出第一个节点，测试其连通性，把超时无响应的邻居从池中删除。
+  mylog.info('update peer pool')
   let peer = null
   while (!peer) {
     peer = await Peers.shiftPeerPool() // 每次取出第一个节点进行检查
@@ -97,7 +100,7 @@ Peers.updatePool = async function () { // 从节点池取出第一个节点，�
     peer.lastRequest = new Date() // 发起ping的时刻 
     var result = await RequestPromise({
       method: 'post',
-      uri: url.resolve(getUrl(peer), '/api/Peers/ping'),
+      uri: url.resolve(getUrl(peer), '/api/P2P/ping'),
       body: { Peer: JSON.stringify(my.self) }, // 告诉对方，我是谁，以及发出ping的时间
       json: true
     }).catch(function (err) {});
@@ -118,7 +121,7 @@ Peers.updatePool = async function () { // 从节点池取出第一个节点，�
       else if (peer.status === 'broken') { // 持续 5分钟无法ping通
         if (peer.brokenCount >= wo.Config.PEER_CHECKING_TIMEOUT) {
           mylog.info('节点已超时，即将删除：' + JSON.stringify(peer))
-          Peers.shiftPeerPool(peer.ownerAddress)
+          Peers.delPeer(peer.ownerAddress)
           return 0
         }
       }
@@ -129,7 +132,7 @@ Peers.updatePool = async function () { // 从节点池取出第一个节点，�
 
   // 补充一个新邻居
   if (my.peerAddressArray.length < wo.Config.PEER_POOL_CAPACITY) {
-    let peerSet = await Peers.randomcast('/Peers/sharePeer', { Peer: JSON.stringify(my.self) }) // 先向邻居池 peerPool 申请
+    let peerSet = await Peers.randomcast('/P2P/sharePeer', { Peer: JSON.stringify(my.self) }) // 先向邻居池 peerPool 申请
     //      || await Peers.randomcast('/Peer/sharePeer',{Peer:my.self},my.seedSet) // 也许邻居池为空，那就向种子节点申请。
     if (peerSet && peerSet.length > 0) {
       await Peers.addPeer2Pool(peerSet[wo.Crypto.randomNumber({ max: peerSet.length })]) // 随机挑选一个节点加入邻居池
@@ -149,7 +152,7 @@ Peers.broadcast = async function (api, message, peers) { // api='/类名/方法�
     }).catch(function (err) {
       mylog.info('广播 ' + api + ' 到某个节点出错: ' + err.message)
       return null  // 其中一个节点出错，必须要在其catch里返回null，否则造成整个Promise.all出错进入catch了。
-    }))).catch(console.log)
+    }))).catch(() => console.log("广播失败"))
     return res
   }
 }
@@ -159,7 +162,7 @@ Peers.randomcast = async function (api, message, peers) { // 随机挑选一个�
   if (peerSet && peerSet.length > 0) {
     var peer = peerSet[wo.Crypto.randomNumber({ max: peerSet.length })];
     if (peer && peer.accessPoint) {
-      mylog.info(`点播调用${api} 到 ${peer.accessPoint} `)
+      mylog.info(`点播调用${api} 到 ${getUrl(peer)} `)
       var res = await RequestPromise({
         method: 'post',
         uri: url.resolve(getUrl(peer), '/api' + api),
@@ -170,24 +173,6 @@ Peers.randomcast = async function (api, message, peers) { // 随机挑选一个�
     }
   }
   return null
-}
-
-Peers.addPeer2Pool = async function (peerData) { // 把peer原始数据转成peer对象，存入节点池(数组)
-  if (!Array.isArray(peerData)) {
-    var peer = new Peers(peerData);
-    await Peers.pushPeerPool(peer);
-    return peer
-  }
-  else {
-    for (let peer of peerData) {
-      try {
-        await Peers.pushPeerPool(typeof peer === 'string' ? JSON.parse(peer) : peer);
-      } catch (error) {
-        return error
-      }
-      return peerData
-    }
-  }
 }
 
 /**
@@ -230,6 +215,24 @@ Peers.shiftPeerPool = async function (ownerAddress) {
   return null
 }
 
+Peers.addPeer2Pool = async function (peerData) { // 把peer原始数据转成peer对象，存入节点池(数组)
+  if (!Array.isArray(peerData)) {
+    var peer = new Peers(peerData);
+    await Peers.pushPeerPool(peer);
+    return peer
+  }
+  else {
+    for (let peer of peerData) {
+      try {
+        await Peers.pushPeerPool(typeof peer === 'string' ? JSON.parse(peer) : peer);
+      } catch (error) {
+        return error
+      }
+      return peerData
+    }
+  }
+}
+
 /**
  *
  * @desc 检查一个传入节点的合法性后加入节点池
@@ -261,7 +264,12 @@ Peers.getPeers = async function (ownerAddress) {
   }
   return peers
 }
-
+Peers.delPeer = async function (ownerAddress) {
+  if (ownerAddress) {
+    return await store.hdel('peers', ownerAddress)
+  }
+  return null
+}
 Peers.api = {} // 对外可RPC调用的方法
 
 /**

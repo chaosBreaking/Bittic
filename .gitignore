@@ -8,6 +8,6 @@ package-lock.json
 .svn
 ~*
 .gitattributes
-test.js
+test*
 ConfigUser.*
 .idea

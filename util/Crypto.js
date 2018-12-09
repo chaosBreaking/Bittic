@@ -362,7 +362,9 @@ module.exports = {
     }
     return null
   },
-  getMerkleRoot:function(hashList, option){
+  getMerkleRoot:function(todoHashList, option){
+    //深拷贝传入数组，防止引用对象被改变
+    let hashList = [...todoHashList]
     if(!Array.isArray(hashList))
       return null
     var border = hashList.length;
@@ -386,7 +388,8 @@ module.exports = {
         }
       }
       border = j + 1;
-    }   
+    }  
+    return hashList 
   }  ,
   distanceSig:function(hash, sig){ // hash为64hex字符，sig为128hex字符。返回用hex表达的距离。
     if (this.isSignature(sig) && this.isHash(hash)){

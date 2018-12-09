@@ -82,6 +82,7 @@ MOM.packMe = function (actionBatch, lastBlock, keypair) { // 后台节点挖矿�
     this.totalAmount = actionBatch.totalAmount;
     this.totalFee = actionBatch.totalFee;
     this.actionHashList = Object.keys(actionBatch.actionPool ? actionBatch.actionPool : {});
+    //计算默克根 传入的是对象的引用，如果计算默克根的函数改变其内容则区块记录也会被改变！
     this.actionHashRoot = wo.Crypto.getMerkleRoot(this.actionHashList);
     this.numberAction = this.actionHashList.length;
   }
@@ -162,7 +163,7 @@ MOM.verifyActionList = async function(){
         }
         break
       }
-      else if(count = 3 && !missAction)
+      else if(count === 3 && !missAction)
       {
         return false
       }

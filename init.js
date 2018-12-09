@@ -134,31 +134,16 @@ async function workerInit() {
   wo.ActMultisig = require('./Module/Action/ActMultisig.js');
   wo.ActTac = require('./Module/Action/ActTac.js');
   wo.Bancor = require('./Module/Token/Bancor.js')._init();
-  mylog.info('Initializing chain............');
   wo.Peer = await require('./Module/P2P/index.js');
+  wo.P2P = await require('./Module/P2P/P2P.js')._init();
   wo.Block = await require('./Module/Chain/Block.js')._init();
   wo.Store = await require('./Module/util/Store.js')('redis')._init();
   wo.EventBus = require('./Module/util/EventBus.js')(process);
+  mylog.info('Initializing chain............');
   wo.Chain = await require('./Module/Chain/Chain.js')._init();
   return 0;
 }
-async function p2pInit(){
-  global.mylog = require('./util/Logger.js')
-  global.wo = {}
-  wo.Tool = new(require('./util/Egg.js'))()
-  wo.Config = config()
-  wo.Config.portType = 'p2pPort'
-  wo.Config.port = wo.Config.p2pPort;
-  wo.Crypto = require('./util/Crypto.js')
-  if (!wo.Crypto.isSecword(wo.Config.ownerSecword)) {
-    mylog.error('Invalid secword! Please setup a secword in ConfigSecret.js')
-    process.exit()
-  }
-  wo.Ling = require('./Ling/_Ling.js');
-  wo.EventBus = require('./Module/util/EventBus.js')(process);
-  serverInit();
-  wo.Peers = await require('./Module/P2P/Peers.js')._init();
-}
+
 function serverInit() { // 配置并启动 Web 服务
 
   mylog.info("★★★★★★★★ Starting Server......")
@@ -287,20 +272,16 @@ function serverInit() { // 配置并启动 Web 服务
 
 (async function Start() {
   if (cluster.isMaster) {
-    let p2pWorker = cluster.fork();
+    let worker = cluster.fork();
     cluster.once('message', async (worker, message) => {
-      if (message.code == 200) {
-        let worker = cluster.fork();
-        cluster.once('message', async (worker, message) => {
-          if(message.code == 300){
-            mylog.warn(`[Master] 主程序初始化完毕，启动共识模块......`);
-            await masterInit(worker);
-            serverInit();
-            return 0;
-          }
-        });
+      if(message.code == 300){
+        mylog.warn(`[Master] 主程序初始化完毕，启动共识模块......`);
+        await masterInit(worker);
+        serverInit();
+        return 0;
       }
     });
+
     cluster.on('exit', function (worker, code, signal) {
       mylog.error('worker ' + worker.process.pid + ' died, Restarting');
       var worker = cluster.fork();
@@ -312,14 +293,6 @@ function serverInit() { // 配置并启动 Web 服务
             return 0;
         }
       });
-    });
-  }
-  else if(cluster.worker.id === 1) {
-    /**P2P网络进程 */
-    mylog.info(`${cluster.worker.id}号p2p进程启动`)
-    await p2pInit();
-    process.send({
-      code: 200
     });
   }
   else {

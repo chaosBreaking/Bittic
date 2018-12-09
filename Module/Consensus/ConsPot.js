@@ -1,8 +1,8 @@
 // 共识模块
 
 const Schedule = require('node-schedule')
-
-
+const electTime = (wo.Config.BLOCK_PERIOD/3).toFixed(0) * 1
+const mineTime = (wo.Config.BLOCK_PERIOD/3).toFixed(0) * 2
 /******************** Public of instances ********************/
 
 const DAD = module.exports = function ConsPot(prop) {
@@ -16,14 +16,14 @@ DAD.api = {}
 
 DAD._init = async function () {
   if (await DAD.calibrate()) {
-    my.scheduleJobs[0] = Schedule.scheduleJob({ second: 0 }, DAD.signOnce); // 每分钟的第0秒
-    my.scheduleJobs[1] = Schedule.scheduleJob({ second: 20 }, DAD.electOnce);
-    my.scheduleJobs[2] = Schedule.scheduleJob({ second: 40 }, DAD.mineOnce);
-    if (new Date().getSeconds() < 17 && !my.selfPot.signature)
+    my.scheduleJobs[0] = Schedule.scheduleJob({ second: [0, wo.Config.BLOCK_PERIOD] }, DAD.signOnce); // 每分钟的第0秒
+    my.scheduleJobs[1] = Schedule.scheduleJob({ second: [electTime, wo.Config.BLOCK_PERIOD + electTime] }, DAD.electOnce);
+    my.scheduleJobs[2] = Schedule.scheduleJob({ second: [mineTime, wo.Config.BLOCK_PERIOD + mineTime] }, DAD.mineOnce);
+    if (new Date().getSeconds() < electTime - 5 && !my.selfPot.signature)
       DAD.signOnce();
   }
   else {
-    setTimeout(DAD._init, 60 - new Date().getSeconds());
+    setTimeout(DAD._init, Math.abs(wo.Config.BLOCK_PERIOD - new Date().getSeconds()));
   }
   return this
 }
@@ -31,11 +31,12 @@ DAD._init = async function () {
 DAD.calibrate = async function () {
   //启动前本机链情况检查
   let heightNow = Date.time2height();
-  if (heightNow === (await wo.Store.getTopBlock()).height + 1 && new Date().getSeconds() < 15) { // 注意，前面的同步可能花了20多秒，到这里已经是在竞选阶段。所以再加个当前秒数的限制。
+  // mylog.info('此刻本机链的最高块 : ' + (await wo.Store.getTopBlock()).height);
+  // mylog.info("此时的区块高度",heightNow)
+  if (heightNow === (await wo.Store.getTopBlock()).height + 1 && new Date().getSeconds() < electTime - 5) { // 注意，前面的同步可能花了20多秒，到这里已经是在竞选阶段。所以再加个当前秒数的限制。
     return 1;
   }
   // mylog.info(`此刻时间对应的区块高度 : ${heightNow}`);
-  // mylog.info('此刻本机链的最高块 : ' + (await wo.Store.getTopBlock()).height);
   if (heightNow === (await wo.Store.getTopBlock()).height + 2 && my.signBlock && (await wo.Store.getTopBlock()).height === my.signBlock.height - 1) {
     // 上一块没有及时出现
     let result = await wo.Peer.randomcast('/Block/getBlock', { Block: { height: (await wo.Store.getTopBlock()).height + 1 } })
@@ -63,10 +64,9 @@ DAD.signOnce = async function () {
   //  todo: 检查高度是否正确，如果不正确，把my.signBlock添加进去
   my.currentPhase = 'signing';
   heightNow = Date.time2height()
-  mylog.info(`此刻时间对应的区块高度 : ${heightNow}`)
-  mylog.info('此刻本机链的最高块 : ' + (await wo.Store.getTopBlock()).height)
-
-  if (heightNow === (await wo.Store.getTopBlock()).height + 1 && new Date().getSeconds() < 16) { // 注意，前面的同步可能花了20多秒，到这里已经是在竞选阶段。所以再加个当前秒数的限制。
+  let canSignForMyself = heightNow === (await wo.Store.getTopBlock()).height + 1 
+  && (new Date().getSeconds() < electTime - 5 || new Date().getSeconds() < electTime + wo.Config.BLOCK_PERIOD - 5)
+  if (canSignForMyself) { // 注意，前面的同步可能花了20多秒，到这里已经是在竞选阶段。所以再加个当前秒数的限制。
     my.signerPool = {}
     my.packerPool = {}
     my.selfPot = {} // 注意，不要 my.selfPot=my.bestPot={} 这样指向了同一个对象！
@@ -75,7 +75,7 @@ DAD.signOnce = async function () {
     signForOwner();
     return 0;
   }
-  await DAD.calibrate();
+  // await DAD.calibrate();
 }
 DAD.api.signWatcher = async function (option) { // 监听收集终端用户的签名
   if (my.currentPhase !== 'signing') {
