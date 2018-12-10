@@ -1,24 +1,21 @@
-// var Ling = wo.Ling
-const Schedule = require('node-schedule')
+/**
+ * Chain要实现的功能
+ * 1.创建区块
+ * 2.添加区块
+ * 3.保存上一区块
+ * 4.验证数据库内的区块
+ * 5.同步区块 
+ */
 
-/******************** Public of instance ********************/
-
-const DAD = module.exports = function Chain(prop) {
+const DAD = module.exports = function Chain() {
   this._class = this.constructor.name
-  //  this.setProp(prop)
 }
-//DAD.__proto__=Ling
-const MOM = DAD.prototype
-//MOM.__proto__=Ling.prototype
 
-/******************** Shared by instances ********************/
-
-/*********************** Public of class *******************/
 DAD.api = {} // 面向前端应用的API
 
 DAD._init = async function () {
 
-  if (wo.Config.consensus === 'ConsPot') {
+  if (wo.Config.consensus === 'pot') {
     switch (wo.Config.netType) {
       case 'mainnet':
         break
@@ -39,7 +36,7 @@ DAD._init = async function () {
   await DAD.updateChainFromPeer()
 
   return this
-}
+} 
 
 DAD.createGenesis = async function () {
   mylog.info('Net ================ ' + wo.Config.netType)
@@ -108,7 +105,7 @@ DAD.updateChainFromPeer = async function () { // 向其他节点获取自己缺�
   mylog.info('开始向邻居节点同步区块');
   if (my.addingLock) return 0;
   my.addingLock = 1;
-  for (let count = 0; wo.Config.consensus === "ConsPot" && Date.time2height() > (my.topBlock.height + 1) && count < 3; count++) { // 确保更新到截至当前时刻的最高区块。
+  for (let count = 0; wo.Config.consensus === "pot" && Date.time2height() > (my.topBlock.height + 1) && count < 3; count++) { // 确保更新到截至当前时刻的最高区块。
     mylog.info(`向全网广播同步请求-->开始第${count}轮同步`);
     let blockList = await wo.Peer.randomcast('/Block/getBlockList', { Block: { height: '>' + my.topBlock.height }, config: { limit: 100, order: 'height ASC' } })
     if (Array.isArray(blockList) && blockList.length > 0) {
@@ -143,11 +140,11 @@ DAD.updateChainFromPeer = async function () { // 向其他节点获取自己缺�
     mylog.info(`全网无最新区块-->停止第${count}轮同步`)
   }
   if (Date.time2height() - my.topBlock.height > 1) {
-    for (let height = my.topBlock.height + 1; wo.Config.consensus === 'ConsPot' && height < Date.time2height(); height++) {
+    for (let height = my.topBlock.height + 1; wo.Config.consensus === 'pot' && height < Date.time2height(); height++) {
       await DAD.createVirtBlock()
     }
   }
-  if (wo.Config.consensus === 'ConsPot')
+  if (wo.Config.consensus === 'pot')
     mylog.info(new Date() + '...已同步到区块=' + my.topBlock.height + '，当前时刻的待出区块=' + Date.time2height())
   else
     mylog.info('区块同步完毕');
@@ -174,12 +171,11 @@ DAD.createBlock = async function (block) {
   await DAD.addReward(block);
   await block.addMe();     //将区块写入数据库
   block.executeActions(actionBatch.actionPool);
-  wo.Socket.emit('newBlock',JSON.stringify(block));
+  if(wo.Socket && wo.Socket.emit) //启动初始化时，先启动链后启动服务器，所以一开始没有socket直接调用会程序崩溃
+    wo.Socket.emit('newBlock',JSON.stringify(block));
   return block
 }
 
-//因为异步操作会重复添加，先将锁锁定，防止因为没有及时pushTopBlock多次添加符合条件的区块
-//先判断是否符合条件、符合条件的块 才加锁
 DAD.appendBlock = async function (block) {
   block = (block instanceof wo.Block) ? block : (new wo.Block(block)) // POT 里调用时，传入的可能是普通对象，需要转成 Block
   if (!my.addingLock && block.lastBlockHash === my.topBlock.hash && block.height === my.topBlock.height + 1 && block.verifySig() && block.verifyHash()) {

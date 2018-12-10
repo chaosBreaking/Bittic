@@ -52,7 +52,7 @@ function config() {
     .parse(process.argv)
 
   // 把命令行参数 合并入配置。
-  Config.consensus = 'Cons' + (commander.consensus || Config.consensus || 'Pot')
+  Config.consensus = commander.consensus || Config.consensus || 'pot'
   mylog.info('Consensus used: ', Config.consensus)
 
   Config.dbType = commander.dbType || Config.dbType
@@ -108,8 +108,7 @@ async function masterInit(worker) {
   wo.Peer = await require('./Module/P2P/index.js')
   wo.Store = await require('./Module/util/Store.js')('redis') //  必须指定数据库,另外不能_init(),否则会覆盖子进程已经设定好的内容
   wo.EventBus = require('./Module/util/EventBus.js')(worker).mount(worker)
-  wo.Consensus = await require('./Module/Consensus/' + wo.Config.consensus + '.js')
-  wo.Consensus._init(worker)
+  wo.Consensus = await require('./Module/Consensus/index.js')(wo.Config.consensus)._init()
 }
 async function workerInit() {
   global.mylog = require('./util/Logger.js')
