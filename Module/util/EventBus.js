@@ -12,9 +12,11 @@ function EventBus(obj) {
       this.emit(message.code, message);
     }
     else{
-      var callres = message.data.api ? await wo[message.data.who]['api'][message.data.act](message.data.param)
-      :await wo[message.data.who][message.data.act](message.data.param)
-      wo.EventBus.send(message.data.id, callres);
+      if(wo[message.data.who]['api'][message.data.act] || wo[message.data.who][message.data.act]) {
+        var callres = message.data.api ? await wo[message.data.who]['api'][message.data.act](message.data.param)
+        :await wo[message.data.who][message.data.act](message.data.param)
+        wo.EventBus.send(message.data.id, callres);
+      }
       return 0;
     }
   });

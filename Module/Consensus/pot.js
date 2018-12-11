@@ -1,7 +1,9 @@
 // 共识模块
 /**
  * 1.取得最后一个区块
- * 2.
+ * 2.调度出块
+ * 3.分叉处理
+ * 4.在另一个进程收到API调用的处理程序
  */
 const Schedule = require('node-schedule')
 const electTime = (wo.Config.BLOCK_PERIOD / 3).toFixed(0) * 1
@@ -84,7 +86,7 @@ DAD.signOnce = async function () {
   }
   mylog.error('本机状态异常，无法进行启动共识')
   mylog.error(heightNow,(await wo.Chain.getTopBlock()).height)
-  await DAD.calibrate();
+  await calibrate();
 }
 DAD.api.signWatcher = async function (option) { // 监听收集终端用户的签名
   if (my.currentPhase !== 'signing') {
@@ -149,7 +151,7 @@ DAD.electOnce = async function () {
       my.bestPot.pubkey = my.selfPot.pubkey;
       my.signBlock = new wo.Block({ winnerMessage: my.selfPot.message, winnerSignature: my.selfPot.signature, winnerPubkey: my.selfPot.pubkey, type: 'SignBlock' }) // 把候选签名打包进本节点的虚拟块
       my.signBlock.packMe({}, await wo.Chain.getTopBlock(), wo.Crypto.secword2keypair(wo.Config.ownerSecword))
-      wo.Peer.broadcast('/Consensus/electWatcher', { Block: JSON.stringify(my.signBlock) })
+      wo.Peer.broadcast('/Consensus/electWatcher', {Consensus: { Block: JSON.stringify(my.signBlock) }})
     }
     else {
       mylog.info('本节点没有收集到时间证明，本轮不参与竞选')
@@ -161,10 +163,9 @@ DAD.electOnce = async function () {
   }
 }
 DAD.api.electWatcher = async function (option) { // 互相转发最优的签名块
+  if(!option || !option.Block) return null
   if (
-    option
-    && option.Block
-    && option.Block.winnerSignature !== my.bestPot.signature // 不要重复接收同一个最佳块
+    option.Block.winnerSignature !== my.bestPot.signature // 不要重复接收同一个最佳块
     && (!my.signBlock || option.Block.hash !== my.signBlock.hash) // 收到的区块不是本节点目前已知的最优块
     && !my.packerPool.hasOwnProperty(option.Block.packerPubkey) // 一个packer只允许出一个签
     && wo.Block.verifySig(option.Block)
@@ -185,7 +186,7 @@ DAD.api.electWatcher = async function (option) { // 互相转发最优的签名�
       my.bestPot.pubkey = option.Block.winnerPubkey
       my.bestPot.message = option.Block.winnerMessage
       my.signBlock = option.Block // 保存新收到的签名块
-      wo.Peer.broadcast('/Consensus/electWatcher', { Block: JSON.stringify(option.Block) }) // 就进行广播
+      wo.Peer.broadcast('/Consensus/electWatcher', {Consensus: { Block: JSON.stringify(option.Block) }}) // 就进行广播
     }
     else if (userBalance < wo.Config.SIGNER_THRESHOLD
       || packerBalance < wo.Config.PACKER_THRESHOLD) {
@@ -236,7 +237,7 @@ DAD.mineOnce = async function () {
         winnerPubkey: my.selfPot.pubkey
       })
       mylog.info('本节点出块哈希为： ', newBlock.hash)
-      wo.Peer.broadcast('/Consensus/mineWatcher', { Block: newBlock });
+      wo.Peer.broadcast('/Consensus/mineWatcher', {Consensus: { Block: newBlock }});
       return 0;
     }
     mylog.info('本节点没有赢')
@@ -253,7 +254,7 @@ DAD.api.mineWatcher = async function (option) { // 监听别人发来的区块
   ) {
     // 注意不要接受我自己作为获胜者创建的块，以及不要重复接受已同步的区块
     wo.Chain.appendBlock(option.Block)
-    wo.Peer.broadcast('/Consensus/mineWatcher', { Block: option.Block })
+    wo.Peer.broadcast('/Consensus/mineWatcher', {Consensus: { Block: option.Block }})
     mylog.info('本节点收到全网赢家的区块哈希为：' + option.Block.hash + '，全网赢家的地址为' + wo.Crypto.pubkey2address(option.Block.winnerPubkey) + '，打包节点的地址为 ' + wo.Crypto.pubkey2address(option.Block.packerPubkey))
   }
   return 0
@@ -263,7 +264,7 @@ DAD.api.mineWatcher = async function (option) { // 监听别人发来的区块
 DAD.forkHandler = async function (option) {
   if ((await wo.Chain.getTopBlock()).height <= Date.time2height() - 2)
     return "高度未达到分叉标准"
-  let res = await wo.Peer.broadcast('/Consensus/getRBS', { target: option.Block.packerPubkey })//取第一个元素
+  let res = await wo.Peer.broadcast('/Consensus/getRBS', {Consensus: { target: option.Block.packerPubkey }})//取第一个元素
   if (!res) {
     mylog.warn("没拿到对方缓存表")
     return null

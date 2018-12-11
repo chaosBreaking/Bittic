@@ -100,8 +100,6 @@ async function masterInit(worker) {
     mylog.error('Invalid secword! Please setup a secword in ConfigSecret.js')
     process.exit()
   }
-  wo.Config.portType = 'consPort'
-  wo.Config.port = wo.Config.consPort
   wo.Ling = require('./Ling/_Ling.js')
   wo.Block = require('./Module/Block/index.js')(wo.Config.consensus)
   wo.Peer = await require('./Module/P2P/index.js')
@@ -117,7 +115,6 @@ async function workerInit() {
   wo.Tool = new(require('./util/Egg.js'))()
   wo.Config = config()
   wo.Crypto = require('./util/Crypto.js')
-  wo.Config.portType = 'port'
   if (!wo.Crypto.isSecword(wo.Config.ownerSecword)) {
     mylog.error('Invalid secword! Please setup a secword in ConfigSecret.js')
     process.exit()
@@ -139,6 +136,7 @@ async function workerInit() {
   wo.Block = await require('./Module/Block/index.js')(wo.Config.consensus)._init();
   wo.Store = await require('./Module/util/Store.js')('redis')._init();
   wo.EventBus = require('./Module/util/EventBus.js')(process);
+  wo.Consensus = require('./Module/Consensus/index.js')('proxy', wo.Config.consensus);
   mylog.info('Initializing chain............');
   wo.Chain = await require('./Module/Chain/Chain.js')._init();
   return 0;
@@ -277,7 +275,6 @@ function serverInit() { // 配置并启动 Web 服务
       if(message.code == 200) {
         mylog.warn(`[Master] 主程序初始化完毕，启动共识模块......`);
         await masterInit(worker);
-        serverInit();
         return 0;
       }
     });
@@ -289,7 +286,6 @@ function serverInit() { // 配置并启动 Web 服务
         if (message.code==200) {
             mylog.warn(`[Master] 主程序初始化完毕，启动共识模块......`);
             await masterInit(worker);
-            serverInit();
             return 0;
         }
       });

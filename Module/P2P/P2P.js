@@ -37,15 +37,15 @@ my.self = new Peers({
   accessPoint: wo.Config.protocol + '://' + wo.Config.host,
   host: wo.Config.host,
   port: wo.Config.webPort,      //web服务端口
-  consPort: wo.Config.consPort, //共识协议交流端口
 })
 
 getUrl = function (peer) {
   if(peer && peer.accessPoint)
-    return peer.accessPoint + ':' + (peer[wo.Config.portType] ? peer[wo.Config.portType] : wo.Config.port)
+    return peer.accessPoint + ':' + (peer.port ? peer.port : wo.Config.port)
   if(peer.split(":")[1])
     return peer
-  else return peer + ':' + (peer[wo.Config.portType] ? peer[wo.Config.portType] : wo.Config.port)
+  else
+    return peer + ':' + (peer.port ? peer.port : wo.Config.port)
 }
 
 Peers._init = async function () {
