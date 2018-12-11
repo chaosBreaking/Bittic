@@ -1,21 +1,58 @@
 // 共识模块
-
+/**
+ * 1.取得最后一个区块
+ * 2.
+ */
 const Schedule = require('node-schedule')
-const electTime = (wo.Config.BLOCK_PERIOD/3).toFixed(0) * 1
-const mineTime = (wo.Config.BLOCK_PERIOD/3).toFixed(0) * 2
+const electTime = (wo.Config.BLOCK_PERIOD / 3).toFixed(0) * 1
+const mineTime = (wo.Config.BLOCK_PERIOD / 3).toFixed(0) * 2
 /******************** Public of instances ********************/
 
 const DAD = module.exports = function ConsPot(prop) {
   this._class = this.constructor.name
-  // this.setProp(prop)
 }
 
-const MOM = DAD.prototype
-
-DAD.api = {}
+async function calibrate() {
+  //启动前本机链情况检查
+  // mylog.info('此刻本机链的最高块 : ' + (await wo.Chain.getTopBlock()).height);
+  let heightNow = Date.time2height();
+  let canStartNow = heightNow === (await wo.Chain.getTopBlock()).height + 1 && (new Date().getSeconds() < electTime - 5 || new Date().getSeconds() < electTime + wo.Config.BLOCK_PERIOD - 5)
+  if (canStartNow) { // 注意，前面的同步可能花了20多秒，到这里已经是在竞选阶段。所以再加个当前秒数的限制。
+    return 1;
+  }
+  let missLastBlock = heightNow === (await wo.Chain.getTopBlock()).height + 2 && my.signBlock && (await wo.Chain.getTopBlock()).height === my.signBlock.height - 1
+  if (missLastBlock) {
+    // 上一块没有及时出现
+    mylog.warn(`缺失区块，开始广播进行同步......`)
+    let result = await wo.Peer.randomcast('/Block/getBlock', { Block: { height: (await wo.Chain.getTopBlock()).height + 1 } })
+    if (result && result.height === (await wo.Chain.getTopBlock()).height + 1) {
+      let topBlock = new wo.Block(result)
+      await wo.Chain.appendBlock(topBlock)
+      mylog.info('成功添加区块')
+    }
+    if (!result) {
+      mylog.info('无法获取上轮获胜节点的区块！使用空块......')
+      my.signBlock = null
+      await wo.Chain.appendBlock(my.signBlock)
+    }
+  }
+  else if (heightNow > (await wo.Chain.getTopBlock()).height + 1) {
+    mylog.info(`此时刻应该到达的高度：[${heightNow}]  当前本机链的最高块高度：[${(await wo.Chain.getTopBlock()).height}]`)
+    mylog.warn('>===== 开始进行区块更新和同步 =====>');
+    // let topBlock = await wo.Chain.updateChainFromPeer()
+    let topBlock = await wo.Chain.getTopBlock()
+    mylog.info(`>===== 当前更新到高度：${topBlock.height} =====>`);
+    if (Date.time2height() - topBlock.height > 1) {
+      for (let height = topBlock.height + 1; height < Date.time2height(); height++) {
+        await wo.Chain.createVirtBlock()
+      }
+    }
+  }
+  return 0;
+}
 
 DAD._init = async function () {
-  if (await DAD.calibrate()) {
+  if (await calibrate()) {
     my.scheduleJobs[0] = Schedule.scheduleJob({ second: [0, wo.Config.BLOCK_PERIOD] }, DAD.signOnce); // 每分钟的第0秒
     my.scheduleJobs[1] = Schedule.scheduleJob({ second: [electTime, wo.Config.BLOCK_PERIOD + electTime] }, DAD.electOnce);
     my.scheduleJobs[2] = Schedule.scheduleJob({ second: [mineTime, wo.Config.BLOCK_PERIOD + mineTime] }, DAD.mineOnce);
@@ -28,54 +65,26 @@ DAD._init = async function () {
   return this
 }
 
-DAD.calibrate = async function () {
-  //启动前本机链情况检查
-  let heightNow = Date.time2height();
-  // mylog.info('此刻本机链的最高块 : ' + (await wo.Store.getTopBlock()).height);
-  // mylog.info("此时的区块高度",heightNow)
-  if (heightNow === (await wo.Store.getTopBlock()).height + 1 && new Date().getSeconds() < electTime - 5) { // 注意，前面的同步可能花了20多秒，到这里已经是在竞选阶段。所以再加个当前秒数的限制。
-    return 1;
-  }
-  // mylog.info(`此刻时间对应的区块高度 : ${heightNow}`);
-  if (heightNow === (await wo.Store.getTopBlock()).height + 2 && my.signBlock && (await wo.Store.getTopBlock()).height === my.signBlock.height - 1) {
-    // 上一块没有及时出现
-    let result = await wo.Peer.randomcast('/Block/getBlock', { Block: { height: (await wo.Store.getTopBlock()).height + 1 } })
-    if (result && result.height === (await wo.Store.getTopBlock()).height + 1) {
-      let topBlock = new wo['Block'](result)
-      await wo.EventBus.call('Chain', '', 'appendBlock', topBlock)
-      mylog.info('成功添加区块')
-    }
-    if (!result) {
-      mylog.info('上轮获胜节点错过出块！使用空块')
-      my.signBlock = null
-      await wo.EventBus.call('Chain', '', 'appendBlock', my.signBlock)
-    }
-  }
-  else if (heightNow > (await wo.Store.getTopBlock()).height + 1) {
-    mylog.info('heightNow = ' + heightNow + ' 当前本机链的最高块 = ' + (await wo.Store.getTopBlock()).height + '...准备更新缺少的区块')
-    mylog.warn('update Chain');
-    await wo.EventBus.call('Chain', '', 'updateChainFromPeer');
-  }
-  return 0;
-}
-
+DAD.api = {}
 // 第一阶段：用户签名收集
 DAD.signOnce = async function () {
   //  todo: 检查高度是否正确，如果不正确，把my.signBlock添加进去
   my.currentPhase = 'signing';
   heightNow = Date.time2height()
-  let canSignForMyself = heightNow === (await wo.Store.getTopBlock()).height + 1 
-  && (new Date().getSeconds() < electTime - 5 || new Date().getSeconds() < electTime + wo.Config.BLOCK_PERIOD - 5)
+  let canSignForMyself = heightNow === (await wo.Chain.getTopBlock()).height + 1
+    && (new Date().getSeconds() < electTime - 5 || new Date().getSeconds() < electTime + wo.Config.BLOCK_PERIOD - 5)
   if (canSignForMyself) { // 注意，前面的同步可能花了20多秒，到这里已经是在竞选阶段。所以再加个当前秒数的限制。
     my.signerPool = {}
     my.packerPool = {}
     my.selfPot = {} // 注意，不要 my.selfPot=my.bestPot={} 这样指向了同一个对象！
     my.bestPot = {} // 如果设signature=null，就可能会===compareSig返回的null，就产生错误了。因此保留为undefined.
-    mylog.info(new Date() + '：签名阶段开始 for block=' + ((await wo.Store.getTopBlock()).height + 1))
+    mylog.info(new Date() + '：签名阶段开始 for block=' + ((await wo.Chain.getTopBlock()).height + 1))
     signForOwner();
     return 0;
   }
-  // await DAD.calibrate();
+  mylog.error('本机状态异常，无法进行启动共识')
+  mylog.error(heightNow,(await wo.Chain.getTopBlock()).height)
+  await DAD.calibrate();
 }
 DAD.api.signWatcher = async function (option) { // 监听收集终端用户的签名
   if (my.currentPhase !== 'signing') {
@@ -92,8 +101,8 @@ DAD.api.signWatcher = async function (option) { // 监听收集终端用户的�
     && option.netType === wo.Config.netType // 前端应用的链，和后台节点的链相同
     && wo.Crypto.verify(option.message, option.signature, option.pubkey) // 签名有效
     && Date.time2height(option.message.timestamp) === Date.time2height()
-    && option.message.blockHash === (await wo.Store.getTopBlock()).hash
-    && wo.Crypto.compareSig((await wo.Store.getTopBlock()).hash, my.selfPot.signature, option.signature) !== my.selfPot.signature // 注意，my.selfPot.signature有可能是undefined
+    && option.message.blockHash === (await wo.Chain.getTopBlock()).hash
+    && wo.Crypto.compareSig((await wo.Chain.getTopBlock()).hash, my.selfPot.signature, option.signature) !== my.selfPot.signature // 注意，my.selfPot.signature有可能是undefined
   ) {
     var userBalance = await wo.Store.getBalance(wo.Crypto.pubkey2address(option.pubkey))
     if (userBalance && userBalance > wo.Config.SIGNER_THRESHOLD) { // 只有账户里有币的用户才能挖矿。
@@ -115,7 +124,7 @@ async function signForOwner() {
   let myAddress = wo.Crypto.secword2address(wo.Config.ownerSecword)
   let myBalance = await wo.Store.getBalance(myAddress)
   if (myBalance > wo.Config.PACKER_THRESHOLD) {
-    let message = { timestamp: new Date(), blockHash: (await wo.Store.getTopBlock()).hash, height: heightNow }
+    let message = { timestamp: new Date(), blockHash: (await wo.Chain.getTopBlock()).hash, height: heightNow }
     let signature = wo.Crypto.sign(message, wo.Crypto.secword2keypair(wo.Config.ownerSecword).seckey)
     let pubkey = wo.Crypto.secword2keypair(wo.Config.ownerSecword).pubkey
     my.signerPool[pubkey] = { message: message, signature: signature }
@@ -132,14 +141,14 @@ async function signForOwner() {
 // 第二阶段：节点间竞选
 DAD.electOnce = async function () {
   my.currentPhase = 'electing';
-  if ((await wo.Store.getTopBlock()).height + 1 === Date.time2height()) {
-    mylog.info(new Date() + '：竞选阶段开始 for block=' + ((await wo.Store.getTopBlock()).height + 1) + ' using block=' + (await wo.Store.getTopBlock()).height)
+  if ((await wo.Chain.getTopBlock()).height + 1 === Date.time2height()) {
+    mylog.info(new Date() + '：竞选阶段开始 for block=' + ((await wo.Chain.getTopBlock()).height + 1) + ' using block=' + (await wo.Chain.getTopBlock()).height)
     if (my.selfPot.signature) { // todo: 更好的是核对（签名针对的区块高度===当前竞选针对的区块高度） 
       my.bestPot.signature = my.selfPot.signature; // 把本节点收到的用户最佳签名，暂时记为全网最佳。
       my.bestPot.message = my.selfPot.message;
       my.bestPot.pubkey = my.selfPot.pubkey;
       my.signBlock = new wo.Block({ winnerMessage: my.selfPot.message, winnerSignature: my.selfPot.signature, winnerPubkey: my.selfPot.pubkey, type: 'SignBlock' }) // 把候选签名打包进本节点的虚拟块
-      my.signBlock.packMe({}, await wo.Store.getTopBlock(), wo.Crypto.secword2keypair(wo.Config.ownerSecword))
+      my.signBlock.packMe({}, await wo.Chain.getTopBlock(), wo.Crypto.secword2keypair(wo.Config.ownerSecword))
       wo.Peer.broadcast('/Consensus/electWatcher', { Block: JSON.stringify(my.signBlock) })
     }
     else {
@@ -147,27 +156,27 @@ DAD.electOnce = async function () {
     }
   }
   else {
-    mylog.info('本节点的最高块高度为' + (await wo.Store.getTopBlock()).height + ', 不匹配当前时刻出块的高度' + Date.time2height() + '，不参与本轮竞选')
-    return await DAD.calibrate()
+    mylog.info('本节点的最高块高度为' + (await wo.Chain.getTopBlock()).height + ', 不匹配当前时刻出块的高度' + Date.time2height() + '，不参与本轮竞选')
+    return await calibrate()
   }
 }
 DAD.api.electWatcher = async function (option) { // 互相转发最优的签名块
   if (
-    option 
+    option
     && option.Block
     && option.Block.winnerSignature !== my.bestPot.signature // 不要重复接收同一个最佳块
     && (!my.signBlock || option.Block.hash !== my.signBlock.hash) // 收到的区块不是本节点目前已知的最优块
     && !my.packerPool.hasOwnProperty(option.Block.packerPubkey) // 一个packer只允许出一个签
-    && wo.Block.verifySig(option.Block) 
+    && wo.Block.verifySig(option.Block)
     && wo.Block.verifyHash(option.Block)
     && option.Block.packerPubkey !== wo.Crypto.secword2keypair(wo.Config.ownerSecword).pubkey // 收到的区块不是本节点自己打包的
     && wo.Crypto.verify(option.Block.winnerMessage, option.Block.winnerSignature, option.Block.winnerPubkey)
-    && option.Block.lastBlockHash === (await wo.Store.getTopBlock()).hash
+    && option.Block.lastBlockHash === (await wo.Chain.getTopBlock()).hash
   ) {
     my.packerPool[option.Block.packerPubkey] = option.Block
     let userBalance = await wo.Store.getBalance(wo.Crypto.pubkey2address(option.Block.winnerPubkey));
     let packerBalance = await wo.Store.getBalance(wo.Crypto.pubkey2address(option.Block.packerPubkey));
-    if (option.Block.winnerSignature === wo.Crypto.compareSig((await wo.Store.getTopBlock()).hash, my.bestPot.signature, option.Block.winnerSignature) // 新收到的签名获胜了。注意，my.bestPot.signature有可能是undefined
+    if (option.Block.winnerSignature === wo.Crypto.compareSig((await wo.Chain.getTopBlock()).hash, my.bestPot.signature, option.Block.winnerSignature) // 新收到的签名获胜了。注意，my.bestPot.signature有可能是undefined
       && userBalance >= wo.Config.SIGNER_THRESHOLD
       && packerBalance >= wo.Config.PACKER_THRESHOLD
     ) {
@@ -178,9 +187,9 @@ DAD.api.electWatcher = async function (option) { // 互相转发最优的签名�
       my.signBlock = option.Block // 保存新收到的签名块
       wo.Peer.broadcast('/Consensus/electWatcher', { Block: JSON.stringify(option.Block) }) // 就进行广播
     }
-    else if(userBalance < wo.Config.SIGNER_THRESHOLD
-      || packerBalance < wo.Config.PACKER_THRESHOLD ) {
-        mylog.info('收到的预签名空块的用户' + wo.Crypto.pubkey2address(option.Block.winnerPubkey) + '或节点' + wo.Crypto.pubkey2address(option.Block.packerPubkey) + '的余额不足' + option.Block.winnerSignature)
+    else if (userBalance < wo.Config.SIGNER_THRESHOLD
+      || packerBalance < wo.Config.PACKER_THRESHOLD) {
+      mylog.info('收到的预签名空块的用户' + wo.Crypto.pubkey2address(option.Block.winnerPubkey) + '或节点' + wo.Crypto.pubkey2address(option.Block.packerPubkey) + '的余额不足' + option.Block.winnerSignature)
     }
     else { // 对方的签名不如我的，就把我的最优签名告知它
       mylog.info('收到的预签名空块的用户' + wo.Crypto.pubkey2address(option.Block.winnerPubkey) + '或节点' + wo.Crypto.pubkey2address(option.Block.packerPubkey) + '的签名没有胜出：' + option.Block.winnerSignature)
@@ -192,7 +201,7 @@ DAD.api.electWatcher = async function (option) { // 互相转发最优的签名�
     mylog.info("来自用户：" + wo.Crypto.pubkey2address(option.Block.winnerPubkey))
     mylog.info("来自节点：" + wo.Crypto.pubkey2address(option.Block.packerPubkey))
     mylog.info("收到的预签名空块的上一区块哈希: " + option.Block.lastBlockHash)
-    mylog.info("本节点上一区块HASH: " + (await wo.Store.getTopBlock()).hash)
+    mylog.info("本节点上一区块HASH: " + (await wo.Chain.getTopBlock()).hash)
   }
   else // 通常，假如本节点具有全网赢家，我发给别人后，别人会再发给我，就会走到这里来。
   {
@@ -215,15 +224,19 @@ DAD.api.shareWinner = async function () {
 // 第三阶段：获胜者出块，或接收获胜者打包广播的区块
 DAD.mineOnce = async function () {
   my.currentPhase = 'mining';
-  if (Date.time2height() === (await wo.Store.getTopBlock()).height + 1) {
-    mylog.info(new Date() + '：出块阶段开始 for block=' + ((await wo.Store.getTopBlock()).height + 1) + ' using block=' + (await wo.Store.getTopBlock()).height)
+  if (Date.time2height() === (await wo.Chain.getTopBlock()).height + 1) {
+    mylog.info(new Date() + '：出块阶段开始 for block=' + ((await wo.Chain.getTopBlock()).height + 1) + ' using block=' + (await wo.Chain.getTopBlock()).height)
     mylog.info('本节点的候选签名=' + my.selfPot.signature + '，来自地址地址 ' + wo.Crypto.pubkey2address(my.selfPot.pubkey))
     mylog.info('全网最终获胜签名=' + my.bestPot.signature + '，来自地址地址 ' + wo.Crypto.pubkey2address(my.bestPot.pubkey))
     if (my.selfPot.signature && my.bestPot.signature === my.selfPot.signature) { // 全网最终获胜者是我自己，于是打包并广播。注意防止 bestPot===selfPot===undefined，这是跳过竞选阶段直接从前两阶段开始会发生的。
       mylog.info('本节点获胜，开始出块...')
-      let res = await wo.EventBus.call('Chain', '', 'createBlock', { winnerMessage: my.selfPot.message, winnerSignature: my.selfPot.signature, winnerPubkey: my.selfPot.pubkey })
-      mylog.info('本节点出块哈希为： ', res.hash)
-      wo.Peer.broadcast('/Consensus/mineWatcher', { Block: res });
+      let newBlock = await wo.Chain.createBlock({
+        winnerMessage: my.selfPot.message,
+        winnerSignature: my.selfPot.signature,
+        winnerPubkey: my.selfPot.pubkey
+      })
+      mylog.info('本节点出块哈希为： ', newBlock.hash)
+      wo.Peer.broadcast('/Consensus/mineWatcher', { Block: newBlock });
       return 0;
     }
     mylog.info('本节点没有赢')
@@ -235,11 +248,11 @@ DAD.api.mineWatcher = async function (option) { // 监听别人发来的区块
     && option.Block
     && option.Block.winnerSignature === my.bestPot.signature
     && my.bestPot.signature !== my.selfPot.signature // 收到了全网赢家的区块，而全网赢家不是本节点的
-    && option.Block.height === (await wo.Store.getTopBlock()).height + 1
-    && option.Block.lastBlockHash === (await wo.Store.getTopBlock()).hash
+    && option.Block.height === (await wo.Chain.getTopBlock()).height + 1
+    && option.Block.lastBlockHash === (await wo.Chain.getTopBlock()).hash
   ) {
     // 注意不要接受我自己作为获胜者创建的块，以及不要重复接受已同步的区块
-    wo.EventBus.call('Chain', '', 'appendBlock', option.Block)
+    wo.Chain.appendBlock(option.Block)
     wo.Peer.broadcast('/Consensus/mineWatcher', { Block: option.Block })
     mylog.info('本节点收到全网赢家的区块哈希为：' + option.Block.hash + '，全网赢家的地址为' + wo.Crypto.pubkey2address(option.Block.winnerPubkey) + '，打包节点的地址为 ' + wo.Crypto.pubkey2address(option.Block.packerPubkey))
   }
@@ -248,7 +261,7 @@ DAD.api.mineWatcher = async function (option) { // 监听别人发来的区块
 
 //分叉处理
 DAD.forkHandler = async function (option) {
-  if ((await wo.Store.getTopBlock()).height <= Date.time2height() - 2)
+  if ((await wo.Chain.getTopBlock()).height <= Date.time2height() - 2)
     return "高度未达到分叉标准"
   let res = await wo.Peer.broadcast('/Consensus/getRBS', { target: option.Block.packerPubkey })//取第一个元素
   if (!res) {

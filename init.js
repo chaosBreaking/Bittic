@@ -103,11 +103,12 @@ async function masterInit(worker) {
   wo.Config.portType = 'consPort'
   wo.Config.port = wo.Config.consPort
   wo.Ling = require('./Ling/_Ling.js')
-  mylog.info('Initializing Consensus......')
-  wo.Block = require('./Module/Chain/Block.js')
+  wo.Block = require('./Module/Block/index.js')(wo.Config.consensus)
   wo.Peer = await require('./Module/P2P/index.js')
   wo.Store = await require('./Module/util/Store.js')('redis') //  必须指定数据库,另外不能_init(),否则会覆盖子进程已经设定好的内容
   wo.EventBus = require('./Module/util/EventBus.js')(worker).mount(worker)
+  wo.Chain = require('./Module/Chain/index.js')
+  mylog.info('初始化共识模块')
   wo.Consensus = await require('./Module/Consensus/index.js')(wo.Config.consensus)._init()
 }
 async function workerInit() {
@@ -116,7 +117,7 @@ async function workerInit() {
   wo.Tool = new(require('./util/Egg.js'))()
   wo.Config = config()
   wo.Crypto = require('./util/Crypto.js')
-  wo.Config.portType = 'webPort'
+  wo.Config.portType = 'port'
   if (!wo.Crypto.isSecword(wo.Config.ownerSecword)) {
     mylog.error('Invalid secword! Please setup a secword in ConfigSecret.js')
     process.exit()
@@ -135,7 +136,7 @@ async function workerInit() {
   wo.Bancor = require('./Module/Token/Bancor.js')._init();
   wo.Peer = await require('./Module/P2P/index.js');
   wo.P2P = await require('./Module/P2P/P2P.js')._init();
-  wo.Block = await require('./Module/Chain/Block.js')._init();
+  wo.Block = await require('./Module/Block/index.js')(wo.Config.consensus)._init();
   wo.Store = await require('./Module/util/Store.js')('redis')._init();
   wo.EventBus = require('./Module/util/EventBus.js')(process);
   mylog.info('Initializing chain............');
@@ -273,7 +274,7 @@ function serverInit() { // 配置并启动 Web 服务
   if (cluster.isMaster) {
     let worker = cluster.fork();
     cluster.once('message', async (worker, message) => {
-      if(message.code == 300){
+      if(message.code == 200) {
         mylog.warn(`[Master] 主程序初始化完毕，启动共识模块......`);
         await masterInit(worker);
         serverInit();
@@ -306,8 +307,6 @@ function serverInit() { // 配置并启动 Web 服务
       // 处理操作
       mylog.info('new client connected');
     });
-    process.send({
-      code: 300
-    });
+    wo.EventBus.send(200, "链进程初始化完毕")
   }
 })()

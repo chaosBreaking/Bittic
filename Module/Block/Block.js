@@ -178,7 +178,7 @@ MOM.executeActions = async function (actionPool) {
     for (let actionHash of this.actionHashList) {
       actionPool[actionHash].blockHash = this.hash;
       await wo[actionPool[actionHash].type].addOne({ [actionPool[actionHash].type]: actionPool[actionHash] });
-      wo[actionPool[actionHash].type].execute(actionPool[actionHash]);
+      await wo[actionPool[actionHash].type].execute(actionPool[actionHash]);
       delete actionPool[actionHash];
     }
     //残余交易处理

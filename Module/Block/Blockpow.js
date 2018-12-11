@@ -1,4 +1,4 @@
-var Ling = wo.Ling
+var Ling = require('../../Ling/_Ling.js')
 
 /******************** Public members of instance ********************/
 
@@ -13,30 +13,23 @@ MOM.__proto__=Ling.prototype
 
 /******************** Public members shared by instances ********************/
 
-var test = 6666;
 MOM._tablekey='hash'
 MOM._model={ // 数据模型，用来初始化每个对象的数据
   hash:           { default:undefined, sqlite:'TEXT',     mysql:'VARCHAR(64) PRIMARY KEY' }, 
-  version:        { default:0,         sqlite:'INTEGER',  mysql:'INT' }, // 用来升级
-  type:           { default:'',        sqlite:'TEXT',     mysql:'VARCHAR(100)'}, // 用来分类：普通块，虚拟块（如果某获胜节点没有及时出块，就用虚块填充）
-  timestamp:      { default:undefined, sqlite:'INTEGER',  mysql:'INT' }, 
-  height:         { default:undefined, sqlite:'INTEGER UNIQUE',  mysql:'BIGINT' }, 
-  lastBlockHash:  { default:null,      sqlite:'TEXT',     mysql:'VARCHAR(64)' }, 
-  numberAction:   { default:0,         sqlite:'INTEGER',  mysql:'INT' }, 
-  totalAmount:    { default:0,         sqlite:'NUMERIC',  mysql:'BIGINT' }, 
-  totalFee:       { default:0,         sqlite:'NUMERIC',  mysql:'BIGINT' }, 
-  rewardWinner:   { default:0,         sqlite:'NUMERIC',  mysql:'BIGINT' },
-  rewardPacker:   { default:0,         sqlite:'NUMERIC' },
-  actionHashRoot: { default:undefined, sqlite:'TEXT',     mysql:'BINARY(32)' }, // 虽然已经存了actionHashList，但存一个梅克根有助于轻钱包。
-  //packerPubkey:   { default:undefined, sqlite:'TEXT',     mysql:'BINARY(32)' }, 
-  //packerSignature:{ default:undefined, sqlite:'TEXT',     mysql:'BINARY(64)' },
-  //winnerPubkey:   { default:'',        sqlite:'TEXT' }, // 签名获胜者
-  //winnerMessage:  { default:'',        sqlite:'TEXT' },
-  //winnerSignature:{ default:'',        sqlite:'TEXT' },
-  message:        { default:'',        sqlite:'TEXT',     mysql:'VARCHAR(256)' },
-  actionHashList: { default:[],        sqlite:'TEXT' }, // 要不要在Block里记录每个事务？还是让每个事务自己记录所属Block？
-  difficult:      { default:0,         sqlite:'NUMERIC'}, 
+  magic:          { default:'',        sqlite:'TEXT',     mysql:'VARCHAR(100)'}, // 用来分类：普通块，虚拟块（如果某获胜节点没有及时出块，就用虚块填充）
   nonce:          { default:0,         sqlite:'NUMERIC'},
+  height:         { default:undefined, sqlite:'INTEGER UNIQUE',  mysql:'BIGINT' }, 
+  version:        { default:0,         sqlite:'INTEGER',  mysql:'INT' }, // 用来升级
+  coinbase:       { default:0,         sqlite:'NUMERIC' },
+  difficult:      { default:0,         sqlite:'NUMERIC'}, 
+  timestamp:      { default:undefined, sqlite:'INTEGER',  mysql:'INT' }, 
+  totalFee:       { default:0,         sqlite:'NUMERIC',  mysql:'BIGINT' }, 
+  totalAmount:    { default:0,         sqlite:'NUMERIC',  mysql:'BIGINT' }, 
+  numberAction:   { default:0,         sqlite:'INTEGER',  mysql:'INT' }, 
+  lastBlockHash:  { default:null,      sqlite:'TEXT',     mysql:'VARCHAR(64)' }, 
+  actionHashRoot: { default:undefined, sqlite:'TEXT',     mysql:'BINARY(32)' }, // 虽然已经存了actionHashList，但存一个梅克根有助于轻钱包。
+  actionHashList: { default:[],        sqlite:'TEXT' }, // 要不要在Block里记录每个事务？还是让每个事务自己记录所属Block？
+  message:        { default:'',        sqlite:'TEXT',     mysql:'VARCHAR(256)' },
   json:           { default:{},        sqlite:'TEXT' } // 开发者自定义字段，可以用json格式添加任意数据，而不破坏整体结构
 }
 
@@ -70,54 +63,24 @@ MOM.getSupply= function (height) { // 计算当前流通总数：预发行数+�
   return supply
 }
 
-MOM.packMe = async function (actionPool, lastBlock, keypair) { // 后台节点挖矿者的公私钥
-  this.height = lastBlock ? lastBlock.height + 1 : wo.Config.GENESIS_HEIGHT
-  this.rewardWinner = this.getReward({rewardType:'rewardWinner'})
-  this.rewardPacker = this.getReward({rewardType:'rewardPacker'})
-  if(this.height == 10){
-    this.reward = 8880000;
-  }
+MOM.packMe = async function (actionBatch, lastBlock, keypair) { // 后台节点挖矿者的公私钥
+  this.height = this.height ? this.height : wo.Config.GENESIS_HEIGHT
+  this.version = 0
   this.totalFee = 0
   this.totalAmount = 0
-  this.version = 0
   this.timestamp = lastBlock?new Date():wo.Config.GENESIS_EPOCHE
-  this.lastBlockHash = lastBlock?lastBlock.hash:null
   this.packerPubkey = keypair.pubkey
 
-  let actionList=[]  // 被打包的事务（不一定整个actionPool都会被打包）
-  let actionValues=Object.values(actionPool)
-  while (action=actionValues.shift()) { // 遍历所有事务，累计哈希和总金额、总手续费等。
-    if (await action.execute()){ // save changes of this action to other tables such as account
-      actionList.push(action) // 后面还需要修改每个action的blockHash，存入数据库，所以这里要先保存在一个数组里
-      this.actionHashList.push(action.hash)
-
-      this.totalFee += (action.fee||0)
-
-      delete actionPool[action.hash]
-    }else{ // 也许事务无法执行（balance不够等等）
-      continue
-    }
-  }
-  this.actionHashRoot = wo.Crypto.getMerkleRoot(this.actionHashList)
-  this.numberAction = this.actionHashList.length
-
+  this.actionHashList = Object.keys(actionBatch.actionPool ? actionBatch.actionPool : {});
+  this.actionHashRoot = wo.Crypto.getMerkleRoot(this.actionHashList);
+  this.numberAction = this.actionHashList.length;
+  
   this.signMe(keypair.seckey)
-//  this.normalize()
-
-  this.hashMe()
-
-  for (var action of actionList) {
-    action.blockHash=this.hash
-    action.addMe()
-  }
-
-  console.log('packed block '+this.height+' with '+this.numberAction+' actions')
-
   return this
 }
 
 MOM.hashMe = function(){
-  this.hash=wo.Crypto.hash(this.getJson({exclude:['hash']}))
+  this.hash = wo.Crypto.hash(this.getJson({exclude:['hash']}))
   return this
 }
 MOM.verifyHash=function(){
@@ -181,7 +144,9 @@ MOM.verifyActionList = async function(){
   }
   return true
 }
-
+MOM.executeActions = () => {
+  return 1
+}
 MOM.normalize=function(){
   for (let action of this.actionHashList) {
 //    action.normalize();

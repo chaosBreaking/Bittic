@@ -32,11 +32,14 @@ DAD._init = async function () {
   }
 
   await DAD.createGenesis()
+  mylog.info("<===== 创世区块创建完毕 =====>")
   await DAD.verifyChainFromDb()
+  mylog.info("<===== 数据库区块验证完毕 =====>")
   await DAD.updateChainFromPeer()
+  mylog.info("<===== 区块同步完毕 =====>")
 
   return this
-} 
+}
 
 DAD.createGenesis = async function () {
   mylog.info('Net ================ ' + wo.Config.netType)
@@ -102,9 +105,9 @@ DAD.verifyChainFromDb = async function () {
 }
 
 DAD.updateChainFromPeer = async function () { // 向其他节点获取自己缺少的区块；如果取不到最高区块，就创建虚拟块填充。
-  mylog.info('开始向邻居节点同步区块');
   if (my.addingLock) return 0;
   my.addingLock = 1;
+  mylog.info('开始向邻居节点同步区块');
   for (let count = 0; wo.Config.consensus === "pot" && Date.time2height() > (my.topBlock.height + 1) && count < 3; count++) { // 确保更新到截至当前时刻的最高区块。
     mylog.info(`向全网广播同步请求-->开始第${count}轮同步`);
     let blockList = await wo.Peer.randomcast('/Block/getBlockList', { Block: { height: '>' + my.topBlock.height }, config: { limit: 100, order: 'height ASC' } })
@@ -120,7 +123,7 @@ DAD.updateChainFromPeer = async function () { // 向其他节点获取自己缺�
                 if (wo[action.type] && typeof wo[action.type].validator === 'function' && wo[action.type].validator(action)) {
                   await wo[action.type].execute(action)
                   await wo[action.type].addOne(action)
-                  //todo:1.需要计算merkelRoot并且验证于区块actionHashRoot的一致性 2.添加到数据库之前对交易(action)序列化
+                  //todo:需要计算merkelRoot并且验证于区块actionHashRoot的一致性 2.添加到数据库之前对交易(action)序列化
                 }
               }
             }
@@ -139,27 +142,9 @@ DAD.updateChainFromPeer = async function () { // 向其他节点获取自己缺�
     }
     mylog.info(`全网无最新区块-->停止第${count}轮同步`)
   }
-  if (Date.time2height() - my.topBlock.height > 1) {
-    for (let height = my.topBlock.height + 1; wo.Config.consensus === 'pot' && height < Date.time2height(); height++) {
-      await DAD.createVirtBlock()
-    }
-  }
-  if (wo.Config.consensus === 'pot')
-    mylog.info(new Date() + '...已同步到区块=' + my.topBlock.height + '，当前时刻的待出区块=' + Date.time2height())
-  else
-    mylog.info('区块同步完毕');
+  mylog.info('区块同步完毕');
   my.addingLock = 0;
   return my.topBlock
-}
-
-DAD.createVirtBlock = async function () {
-  var block = new wo.Block({ type: 'VirtBlock', timestamp: new Date(), height: my.topBlock.height + 1, hash: my.topBlock.hash, lastBlockHash: my.topBlock.hash })
-  await block.addMe()
-  DAD.pushTopBlock(block)
-  mylog.info('virtual block ' + block.height + ' is created')
-  if(wo.Socket && wo.Socket.emit) //启动初始化时，先启动链后启动服务器，所以一开始没有socket直接调用会程序崩溃
-    wo.Socket.emit('newBlock',JSON.stringify(block));
-  return block
 }
 
 DAD.createBlock = async function (block) {
@@ -171,8 +156,6 @@ DAD.createBlock = async function (block) {
   await DAD.addReward(block);
   await block.addMe();     //将区块写入数据库
   block.executeActions(actionBatch.actionPool);
-  if(wo.Socket && wo.Socket.emit) //启动初始化时，先启动链后启动服务器，所以一开始没有socket直接调用会程序崩溃
-    wo.Socket.emit('newBlock',JSON.stringify(block));
   return block
 }
 
@@ -185,11 +168,8 @@ DAD.appendBlock = async function (block) {
     await block.addMe();
     await DAD.addReward(block);
     block.executeActions(actionBatch.actionPool);
-    mylog.info(block.timestamp.toJSON() + ' : block ' + block.height + ' is added');
+    mylog.info('Block ' + block.height + ' is added');
     my.addingLock = false;    //区块添加完毕后 释放锁
-    wo.Socket.emit('newBlock',JSON.stringify(block));
-    // wo.EventBus.send(232, block);
-    // wo.Peer.broadcast('/Consensus/mineWatcher', {Block:JSON.stringify(wo.Store.getTopBlock())})
     return block;
   }
   return null
@@ -199,6 +179,8 @@ DAD.pushTopBlock = async function (topBlock) { // 保留最高和次高的区块
   my.lastBlock = my.topBlock;
   my.topBlock = topBlock;
   await wo.Store.pushTopBlock(topBlock);
+  if(wo.Socket && wo.Socket.emit) //启动初始化时，先启动链后启动服务器，所以一开始没有socket直接调用会程序崩溃
+    wo.Socket.emit('newBlock',JSON.stringify(topBlock));
   return topBlock
 }
 
