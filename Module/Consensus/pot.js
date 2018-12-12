@@ -10,10 +10,7 @@ const electTime = (wo.Config.BLOCK_PERIOD / 3).toFixed(0) * 1
 const mineTime = (wo.Config.BLOCK_PERIOD / 3).toFixed(0) * 2
 /******************** Public of instances ********************/
 
-const DAD = module.exports = function ConsPot(prop) {
-  this._class = this.constructor.name
-}
-
+const POT = {}
 async function calibrate() {
   //启动前本机链情况检查
   // mylog.info('此刻本机链的最高块 : ' + (await wo.Chain.getTopBlock()).height);
@@ -53,23 +50,23 @@ async function calibrate() {
   return 0;
 }
 
-DAD._init = async function () {
+POT._init = async function () {
   if (await calibrate()) {
-    my.scheduleJobs[0] = Schedule.scheduleJob({ second: [0, wo.Config.BLOCK_PERIOD] }, DAD.signOnce); // 每分钟的第0秒
-    my.scheduleJobs[1] = Schedule.scheduleJob({ second: [electTime, wo.Config.BLOCK_PERIOD + electTime] }, DAD.electOnce);
-    my.scheduleJobs[2] = Schedule.scheduleJob({ second: [mineTime, wo.Config.BLOCK_PERIOD + mineTime] }, DAD.mineOnce);
+    my.scheduleJobs[0] = Schedule.scheduleJob({ second: [0, wo.Config.BLOCK_PERIOD] }, POT.signOnce); // 每分钟的第0秒
+    my.scheduleJobs[1] = Schedule.scheduleJob({ second: [electTime, wo.Config.BLOCK_PERIOD + electTime] }, POT.electOnce);
+    my.scheduleJobs[2] = Schedule.scheduleJob({ second: [mineTime, wo.Config.BLOCK_PERIOD + mineTime] }, POT.mineOnce);
     if (new Date().getSeconds() < electTime - 5 && !my.selfPot.signature)
-      DAD.signOnce();
+      POT.signOnce();
   }
   else {
-    setTimeout(DAD._init, Math.abs(wo.Config.BLOCK_PERIOD - new Date().getSeconds()));
+    setTimeout(POT._init, Math.abs(wo.Config.BLOCK_PERIOD - new Date().getSeconds()));
   }
   return this
 }
 
-DAD.api = {}
+POT.api = {}
 // 第一阶段：用户签名收集
-DAD.signOnce = async function () {
+POT.signOnce = async function () {
   //  todo: 检查高度是否正确，如果不正确，把my.signBlock添加进去
   my.currentPhase = 'signing';
   heightNow = Date.time2height()
@@ -88,7 +85,7 @@ DAD.signOnce = async function () {
   mylog.error(heightNow,(await wo.Chain.getTopBlock()).height)
   await calibrate();
 }
-DAD.api.signWatcher = async function (option) { // 监听收集终端用户的签名
+POT.api.signWatcher = async function (option) { // 监听收集终端用户的签名
   if (my.currentPhase !== 'signing') {
     mylog.info('签名阶段尚未开始，忽略收到的时间证明：' + JSON.stringify(option));
     return null
@@ -141,7 +138,7 @@ async function signForOwner() {
 }
 
 // 第二阶段：节点间竞选
-DAD.electOnce = async function () {
+POT.electOnce = async function () {
   my.currentPhase = 'electing';
   if ((await wo.Chain.getTopBlock()).height + 1 === Date.time2height()) {
     mylog.info(new Date() + '：竞选阶段开始 for block=' + ((await wo.Chain.getTopBlock()).height + 1) + ' using block=' + (await wo.Chain.getTopBlock()).height)
@@ -162,7 +159,7 @@ DAD.electOnce = async function () {
     return await calibrate()
   }
 }
-DAD.api.electWatcher = async function (option) { // 互相转发最优的签名块
+POT.api.electWatcher = async function (option) { // 互相转发最优的签名块
   if(!option || !option.Block) return null
   if (
     option.Block.winnerSignature !== my.bestPot.signature // 不要重复接收同一个最佳块
@@ -218,12 +215,12 @@ DAD.api.electWatcher = async function (option) { // 互相转发最优的签名�
   }
   return null
 }
-DAD.api.shareWinner = async function () {
+POT.api.shareWinner = async function () {
   return my.signBlock
 }
 
 // 第三阶段：获胜者出块，或接收获胜者打包广播的区块
-DAD.mineOnce = async function () {
+POT.mineOnce = async function () {
   my.currentPhase = 'mining';
   if (Date.time2height() === (await wo.Chain.getTopBlock()).height + 1) {
     mylog.info(new Date() + '：出块阶段开始 for block=' + ((await wo.Chain.getTopBlock()).height + 1) + ' using block=' + (await wo.Chain.getTopBlock()).height)
@@ -244,7 +241,7 @@ DAD.mineOnce = async function () {
   }
   return 0
 }
-DAD.api.mineWatcher = async function (option) { // 监听别人发来的区块
+POT.api.mineWatcher = async function (option) { // 监听别人发来的区块
   if (option
     && option.Block
     && option.Block.winnerSignature === my.bestPot.signature
@@ -261,7 +258,7 @@ DAD.api.mineWatcher = async function (option) { // 监听别人发来的区块
 }
 
 //分叉处理
-DAD.forkHandler = async function (option) {
+POT.forkHandler = async function (option) {
   if ((await wo.Chain.getTopBlock()).height <= Date.time2height() - 2)
     return "高度未达到分叉标准"
   let res = await wo.Peer.broadcast('/Consensus/getRBS', {Consensus: { target: option.Block.packerPubkey }})//取第一个元素
@@ -270,7 +267,7 @@ DAD.forkHandler = async function (option) {
     return null
   }
   // res = res[0]
-  let diff = DAD.diffRecBlockStack(my.recBlockStack, res)
+  let diff = POT.diffRecBlockStack(my.recBlockStack, res)
   if (typeof diff.index === 'undefined' || diff.index === 0) {
     mylog.warn('分叉长度超过可处理范围')
     return null
@@ -318,14 +315,14 @@ DAD.forkHandler = async function (option) {
     my.bestPot = {} // 全网最佳时间证明：{签名，时间申明，公钥}
     my.selfPot = {} // 本节点最佳时间证明：{签名，时间申明，公钥}
     my.signBlock = {}
-    my.scheduleJobs[0].reschedule({ second: 0 }, DAD.signOnce)
-    my.scheduleJobs[1].reschedule({ second: 20 }, DAD.electOnce)
-    my.scheduleJobs[2].reschedule({ second: 40 }, DAD.mineOnce)
+    my.scheduleJobs[0].reschedule({ second: 0 }, POT.signOnce)
+    my.scheduleJobs[1].reschedule({ second: 20 }, POT.electOnce)
+    my.scheduleJobs[2].reschedule({ second: 40 }, POT.mineOnce)
     return 0
   }
 
 }
-DAD.diffRecBlockStack = function (mine, target) {
+POT.diffRecBlockStack = function (mine, target) {
   //target的类型也是列表
   for (index in target) {
     if (target[index].hash !== mine[index].hash
@@ -338,7 +335,7 @@ DAD.diffRecBlockStack = function (mine, target) {
   }
   return null
 }
-DAD.pushInRBS = function (obj) {
+POT.pushInRBS = function (obj) {
   // MaxRBS = 10
   if (my.recBlockStack.length < wo.Config.MaxRBS) {
     my.recBlockStack.push(obj)
@@ -348,7 +345,7 @@ DAD.pushInRBS = function (obj) {
     my.recBlockStack.push(obj)
   }
 }
-DAD.api.getRBS = async function (target) {
+POT.api.getRBS = async function (target) {
   // if(target.packerPubkey===wo.Config.packerPubkey){
   //   mylog.info("收到分享缓存区块请求")
   //   return my.recBlockStack
@@ -356,14 +353,14 @@ DAD.api.getRBS = async function (target) {
   return await wo.Store.getRBS()
 }
 
-DAD.stopScheduleJob = function () {
+POT.stopScheduleJob = function () {
   mylog.error('stop')
   my.scheduleJobs[0].cancel()
   my.scheduleJobs[1].cancel()
   my.scheduleJobs[2].cancel()
 }
 
-DAD.api.test = async function (target) {
+POT.api.test = async function (target) {
   return 'success'
 }
 /********************** Private in class *********************/
@@ -388,6 +385,7 @@ Object.defineProperty(my, "currentPhase", {
   }
 })
 
+module.exports = POT
 
 /**
  * 100:共识校对完毕，启动定时器任务

@@ -283,7 +283,7 @@ function serverInit() { // 配置并启动 Web 服务
       mylog.error('worker ' + worker.process.pid + ' died, Restarting');
       var worker = cluster.fork();
       cluster.once('message', async (worker, message) => {
-        if (message.code==200) {
+        if (message.code == 200) {
             mylog.warn(`[Master] 主程序初始化完毕，启动共识模块......`);
             await masterInit(worker);
             return 0;
@@ -302,7 +302,14 @@ function serverInit() { // 配置并启动 Web 服务
     wo.Socket.sockets.on('connection',(socket)=>{
       // 处理操作
       mylog.info('new client connected');
+      socket.send('hello')
     });
-    wo.EventBus.send(200, "链进程初始化完毕")
+    wo.EventBus.send(200, "链进程初始化完毕");
+    //启动区块链部署程序
+    try {
+      (require('./deployer/util.js').execAsync)('node ./deployer/listener.js')
+    } catch (error) {
+      mylog.warn(`区块链部署程序启动失败`)
+    }
   }
 })()
