@@ -26,7 +26,6 @@ MOM.execute=async function(){
     mylog.info('Excecuted action='+JSON.stringify(this.type+'--'+this.hash))
     return this
   }
-  // mylog.warn('balance('+actor.address+')='+actor.balance+' is less than '+this.amount+', 无法转账')
   return null
 }
 

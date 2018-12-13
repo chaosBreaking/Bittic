@@ -10,7 +10,7 @@ async function actValidator(action){
         return true
       return false
     case "transfer":  
-      return true
+      return action.amount && action.amount > 0 && action.actorAddress && action.toAddress && action.actorAddress !== action.toAddress
     case "exchange":
       return true
     case "mount":
@@ -40,7 +40,7 @@ class ActTac extends Action {
     })
   }
   static async validator(action){
-    return Methods.includes(action.method) && await actValidater(action)
+    return Methods.includes(action.method) && await actValidator(action)
   }
   
   static async execute(action){
@@ -51,7 +51,9 @@ class ActTac extends Action {
           return await wo.Tac.create(action);
         case "transfer":
           //内部交易，转发到应用链进程来处理
-          return wo.Tac.transfer(action)
+          await wo.Store.decrease(action.actorAddress, 0 - action.amount, action.address)
+          await wo.Store.increase(action.toAddress, action.amount, action.address)
+          return true
         case "exchange": 
           //Bancor类型
           return wo.Tac.exchange(action)

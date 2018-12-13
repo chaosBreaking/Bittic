@@ -12,13 +12,12 @@ MOM.__proto__=Action.prototype
 DAD.validator = async function(action){
   // if (sender && sender.type !== 'multisig' && action.toAddress != action.actorAddress && sender.balance >= action.amount + action.fee){
   let sender = await wo.Store.getBalance(action.actorAddress);
-  return action.actorAddress && action.toAddress && sender >= action.amount + action.fee && action.fee >= wo.Config.MIN_FEE_ActTransfer && action.toAddress != action.actorAddress
+  return action.actorAddress && action.toAddress && action.toAddress != action.actorAddress && action.amount && action.amount > 0 && sender >= action.amount + action.fee && action.fee >= wo.Config.MIN_FEE_ActTransfer
 }
 
 DAD.execute = async function(action){
   let sender = await wo.Store.getBalance(action.actorAddress);
-  // if (sender && sender.type !== 'multisig' && action.toAddress != action.actorAddress && sender.balance >= action.amount + action.fee){
-  if (action.toAddress != action.actorAddress && sender >= action.amount + action.fee){
+  if (sender >= action.amount + action.fee){
     await wo.Store.decrease(action.actorAddress, action.amount + action.fee);
     await wo.Store.increase(action.toAddress, action.amount)
     return true

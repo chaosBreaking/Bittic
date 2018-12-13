@@ -2,9 +2,7 @@ const Ling = wo.Ling
 const url = require('url');
 const Schedule = require('node-schedule');
 const RequestPromise = require('request-promise-native'); // request-promise/-native。https://www.npmjs.com/package/request-promise. 还看到一个方法：Bluebird.promisifyAll(require("request"));
-const store = require('../../util/StoreApi.js')('redis', {
-  db: 1 //如果用db0,会被链进程的存储初始化程序给flush掉
-})
+const store = require('../../util/StoreApi.js')('redis')
 
 class Peers extends Ling {
   constructor(prop) {

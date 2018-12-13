@@ -122,10 +122,10 @@ async function workerInit() {
   wo.ActMultisig = require('./Module/Action/ActMultisig.js');
   wo.ActTac = require('./Module/Action/ActTac.js');
   wo.Bancor = require('./Module/Token/Bancor.js')._init();
+  wo.Block = await require('./Module/Block/index.js')(wo.Config.consensus)._init();
+  wo.Store = await require('./Module/util/Store.js')('redis', { db: wo.Config.redis_index })._init();
   wo.Peer = await require('./Module/P2P/index.js');
   wo.P2P = await require('./Module/P2P/P2P.js')._init();
-  wo.Block = await require('./Module/Block/index.js')(wo.Config.consensus)._init();
-  wo.Store = await require('./Module/util/Store.js')('redis')._init();
   wo.EventBus = require('./Module/util/EventBus.js')(process);
   wo.Consensus = require('./Module/Consensus/index.js')('proxy', wo.Config.consensus);
   mylog.info('Initializing chain............');

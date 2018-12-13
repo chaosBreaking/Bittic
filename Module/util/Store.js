@@ -39,16 +39,6 @@ Store.prototype.setCurrentPhase = function(phase){
 Store.prototype.getCurrentPhase = function(){
     return this.worldState.currentPhase;
 }
-Store.prototype.getBalance = async function(address){
-    return JSON.parse(await this.storeAPI.getKey(address));
-}
-
-Store.prototype.increase = async function(address, amount){
-    return JSON.parse(await this.storeAPI.incrbyfloat(address, amount));
-}
-Store.prototype.decrease = async function(address, amount){
-    return JSON.parse(await this.storeAPI.incrbyfloat(address, 0 - amount));
-}
 Store.prototype.pushInRBS = async function(block){
     let stack = await this.storeAPI.getKey('recBlockStack');
     stack.push(block);
@@ -68,27 +58,21 @@ Store.prototype.getTopBlock = async function(){
 Store.prototype.getRBS = async function(){
   return await this.storeAPI.getKey('recBlockStack');
 }
+
+Store.prototype.getBalance = async function(address, coinType = 'balance'){
+    return JSON.parse(await this.storeAPI.hget(address, coinType));
+}
+// 调用余额加减时，应该指明coinType，默认是balance代表TIC，其他用户发行代币应该传入其编号
+Store.prototype.increase = async function(address, amount, coinType = 'balance'){
+    return JSON.parse(await this.storeAPI.hincrbyfloat(address, coinType, amount));
+}
+Store.prototype.decrease = async function(address, amount, coinType = 'balance'){
+    return JSON.parse(await this.storeAPI.hincrbyfloat(address, coinType, 0 - amount));
+}
+
 module.exports = Store
 
 
 /**
-
-        block
-            totalFeeForNewBlock,
-            totalAmountForNewBlock,
-
-        action
-            DAD.actionPool = {} // 随时不断接收新的交易请求
-            DAD.currentActionPool = {} // 仅包含0~40秒的交易,40~59秒的交易将被堆积到actionPool。    
-
-        chain
-            genesis:{}
-            ,
-            topBlock:null // 当前已出的最高块
-            ,
-            lastBlock:null // 当前已出的次高块
-            ,
-            addingLock:false
-            ,
-
+ * 转账：store.increase & store.decrease
  */

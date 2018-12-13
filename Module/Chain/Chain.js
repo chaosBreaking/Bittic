@@ -6,6 +6,7 @@
  * 3.缓存上一区块
  * 4.验证数据库内的区块
  * 5.同步区块
+ * 6.奖励成功出块的人
  */
 
 const Chain = module.exports = function Chain() {
@@ -30,7 +31,6 @@ Chain.createGenesis = async function () {
   my.genesis = new wo.Block(wo.Config.GENESIS_BLOCK[wo.Config.netType])
   my.genesis.packMe({}, null, wo.Crypto.secword2keypair(wo.Config.GENESIS_ACCOUNT.secword))
   await Chain.pushTopBlock(my.genesis)
-  //以下转账行为应该在token的脚本里解决
   await wo.Store.increase(wo.Config.INITIAL_ACCOUNT.address, wo.Config.COIN_INIT_AMOUNT)
   // 在开发链上，自动给当前用户预存一笔，使其能够挖矿
   // 给两个账户加钱，防止两机测试时互不相认
@@ -146,8 +146,8 @@ Chain.appendBlock = async function (block) {
     my.addingLock = true;
     let actionBatch = wo.Action.getActionBatch();
     await Chain.pushTopBlock(block);
-    await block.addMe();
     await Chain.addReward(block);
+    await block.addMe();
     block.executeActions(actionBatch.actionPool);
     mylog.info('Block ' + block.height + ' is added');
     my.addingLock = false;    //区块添加完毕后 释放锁

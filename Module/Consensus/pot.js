@@ -42,7 +42,7 @@ async function calibrate() {
     let topBlock = await wo.Chain.getTopBlock()
     mylog.info(`>===== 当前更新到高度：${topBlock.height} =====>`);
     if (Date.time2height() - topBlock.height > 1) {
-      for (let height = topBlock.height + 1; height < Date.time2height(); height++) {
+      for (let height = topBlock.height + 1; height <= Date.time2height(); height++) {
         await wo.Chain.createVirtBlock()
       }
     }

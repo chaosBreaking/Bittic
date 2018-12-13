@@ -58,7 +58,7 @@ Object.defineProperty(Tac,'api',{
   enumerable:true
 })
 Tac.api.getTac = async function (option) {
-  return await Tac.getAll(option);
+  return await Tac.getOne(option);
 }
 
 module.exports = Tac
