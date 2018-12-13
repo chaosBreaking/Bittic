@@ -1,6 +1,6 @@
 # 以'#'开始的行，被视为注释.                                                                                                                          
 node_modules
-Data.log/*.log*
+*log
 Data.sqlite/*.sqlite*
 .sass-cache
 package-lock.json

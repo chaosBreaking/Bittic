@@ -23,7 +23,7 @@ DAD._init=async function(){
 
   await DAD.createGenesis()
   await DAD.verifyChainFromDb()
-  if(wo.Config.Consensus==='ConsPow')  {
+  if(wo.Config.Consensus==='ConsPow') {
     if(!wo.NetUDP.IsServer)   //暂时只都想这台服务器同步，如果是自己就不要同步了，
       await DAD.updateChainFromPeer_pow();
   }

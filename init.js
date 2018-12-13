@@ -68,23 +68,14 @@ function config() {
   Config.sslKey = commander.sslKey || Config.sslKey
   Config.sslCA = commander.sslCA || Config.sslCA
 
-  switch (Config.netType) {
-    case 'mainnet':
-      break
-    case 'testnet':
-      Config.GENESIS_EPOCHE = Config.GENESIS_EPOCHE_TESTNET
-      Config.GENESIS_MESSAGE = Config.GENESIS_MESSAGE_TESTNET
-      Config.INITIAL_ACCOUNT = Config.INITIAL_ACCOUNT_TESTNET
-      Config.dbName = Config.dbName + '.' + Config.netType
-      break
-    case 'devnet':
-    default:
+  Config.GENESIS_EPOCHE = Config.GENESIS_BLOCK[Config.netType].timestamp
+  Config.GENESIS_MESSAGE = Config.GENESIS_BLOCK[Config.netType].message
+  Config.INITIAL_ACCOUNT = Config.INITIAL_ACCOUNT[Config.netType]
+  Config.dbName = Config.dbName + '.' + Config.netType      
+  if (Config.netType === 'devnet') {
       Config.GENESIS_EPOCHE = require('./util/Date.js').time2epoche({
         type: 'prevHour'
       }) // nextMin: 下一分钟（单机测试）， prevHour: 前一小时（多机测试），或 new Date('2018-07-03T10:15:00.000Z') // 为了方便开发，暂不使用固定的创世时间，而是生成当前时刻之后的第一个0秒，作为创世时间
-      Config.GENESIS_MESSAGE = Config.GENESIS_MESSAGE_DEVNET
-      Config.INITIAL_ACCOUNT = Config.INITIAL_ACCOUNT_DEVNET
-      Config.dbName = Config.dbName + '.' + Config.netType
   }
 
   mylog.info('Configuration is ready.')

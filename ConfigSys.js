@@ -1,4 +1,4 @@
-
+'use strict'
 module.exports = { // 全大写字母的，代表系统常量，不要在 userConfig 或命令行参数里覆盖。小写驼峰的，是用户可以覆盖的。
   netType: 'testnet', // 默认进入测试网
   consensus: null, // 共识机制。可选设为 ConsPot, ConsAlone。
@@ -34,15 +34,20 @@ module.exports = { // 全大写字母的，代表系统常量，不要在 userCo
   PEER_POOL_CAPACITY: 10, // 保持几个邻居节点
 
   GENESIS_HEIGHT: 0,
-  
-  GENESIS_EPOCHE: new Date('2019-06-06T00:00:00.000Z'), // 主网的创世时刻。1515341898018
-  GENESIS_EPOCHE_TESTNET: new Date('2018-12-09T08:18:00.000Z'), // 测试网的创世时刻。
-  
-  GENESIS_MESSAGE: 'History is Future, Future is Now',
-  GENESIS_MESSAGE_TESTNET: 'The Cabinet Office minister David Lidington today defended Philip Hammond’s decision to issue a new warning that a no-deal Brexit would significantly damage the economy.',
-  GENESIS_MESSAGE_DEVNET: 'some big things start out small',
-  
-  
+  GENESIS_BLOCK : {
+    "mainnet": {
+      timestamp: new Date('2019-06-06T00:00:00.000Z'),
+      message: 'History is Future, Future is Now'
+    },
+    "testnet": {
+      timestamp: new Date('2018-12-09T08:18:00.000Z'),
+      message: 'The Cabinet Office minister David Lidington today defended Philip Hammond’s decision to issue a new warning that a no-deal Brexit would significantly damage the economy.'    
+    },
+    "devnet": {
+      timestamp: '',
+      message: 'some big things start out small'    
+    }
+  },
   COIN_INIT_AMOUNT: 6 * Math.pow(10, 9), // 原始发行60亿个币。应该命名为 baseAmount，因为这不是全部的，还会挖出新的来
   COIN_PRECISION: 6, // 每个币可细分到小数点后第几位
   MaxRBS: 10, //区块缓存栈最大容量
@@ -63,27 +68,22 @@ module.exports = { // 全大写字母的，代表系统常量，不要在 userCo
   MARK_LINKED: 'MARK_LINKED', // 建立了关系（care, know, join 等）
   MARK_RELEASED: 'MARK_RELEASED', // 解除了关系（care, know, join 等）
 
-  INITIAL_ACCOUNT_TESTNET: { // 初始账户，用于首发TIC币。
-    // todo: 以下机密信息应当在真正部署时删除！
-    //    secword: 'window air repeat sense bring smoke legend shed accuse loan spy fringe'
-    //    pubkey: 'd1ed688dccd996c11cba2749d3a916977b0c5977a1d40d1b5ad83606e3303150',
-    //    seckey: '3d42f647287f315e91236be24ed2e13654e0471c9c82b0bf43b96146020b6863d1ed688dccd996c11cba2749d3a916977b0c5977a1d40d1b5ad83606e3303150',
-    address: 'Ttm24Wb877P6EHbNKzswoK6yvnTQqFYaqo'
-  }
-  ,
-  INITIAL_ACCOUNT_DEVNET: { // 初始账户，用于首发TIC币。
-    // todo: 以下机密信息应当在真正部署时删除！
-    //    secword: 'clever journey cave maze luxury juice trigger discover bamboo net shoot put',
-    //    pubkey: '0fee122794b94feadcc07a72e69110e1000b6515ea67b4dba90f20dc48f999f8',
-    //    seckey: 'df814a79def4fa6e5bff2a19f44a5811163600db35670dca0b9bacc0994db05f0fee122794b94feadcc07a72e69110e1000b6515ea67b4dba90f20dc48f999f8',
-    address: 'TxAEimQbqVRUoPncGLrrpmP82yhtoLmxJE'
-  }
-  ,
-  INITIAL_ACCOUNT: { // 初始账户，用于首发TIC币。
-    // todo: 以下机密信息应当在真正部署时删除！
-    address: 'TpNH7NQoYLYjCDiAJddQX1LP4BrzAQ2Vw7'
-  }
-  ,
+  INITIAL_ACCOUNT: {
+    "mainnet": {
+      address: 'TpNH7NQoYLYjCDiAJddQX1LP4BrzAQ2Vw7'
+    },
+    "testnet": {
+      //    secword: 'window air repeat sense bring smoke legend shed accuse loan spy fringe'
+      //    pubkey: 'd1ed688dccd996c11cba2749d3a916977b0c5977a1d40d1b5ad83606e3303150',
+      //    seckey: '3d42f647287f315e91236be24ed2e13654e0471c9c82b0bf43b96146020b6863d1ed688dccd996c11cba2749d3a916977b0c5977a1d40d1b5ad83606e3303150',
+      address: 'Ttm24Wb877P6EHbNKzswoK6yvnTQqFYaqo'    },
+    "devnet": {
+      //    secword: 'clever journey cave maze luxury juice trigger discover bamboo net shoot put',
+      //    pubkey: '0fee122794b94feadcc07a72e69110e1000b6515ea67b4dba90f20dc48f999f8',
+      //    seckey: 'df814a79def4fa6e5bff2a19f44a5811163600db35670dca0b9bacc0994db05f0fee122794b94feadcc07a72e69110e1000b6515ea67b4dba90f20dc48f999f8',
+      address: 'TxAEimQbqVRUoPncGLrrpmP82yhtoLmxJE'
+    }
+  },
   GENESIS_ACCOUNT: { // 创世账户，用于创建height=0创世块
     secword: "skill loyal dove price spirit illegal bulk rose tattoo congress few amount",
     //    pubkey: '656315fb1a34dafbaba2421cb2a6e6685754a0e68dab28be9b90201b4220acd1',

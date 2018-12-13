@@ -28,7 +28,7 @@ var logger = bunyan.createLogger({
     {
       level: 'info',
       type: 'rotating-file',
-      path: './deployer.log',
+      path: './deployer/deployer.log',
       period: '1d',   // daily rotation
       count: 30       // keep 30 days
     }

@@ -1,3 +1,4 @@
+'use strict'
 var Ling = wo.Ling
 
 /******************** Public members of instance ********************/

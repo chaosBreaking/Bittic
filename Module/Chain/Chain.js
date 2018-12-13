@@ -1,67 +1,48 @@
+'use strict'
 /**
  * Chain要实现的功能
  * 1.创建区块
  * 2.添加区块
- * 3.保存上一区块
+ * 3.缓存上一区块
  * 4.验证数据库内的区块
- * 5.同步区块 
+ * 5.同步区块
  */
 
-const DAD = module.exports = function Chain() {
+const Chain = module.exports = function Chain() {
   this._class = this.constructor.name
 }
 
-DAD.api = {} // 面向前端应用的API
+Chain.api = {} // 面向前端应用的API
 
-DAD._init = async function () {
-
-  if (wo.Config.consensus === 'pot') {
-    switch (wo.Config.netType) {
-      case 'mainnet':
-        break
-      case 'testnet':
-        wo.Config.GENESIS_EPOCHE = wo.Config.GENESIS_EPOCHE_TESTNET
-        wo.Config.GENESIS_MESSAGE = wo.Config.GENESIS_MESSAGE_TESTNET
-        wo.Config.INITIAL_ACCOUNT = wo.Config.INITIAL_ACCOUNT_TESTNET
-        break
-      case 'devnet': default:
-        wo.Config.GENESIS_EPOCHE = Date.time2epoche({ type: 'prevHour' }) // nextMin: 下一分钟（单机测试）， prevHour: 前一小时（多机测试），或 new Date('2018-07-03T10:15:00.000Z') // 为了方便开发，暂不使用固定的创世时间，而是生成当前时刻之后的第一个0秒，作为创世时间
-        wo.Config.GENESIS_MESSAGE = wo.Config.GENESIS_MESSAGE_DEVNET
-        wo.Config.INITIAL_ACCOUNT = wo.Config.INITIAL_ACCOUNT_DEVNET
-    }
-  }
-
-  await DAD.createGenesis()
+Chain._init = async function () {
+  await Chain.createGenesis()
   mylog.info("<===== 创世区块创建完毕 =====>")
-  await DAD.verifyChainFromDb()
+  await Chain.verifyChainFromDb()
   mylog.info("<===== 数据库区块验证完毕 =====>")
-  await DAD.updateChainFromPeer()
+  await Chain.updateChainFromPeer()
   mylog.info("<===== 区块同步完毕 =====>")
-
   return this
 }
 
-DAD.createGenesis = async function () {
-  mylog.info('Net ================ ' + wo.Config.netType)
-  mylog.info('创世时分 GENESIS_EPOCHE=' + wo.Config.GENESIS_EPOCHE.toJSON())
-  my.genesis = new wo.Block({
-    timestamp: wo.Config.GENESIS_EPOCHE,
-    message: wo.Config.GENESIS_MESSAGE
-  })
+Chain.createGenesis = async function () {
+  mylog.info(`======== Net ${wo.Config.netType} ========`)
+  mylog.info(`GENESIS_EPOCHE: ${wo.Config.GENESIS_EPOCHE.toJSON()}`)
+  my.genesis = new wo.Block(wo.Config.GENESIS_BLOCK[wo.Config.netType])
   my.genesis.packMe({}, null, wo.Crypto.secword2keypair(wo.Config.GENESIS_ACCOUNT.secword))
-  await DAD.pushTopBlock(my.genesis)
-  mylog.info('Genesis is created and verified: ' + my.genesis.verifySig())
+  await Chain.pushTopBlock(my.genesis)
+  //以下转账行为应该在token的脚本里解决
   await wo.Store.increase(wo.Config.INITIAL_ACCOUNT.address, wo.Config.COIN_INIT_AMOUNT)
+  // 在开发链上，自动给当前用户预存一笔，使其能够挖矿
+  // 给两个账户加钱，防止两机测试时互不相认
   if (wo.Config.netType === 'devnet') {
-    // 在开发链上，自动给当前用户预存一笔，使其能够挖矿
-    //给两个账户加钱，防止两机测试时互不相认
     await wo.Store.increase('Ttm24Wb877P6EHbNKzswoK6yvnTQqFYaqo', 100000);
     await wo.Store.increase('TxAEimQbqVRUoPncGLrrpmP82yhtoLmxJE', 100000);
   }
+  mylog.info('Genesis is created and verified: ' + my.genesis.verifySig())
   return my.genesis
 }
 
-DAD.verifyChainFromDb = async function () {
+Chain.verifyChainFromDb = async function () {
   mylog.info('开始验证数据库中的区块')
   await wo.Block.dropAll({ Block: { height: '<=' + wo.Config.GENESIS_HEIGHT } }) // 极端罕见的可能，有错误的（为了测试，手工加入的）height<创世块的区块，也删掉它。  
   let blockList = await wo.Block.getAll({ Block: { height: '>' + my.topBlock.height }, config: { limit: 100, order: 'height ASC' } })
@@ -72,7 +53,7 @@ DAD.verifyChainFromDb = async function () {
       if (block.height === my.topBlock.height + 1 && block.lastBlockHash === my.topBlock.hash && block.verifySig() && block.verifyHash()) {
         if (await block.verifyActionList()) {
           mylog.info('成功验证区块：' + block.height)
-          DAD.pushTopBlock(block)
+          Chain.pushTopBlock(block)
         }
         else {
           mylog.error('非法区块' + block.height,'：包含无法获取或验证的交易')
@@ -104,7 +85,7 @@ DAD.verifyChainFromDb = async function () {
   return my.topBlock
 }
 
-DAD.updateChainFromPeer = async function () { // 向其他节点获取自己缺少的区块；如果取不到最高区块，就创建虚拟块填充。
+Chain.updateChainFromPeer = async function () { // 向其他节点获取自己缺少的区块；如果取不到最高区块，就创建虚拟块填充。
   if (my.addingLock) return 0;
   my.addingLock = 1;
   mylog.info('开始向邻居节点同步区块');
@@ -128,9 +109,9 @@ DAD.updateChainFromPeer = async function () { // 向其他节点获取自己缺�
               }
             }
           }
-          await DAD.addReward(block);
+          await Chain.addReward(block);
           await block.addMe();
-          await DAD.pushTopBlock(block)
+          await Chain.pushTopBlock(block)
           mylog.info(`高度${block.height}区块同步成功`)
         }
         else { // 碰到一个错的区块，立刻退出
@@ -147,26 +128,26 @@ DAD.updateChainFromPeer = async function () { // 向其他节点获取自己缺�
   return my.topBlock
 }
 
-DAD.createBlock = async function (block) {
+Chain.createBlock = async function (block) {
   block = (block instanceof wo.Block) ? block : (new wo.Block(block)) // POT 里调用时，传入的可能是普通对象，需要转成 Block
   block.message = block.message || '矿工留言在第' + (my.topBlock.height + 1) + '区块'
   let actionBatch = wo.Action.getActionBatch();
   block.packMe(actionBatch, my.topBlock, wo.Crypto.secword2keypair(wo.Config.ownerSecword))//算出默克根、hash、交易表
-  await DAD.pushTopBlock(block);
-  await DAD.addReward(block);
+  await Chain.pushTopBlock(block);
+  await Chain.addReward(block);
   await block.addMe();     //将区块写入数据库
   block.executeActions(actionBatch.actionPool);
   return block
 }
 
-DAD.appendBlock = async function (block) {
+Chain.appendBlock = async function (block) {
   block = (block instanceof wo.Block) ? block : (new wo.Block(block)) // POT 里调用时，传入的可能是普通对象，需要转成 Block
   if (!my.addingLock && block.lastBlockHash === my.topBlock.hash && block.height === my.topBlock.height + 1 && block.verifySig() && block.verifyHash()) {
     my.addingLock = true;
     let actionBatch = wo.Action.getActionBatch();
-    await DAD.pushTopBlock(block);
+    await Chain.pushTopBlock(block);
     await block.addMe();
-    await DAD.addReward(block);
+    await Chain.addReward(block);
     block.executeActions(actionBatch.actionPool);
     mylog.info('Block ' + block.height + ' is added');
     my.addingLock = false;    //区块添加完毕后 释放锁
@@ -175,7 +156,7 @@ DAD.appendBlock = async function (block) {
   return null
 }
 
-DAD.pushTopBlock = async function (topBlock) { // 保留最高和次高的区块
+Chain.pushTopBlock = async function (topBlock) { // 保留最高和次高的区块
   my.lastBlock = my.topBlock;
   my.topBlock = topBlock;
   await wo.Store.pushTopBlock(topBlock);
@@ -184,7 +165,7 @@ DAD.pushTopBlock = async function (topBlock) { // 保留最高和次高的区块
   return topBlock
 }
 
-DAD.addReward = async function (block) {
+Chain.addReward = async function (block) {
   if (block.type === "SignBlock") {
     block.rewardPacker = block.getReward({ rewardType: 'packerPenalty' })
     await wo.Store.increase(wo.Crypto.pubkey2address(block.winnerPubkey), block.rewardWinner);
@@ -196,7 +177,7 @@ DAD.addReward = async function (block) {
   }
 }
 
-DAD.getTopBlock = DAD.api.getTopBlock = function () {
+Chain.getTopBlock = Chain.api.getTopBlock = function () {
   return my.topBlock
 }
 
@@ -210,6 +191,4 @@ const my = {
   lastBlock: null // 当前已出的次高块
   ,
   addingLock: false
-  ,
-  scheduleJobs: []
 }
