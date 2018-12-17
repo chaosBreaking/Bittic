@@ -12,9 +12,6 @@ class Mission extends events {
     this.process= 0
     this.step = step1
   }
-  getMissionInfo(missionId, key) {
-    return this[key]
-  }
   /**
    * 部署完毕
     this.emit('finished',{
@@ -34,26 +31,25 @@ class Mission extends events {
     this.emit("update", step2);
     //1.创建工程文件夹
     execAsync(`mkdir ${this.missionId}`)
+    //2.生成配置文件
     .then(() => {
       this.emit("update", step3);
-      mylog.info(`[${this.missionId}]: 工程文件生成完毕`)
-      //2.生成配置文件
-      writeFileAsync(`./${this.missionId}/configSys.js`,getConfigData(this.data))
-      .then(() =>{
-        mylog.info(`[${this.missionId}]: 配置文件生成完毕`)
-        //3.启动区块链
-        // execAsync(`cd ./${this.missionId} && cnpm i > npmLog && pm2 start server.js --name ${this.missionId} --no-autorestart > ./missionLog`)
-        // .then(() => {
-          //4.向主网注册
-          mylog.info('主网注册成功')
-          mylog.info(this.data.nodes)
-          let chainInfo = {
-            name: this.data.name,
-            tag: "tic-test"
-          }
-          this.emit('finished', chainInfo)
-        // }).catch((err) => {mylog.error('区块链启动失败')})
-      }).catch((err) => {mylog.error('配置文件生成失败')})
+      writeFileAsync(`./${this.missionId}/configSys.js`, getConfigData(this.data))
+      mylog.info(`[${this.missionId}]: 配置文件生成完毕`)
+    }).catch((err) => {mylog.error('配置文件生成失败')})
+    //3.向主网注册
+    .then(() => {
+      mylog.info('主网注册成功')
+      mylog.info(this.data.nodes)
+      let chainInfo = {
+        name: this.data.name,
+        tag: "tic-test"
+      }
+    }).catch((err) => {mylog.error('区块链启动失败')})
+    //4.启动区块链
+    .then(() =>{
+      // execAsync(`cd ./${this.missionId} && pm2 start ../server.js --name ${this.missionId} --no-autorestart`)
+      this.emit('finished', chainInfo)
     }).catch((err) => {mylog.error('工程文件生成失败')})
     return this
   }

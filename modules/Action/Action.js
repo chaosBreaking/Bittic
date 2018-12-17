@@ -1,4 +1,4 @@
-var Ling = wo.Ling
+var Ling = require('../../Ling/_Ling.js')
 
 /******************** Public of instance ********************/
 
