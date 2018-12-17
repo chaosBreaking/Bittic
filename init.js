@@ -92,13 +92,13 @@ async function masterInit(worker) {
     process.exit()
   }
   wo.Ling = require('./Ling/_Ling.js')
-  wo.Block = require('./Module/Block/index.js')(wo.Config.consensus)
-  wo.Peer = await require('./Module/P2P/index.js')
-  wo.Store = await require('./Module/util/Store.js')('redis') //  必须指定数据库,另外不能_init(),否则会覆盖子进程已经设定好的内容
-  wo.EventBus = require('./Module/util/EventBus.js')(worker).mount(worker)
-  wo.Chain = require('./Module/Chain/index.js')
+  wo.Block = require('./modules/Block/index.js')(wo.Config.consensus)
+  wo.Peer = await require('./modules/P2P/index.js')
+  wo.Store = await require('./modules/util/Store.js')('redis') //  必须指定数据库,另外不能_init(),否则会覆盖子进程已经设定好的内容
+  wo.EventBus = require('./modules/util/EventBus.js')(worker).mount(worker)
+  wo.Chain = require('./modules/Chain/index.js')
   mylog.info('初始化共识模块')
-  wo.Consensus = await require('./Module/Consensus/index.js')(wo.Config.consensus)._init()
+  wo.Consensus = await require('./modules/Consensus/index.js')(wo.Config.consensus)._init()
 }
 async function workerInit() {
   global.mylog = require('./util/Logger.js')
@@ -114,22 +114,22 @@ async function workerInit() {
   wo.Data = await require('./Data/' + wo.Config.dbType)._init(wo.Config.dbName);
   mylog.info('Loading classes and Creating tables......');
   wo.Ling = require('./Ling/_Ling.js');
-  wo.Account = await require('./Module/Token/Account.js');
-  wo.Action = await require('./Module/Action/Action.js')._init();
-  wo.Tac = await require('./Module/Token/Tac.js')._init();
-  wo.ActTransfer = require('./Module/Action/ActTransfer.js');
-  wo.ActStorage = require('./Module/Action/ActStorage.js');
-  wo.ActMultisig = require('./Module/Action/ActMultisig.js');
-  wo.ActTac = require('./Module/Action/ActTac.js');
-  wo.Bancor = require('./Module/Token/Bancor.js')._init();
-  wo.Block = await require('./Module/Block/index.js')(wo.Config.consensus)._init();
-  wo.Store = await require('./Module/util/Store.js')('redis', { db: wo.Config.redis_index })._init();
-  wo.Peer = await require('./Module/P2P/index.js');
-  wo.P2P = await require('./Module/P2P/P2P.js')._init();
-  wo.EventBus = require('./Module/util/EventBus.js')(process);
-  wo.Consensus = require('./Module/Consensus/index.js')('proxy', wo.Config.consensus);
+  wo.Account = await require('./modules/Token/Account.js');
+  wo.Action = await require('./modules/Action/Action.js')._init();
+  wo.Tac = await require('./modules/Token/Tac.js')._init();
+  wo.ActTransfer = require('./modules/Action/ActTransfer.js');
+  wo.ActStorage = require('./modules/Action/ActStorage.js');
+  wo.ActMultisig = require('./modules/Action/ActMultisig.js');
+  wo.ActTac = require('./modules/Action/ActTac.js');
+  wo.Bancor = require('./modules/Token/Bancor.js')._init();
+  wo.Block = await require('./modules/Block/index.js')(wo.Config.consensus)._init();
+  wo.Store = await require('./modules/util/Store.js')('redis', { db: wo.Config.redis_index })._init();
+  wo.Peer = await require('./modules/P2P/index.js');
+  wo.P2P = await require('./modules/P2P/P2P.js')._init();
+  wo.EventBus = require('./modules/util/EventBus.js')(process);
+  wo.Consensus = require('./modules/Consensus/index.js')('proxy', wo.Config.consensus);
   mylog.info('Initializing chain............');
-  wo.Chain = await require('./Module/Chain/Chain.js')._init();
+  wo.Chain = await require('./modules/Chain/Chain.js')._init();
   return 0;
 }
 

@@ -386,12 +386,3 @@ Object.defineProperty(my, "currentPhase", {
 })
 
 module.exports = POT
-
-/**
- * 100:共识校对完毕，启动定时器任务
- * 110:签名阶段开始
- * 120:竞选阶段开始
- * 130:出块阶段开始
- * 500:启动分叉处理
- * 
- */
