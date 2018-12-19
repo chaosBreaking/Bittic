@@ -76,6 +76,8 @@ io.on('broadcast',(data) => {
       mylog.info('Mission available,waiting for permission')
       //只存储orderBody
       missionPool.addMission(data.order.orderId, data.order.orderBody)
+    } else {
+      mylog.info(`本机不满足订单条件，放弃接单`)
     }
   }
 })
