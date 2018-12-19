@@ -1,14 +1,15 @@
 global.mylog = require('./Logger.js')
-const io = require('socket.io-client')('ws://101.132.121.111:6057') //http://localhost:6842 http://101.132.121.111:6057
+const io = require('socket.io-client')('ws://localhost:6842') //http://localhost:6842 http://101.132.121.111:6057
 const nodeInfo = require('./nodeInfo.js')
 const Worker = require('./worker.js')
 const missionPool = require('./store.js').MissionPool.getInstance()
-// const chainPool = await require('./store.js').ChainPool.init()
+const chainMonitor = require('./chainMonitor.js')
 function fitCheck(orderBody) {
   return orderBody.core == nodeInfo.CORE &&
   orderBody.level === nodeInfo.LEVEL &&
   orderBody.ram <= nodeInfo.RAM &&
-  orderBody.bound <= nodeInfo.BOUND
+  orderBody.bound <= nodeInfo.BOUND && 
+  !chainMonitor.hasChain()
 }
 io.on('connect',() => {
   //建立连接时进行注册
@@ -24,7 +25,7 @@ io.on('message', (data) => {
     .on("update", (step) => {
       mylog.info(`进度更新[${data.orderId}]--${step}`)
     })
-    .once("finished",(chainInfo) => {
+    .once("finished",() => {
       mylog.info('任务完成......')
       io.send({
         id: data.orderId, //控制端监听器id对应订单号
@@ -34,10 +35,21 @@ io.on('message', (data) => {
           status: 'finished',
           orderId: data.orderId,
           nodeInfo,
-          chainInfo
         }
       })
       missionPool.deleteMission(data.orderId)
+    })
+    .on('error', (errorMsg) => {
+      io.send({
+        id: data.orderId, //控制端监听器id对应订单号
+        type: 'emit',
+        data: {
+          type: 'error',
+          status: 'error',
+          orderId: data.orderId,
+          info: errorMsg
+        }
+      })
     })
   }
   if(data.type === 'deny') {
