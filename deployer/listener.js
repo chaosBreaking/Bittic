@@ -5,7 +5,7 @@ const Worker = require('./worker.js')
 const missionPool = require('./store.js').MissionPool.getInstance()
 const chainMonitor = require('./chainMonitor.js')
 function fitCheck(orderBody) {
-  return orderBody.core == nodeInfo.CORE &&
+  return orderBody.core <= nodeInfo.CORE &&
   orderBody.level === nodeInfo.LEVEL &&
   orderBody.ram <= nodeInfo.RAM &&
   orderBody.bound <= nodeInfo.BOUND && 
