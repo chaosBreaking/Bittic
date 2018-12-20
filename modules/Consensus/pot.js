@@ -38,16 +38,17 @@ async function calibrate() {
   else if (heightNow > (await wo.Chain.getTopBlock()).height + 1) {
     mylog.info(`此时刻应该到达的高度：[${heightNow}]  当前本机链的最高块高度：[${(await wo.Chain.getTopBlock()).height}]`)
     mylog.warn('>===== 开始进行区块更新和同步 =====>');
-    // let topBlock = await wo.Chain.updateChainFromPeer()
-    let topBlock = await wo.Chain.getTopBlock()
+    let topBlock = await wo.Chain.updateChainFromPeer()
     mylog.info(`>===== 当前更新到高度：${topBlock.height} =====>`);
     if (Date.time2height() - topBlock.height > 1) {
+      topBlock = await wo.Chain.getTopBlock()
       for (let height = topBlock.height + 1; height <= Date.time2height(); height++) {
         await wo.Chain.createVirtBlock()
       }
+      return 1
     }
   }
-  return 0;
+  return 0
 }
 
 POT._init = async function () {
@@ -148,7 +149,7 @@ POT.electOnce = async function () {
       my.bestPot.pubkey = my.selfPot.pubkey;
       my.signBlock = new wo.Block({ winnerMessage: my.selfPot.message, winnerSignature: my.selfPot.signature, winnerPubkey: my.selfPot.pubkey, type: 'SignBlock' }) // 把候选签名打包进本节点的虚拟块
       my.signBlock.packMe({}, await wo.Chain.getTopBlock(), wo.Crypto.secword2keypair(wo.Config.ownerSecword))
-      wo.Peer.broadcast('/Consensus/electWatcher', {Consensus: { Block: JSON.stringify(my.signBlock) }})
+      await wo.Peer.broadcast('/Consensus/electWatcher', {Consensus: { Block: JSON.stringify(my.signBlock) }})
     }
     else {
       mylog.info('本节点没有收集到时间证明，本轮不参与竞选')
@@ -188,7 +189,7 @@ POT.api.electWatcher = async function (option) { // 互相转发最优的签名�
     else if (userBalance < wo.Config.SIGNER_THRESHOLD
       || packerBalance < wo.Config.PACKER_THRESHOLD) {
       mylog.info('收到的预签名空块的用户' + wo.Crypto.pubkey2address(option.Block.winnerPubkey) + '或节点' + wo.Crypto.pubkey2address(option.Block.packerPubkey) + '的余额不足' + option.Block.winnerSignature)
-    }
+    } 
     else { // 对方的签名不如我的，就把我的最优签名告知它
       mylog.info('收到的预签名空块的用户' + wo.Crypto.pubkey2address(option.Block.winnerPubkey) + '或节点' + wo.Crypto.pubkey2address(option.Block.packerPubkey) + '的签名没有胜出：' + option.Block.winnerSignature)
     }

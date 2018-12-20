@@ -32,8 +32,8 @@ const execAsync = function (command) {
 const getConfigData = function(data) {
   return `'use strict'
   module.exports = { // 全大写字母的，代表系统常量，不要在 userConfig 或命令行参数里覆盖。小写驼峰的，是用户可以覆盖的。
-    netType: 'testnet', // 默认进入测试网
-    consensus: ${data.consensus}, // 共识机制。可选设为 ConsPot, ConsAlone。
+    netType: ${ data.netType || 'mainnet'}, // 默认进入测试网
+    consensus: ${data.consensus || 'pot'}, // 共识机制。可选设为 ConsPot, ConsAlone。
     protocol: 'http', // http|https|httpall
     host: ${nodeInfo.HOST}, // 本节点的从外部可访问的 IP or Hostname，不能是 127.0.0.1 或 localhost
     port: 6822, // 本节点的 Web服务端口号
@@ -47,7 +47,7 @@ const getConfigData = function(data) {
   
     dbType: 'sqlite',
     dbName: 'Data.sqlite/tic.sqlite',
-    redis_index: 0,
+    redis_index: 1,
     
     NET_TYPE: ['mainnet', 'testnet', 'devnet'],
     NET_MAGIC: { mainnet: '1m1', testnet: '2t2', devnet: '3d3' },
@@ -58,8 +58,8 @@ const getConfigData = function(data) {
       devnet: []
     },
   
-    VERSION: '0.0.1',
-    BLOCK_PERIOD: 60, // 出块周期(s)
+    VERSION: ${data.version || '1.0.0'},
+    BLOCK_PERIOD: ${data.blockPeriod || 60}, // 出块周期(s)
     BLOCK_MAX_SIZE: 1 * 1024 * 1024, // 每个区块的最大容量：1M字节
     PEER_CHECKING_PERIOD: 60 * 1000, // 每隔多久ping一个邻居
     PEER_CHECKING_TIMEOUT: 10, // *60*1000, // 5分钟没有响应就认为邻居节点死了
@@ -116,13 +116,12 @@ const getConfigData = function(data) {
         address: 'TxAEimQbqVRUoPncGLrrpmP82yhtoLmxJE'
       }
     },
-    GENESIS_ACCOUNT: { // 创世账户，用于创建height=0创世块
+    GENESIS_ACCOUNT: {
       secword: "skill loyal dove price spirit illegal bulk rose tattoo congress few amount",
       //    pubkey: '656315fb1a34dafbaba2421cb2a6e6685754a0e68dab28be9b90201b4220acd1',
       //    seckey: '5334cce097b645559de70d365292bb1ad045f22a1915df0e1790d1f1da6de617656315fb1a34dafbaba2421cb2a6e6685754a0e68dab28be9b90201b4220acd1',
       //    address: 'Tq4YQAbMAmoNmUK1mBDi9rqPoeCofawbCa' 
     }
-  
   }
   `
 }

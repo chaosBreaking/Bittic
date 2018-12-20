@@ -15,7 +15,7 @@ module.exports = { // 全大写字母的，代表系统常量，不要在 userCo
 
   dbType: 'sqlite',
   dbName: 'Data.sqlite/tic.sqlite',
-  redis_index: 0,
+  redisIndex: 0,
   
   NET_TYPE: ['mainnet', 'testnet', 'devnet'],
   NET_MAGIC: { mainnet: '1m1', testnet: '2t2', devnet: '3d3' },

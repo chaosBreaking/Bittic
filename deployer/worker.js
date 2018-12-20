@@ -37,9 +37,10 @@ class Mission extends events {
       writeFileAsync(`./${this.missionId}/configSys.js`, getConfigData(this.data)).then(() => {
         mylog.info(`[${this.missionId}]: 配置文件生成完毕`)
         //4.启动区块链
+        this.emit("update", step4);
         mylog.info(`[${this.missionId}]: 区块链启动中......`)
-        // execAsync(`cd ./${this.missionId} && pm2 start ../server.js --name ${this.missionId} --no-autorestart`)
-        setTimeout(() => this.emit('finished'), 2000)
+        execAsync(`cd ./${this.missionId} && mkdir Data.log && pm2 start ../server.js --name ${this.missionId} --no-autorestart -- -S ./${this.missionId}`)
+        .then(() => this.emit('finished'))
       }).catch((err) => {mylog.error('配置文件生成失败');this.emit('error', '配置文件生成失败')})
     }).catch((err) => {mylog.error('工程文件生成失败');this.emit('error', '工程文件生成失败')})
     return this

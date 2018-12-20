@@ -15,27 +15,10 @@ function config() {
 
   var Config = {}
 
-  // 读取配置文件
-  try {
-    if (fs.existsSync('./ConfigSys.js')) {
-      Config = require('./ConfigSys.js')
-      mylog.info('ConfigSys loaded')
-    }
-    if (fs.existsSync('./ConfigUser.js')) { // 如果存在，覆盖掉 ConfigSys 里的默认参数
-      Config = deepmerge(Config, require('./ConfigUser.js')) // 注意，objectMerge后，产生了一个新的对象，而不是在原来的Config里添加
-      mylog.info('ConfigUser loaded')
-    }
-    if (fs.existsSync('./ConfigSecret.js')) { // 如果存在，覆盖掉 ConfigSys 和 ConfigUser 里的参数
-      Config = deepmerge(Config, require('./ConfigSecret.js'))
-      mylog.info('ConfigSecret loaded')
-    }
-  } catch (err) {
-    mylog.error('Loading config files failed: ' + err.message)
-  }
-
   // 载入命令行参数
   commander
     .version(Config.VERSION, '-v, --version') // 默认是 -V。如果要 -v，就要加 '-v --version'
+    .option('-S, --configPath <src>', 'path of configfiles')
     .option('-c, --consensus <type>', 'Consensus type: Pot (default), Pow, Alone, etc.')
     .option('--dbType <type>', 'Database type mysql|sqlite')
     .option('--dbName <name>', 'Database name')
@@ -49,7 +32,23 @@ function config() {
     .option('--sslCert <cert>', 'SSL cert file')
     .option('--sslKey <key>', 'SSL privkey file')
     .option('--sslCA <ca>', 'SSL ca bundle file')
+    .option('-r, --redisIndex <index>', 'redis db index')
     .parse(process.argv)
+
+  // 读取配置文件
+  try {
+    if (fs.existsSync(`${commander.configPath}/ConfigSys.js`) || fs.existsSync(`./ConfigSys.js`)) {
+      Config = require(`${commander.configPath || '.'}/ConfigSys.js`)
+      mylog.info('ConfigSys loaded')
+    }
+    if (fs.existsSync(`${commander.configPath}/ConfigUser.js`) || fs.existsSync(`./ConfigSys.js`)) { // 如果存在，覆盖掉 ConfigSys 里的默认参数
+      Config = deepmerge(Config, require(`${commander.configPath || '.'}/ConfigUser.js`)) // 注意，objectMerge后，产生了一个新的对象，而不是在原来的Config里添加
+      mylog.info('ConfigUser loaded')
+    }
+  } catch (err) {
+    mylog.error('Loading config files failed: ' + err.message)
+    process.exit()
+  }
 
   // 把命令行参数 合并入配置。
   Config.consensus = commander.consensus || Config.consensus || 'pot'
@@ -67,19 +66,24 @@ function config() {
   Config.sslCert = commander.sslCert || Config.sslCert
   Config.sslKey = commander.sslKey || Config.sslKey
   Config.sslCA = commander.sslCA || Config.sslCA
-
-  Config.GENESIS_EPOCHE = Config.GENESIS_BLOCK[Config.netType].timestamp
-  Config.GENESIS_MESSAGE = Config.GENESIS_BLOCK[Config.netType].message
-  Config.INITIAL_ACCOUNT = Config.INITIAL_ACCOUNT[Config.netType]
-  Config.dbName = Config.dbName + '.' + Config.netType      
-  if (Config.netType === 'devnet') {
-      Config.GENESIS_EPOCHE = require('./util/Date.js').time2epoche({
-        type: 'prevHour'
-      }) // nextMin: 下一分钟（单机测试）， prevHour: 前一小时（多机测试），或 new Date('2018-07-03T10:15:00.000Z') // 为了方便开发，暂不使用固定的创世时间，而是生成当前时刻之后的第一个0秒，作为创世时间
+  Config.redisIndex = commander.redisIndex || Config.redisIndex
+  try {
+    Config.GENESIS_EPOCHE = Config.GENESIS_BLOCK[Config.netType].timestamp
+    Config.GENESIS_MESSAGE = Config.GENESIS_BLOCK[Config.netType].message
+    Config.INITIAL_ACCOUNT = Config.INITIAL_ACCOUNT[Config.netType]
+    Config.dbName = Config.dbName + '.' + Config.netType      
+    if (Config.netType === 'devnet') {
+        Config.GENESIS_EPOCHE = require('./util/Date.js').time2epoche({
+          type: 'prevHour'
+        }) // nextMin: 下一分钟（单机测试）， prevHour: 前一小时（多机测试），或 new Date('2018-07-03T10:15:00.000Z') // 为了方便开发，暂不使用固定的创世时间，而是生成当前时刻之后的第一个0秒，作为创世时间
+    }
+  
+    mylog.info('Configuration is ready.')
+    return Config
+  } catch (error) {
+    mylog.error("Error: Invalid Config File or Config Commander!")
+    process.exit()
   }
-
-  mylog.info('Configuration is ready.')
-  return Config
 }
 async function masterInit(worker) {
   global.mylog = require('./util/Logger.js')
@@ -123,7 +127,7 @@ async function workerInit() {
   wo.ActTac = require('./modules/Action/ActTac.js');
   wo.Bancor = require('./modules/Token/Bancor.js')._init();
   wo.Block = await require('./modules/Block/index.js')(wo.Config.consensus)._init();
-  wo.Store = await require('./modules/util/Store.js')('redis', { db: wo.Config.redis_index })._init();
+  wo.Store = await require('./modules/util/Store.js')('redis', { db: wo.Config.redisIndex })._init();
   wo.Peer = await require('./modules/P2P/index.js');
   wo.P2P = await require('./modules/P2P/P2P.js')._init();
   wo.EventBus = require('./modules/util/EventBus.js')(process);

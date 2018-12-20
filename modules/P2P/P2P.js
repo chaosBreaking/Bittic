@@ -17,8 +17,7 @@ Peers.prototype._model = { // 数据模型，用来初始化每个对象的数�
   ownerAddress:   { default: '' }, // 应当记录属于哪个用户，作为全网每个节点的唯一标志符
   accessPoint:    { default: '' }, // 该节点的http连接地址。
   host:           { default: '' }, // IP or hostname like http://remoteaddress.com or http://101.222.121.111
-  port:           { default: '6842' }, //共识协议交流端口
-  consPort:       { default: '6888' }, //共识协议交流端口
+  port:           { default: wo.Config.port }, //共识协议交流端口
   status:         { default: 'unknown' }, // unknown是刚加入pool时未知状态。开始检查后，状态是 active, broken, dead
   checking:       { default: 'idle' }, // idle 或 pending
   lastRequest:    { default: '' }, // 上一次 ping 请求的时间
@@ -48,6 +47,7 @@ getUrl = function (peer) {
 
 Peers._init = async function () {
   // 建立种子节点库
+  mylog.warn('iinit',wo.Config.seedSet)
   if (wo.Config.seedSet && Array.isArray(wo.Config.seedSet) && wo.Config.seedSet.length > 0) {
     mylog.info('初始化种子节点')
     await Promise.all(wo.Config.seedSet.map((peer, index) => {
@@ -57,9 +57,9 @@ Peers._init = async function () {
         body: { Peer: JSON.stringify(my.self) }, // 告诉对方，我是谁，以及发出ping的时间
         json: true
       }).then(async function (result) {
-        return await Peers.addPeer2Pool(Object.assign(result, { accessPoint: peer, ownerAddress: result.remoteAddress }))
+        await Peers.addPeer2Pool(Object.assign(result, { accessPoint: peer, ownerAddress: result.remoteAddress }))
       }).catch(function (err) {
-        return null
+        mylog.warn('无可用种子节点')
       })
     }))
     // 建立邻居节点库
@@ -76,10 +76,10 @@ Peers._init = async function () {
           await Peers.addPeer2Pool(peerArray);
         }).catch(err => {mylog.warn('获取节点失败')})
       }))
-    my.scheduleJob[0] = Schedule.scheduleJob(`*/59 * * * * *`, Peers.updatePool)
-    // setInterval(Peers.updatePool, wo.Config.PEER_CHECKING_PERIOD) 
-    // 多久检查一个节点？假设每个节点有12个peer，5秒检查一个，1分钟可检查一圈。而且5秒足够ping响应。
+      // setInterval(Peers.updatePool, wo.Config.PEER_CHECKING_PERIOD) 
+      // 多久检查一个节点？假设每个节点有12个peer，5秒检查一个，1分钟可检查一圈。而且5秒足够ping响应。
   }
+  my.scheduleJob[0] = Schedule.scheduleJob(`*/59 * * * * *`, Peers.updatePool)
   return this
 }
 
@@ -138,8 +138,8 @@ Peers.updatePool = async function () { // 从节点池取出第一个节点，�
   }
 }
 
-Peers.broadcast = async function (api, message, peers) { // api='/类名/方法名'  向所有邻居发出广播，返回所有结果的数组。可通过 peerSet 参数指定广播对象。
-  let peerSet = peers || Object.values(await Peers.getPeers());
+Peers.broadcast = async function (api, message) { // api='/类名/方法名'  向所有邻居发出广播，返回所有结果的数组。可通过 peerSet 参数指定广播对象。
+  let peerSet = Object.values(await Peers.getPeers());
   mylog.info(`广播调用${api}`)
   if (peerSet && peerSet.length > 0) {
     let res = await Promise.all(peerSet.map(peer => RequestPromise({
@@ -181,11 +181,11 @@ Peers.randomcast = async function (api, message, peers) { // 随机挑选一个�
  */
 Peers.checkValid = function (peer) {
   if (
-    !peer.p2pPort ||
+    !peer.port ||
     !peer.accessPoint || 
     !peer.ownerAddress ||
     peer.ownerAddress == my.self.ownerAddress ||
-    peer.accessPoint.includes('192.168') || 
+    // peer.accessPoint.includes('192.168') || 
     peer.accessPoint.includes('localhost') || 
     peer.accessPoint.includes('127.0')
   )
@@ -278,12 +278,14 @@ Peers.api = {} // 对外可RPC调用的方法
  */
 Peers.api.ping = async function (option) {
   if (option && option.Peer && Peers.checkValid(option.Peer)) {
-    let isNewPeer = !my.peerAddressArray[option.Peer.ownerAddress]
+    let isNewPeer = !(await Peers.getPeers())[option.Peer.ownerAddress]
     if (isNewPeer) { // 是新邻居发来的ping？把新邻居加入节点池
-      var fromHost = option._req.headers['x-forwarded-for'] || option._req.connection.remoteAddress || option._req.socket.remoteAddress || option._req.connection.socket.remoteAddress
-      var fromPort = option._req.connection.remotePort
+      // var fromHost = option._req.headers['x-forwarded-for'] || option._req.connection.remoteAddress || option._req.socket.remoteAddress || option._req.connection.socket.remoteAddress
+      // var fromPort = option._req.connection.remotePort
+      // option.Peer.host = fromHost
+      // option.Peer.port = fromPort
       await Peers.pushPeerPool(new Peers(option.Peer))
-      mylog.info(`加入新节点 -- ${option.Peer.ownerAddress}-${option.Peer.accessPoint}`)
+      mylog.info(`加入新节点 -- ${option.Peer.ownerAddress}-${option.Peer.accessPoint}:${option.Peer.port}`)
     }
     return my.self // 把远方节点的信息添加一些资料后，返回给远方节点
   }
@@ -299,10 +301,7 @@ Peers.api.sharePeer = async function () { // 响应邻居请求，返回更多�
   let res = Object.values(await Peers.getPeers() || {}) // todo: 检查 option.Peer.ownerAddress 不要把邻居节点返回给这个邻居自己。
   return res
 }
-Peers.api.test = function() {
-  console.log('ok')
-  return 'ok'
-}
+
 module.exports = {
   api: Peers.api,
   _init: Peers._init,
