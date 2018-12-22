@@ -31,9 +31,9 @@ my.scheduleJob = []
 my.peerAddressArray = []
 my.self = new Peers({
   ownerAddress: wo.Crypto.secword2address(wo.Config.ownerSecword),
-  accessPoint: wo.Config.protocol + '://' + wo.Config.host,
+  accessPoint: wo.Config.protocol + '://' + wo.Config.host + port,
   host: wo.Config.host,
-  port: wo.Config.webPort,      //web服务端口
+  port: wo.Config.port,      //web服务端口
 })
 
 getUrl = function (peer) {
@@ -47,7 +47,6 @@ getUrl = function (peer) {
 
 Peers._init = async function () {
   // 建立种子节点库
-  mylog.warn('iinit',wo.Config.seedSet)
   if (wo.Config.seedSet && Array.isArray(wo.Config.seedSet) && wo.Config.seedSet.length > 0) {
     mylog.info('初始化种子节点')
     await Promise.all(wo.Config.seedSet.map((peer, index) => {
