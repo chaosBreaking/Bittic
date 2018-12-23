@@ -97,8 +97,8 @@ async function masterInit(worker) {
   }
   wo.Ling = require('./Ling/_Ling.js')
   wo.Block = require('./modules/Block/index.js')(wo.Config.consensus)
-  wo.Peer = await require('./modules/P2P/index.js')
-  wo.Store = await require('./modules/util/Store.js')('redis') //  必须指定数据库,另外不能_init(),否则会覆盖子进程已经设定好的内容
+  wo.Peer = await require('./modules/P2P/index.js')('proxy')
+  wo.Store = await require('./modules/util/Store.js')('redis') //  必须指定数据库类型,另外不能_init(),否则会覆盖子进程已经设定好的内容
   wo.EventBus = require('./modules/util/EventBus.js')(worker).mount(worker)
   wo.Chain = require('./modules/Chain/index.js')
   mylog.info('初始化共识模块')
@@ -129,7 +129,6 @@ async function workerInit() {
   wo.Block = await require('./modules/Block/index.js')(wo.Config.consensus)._init();
   wo.Store = await require('./modules/util/Store.js')('redis', { db: wo.Config.redisIndex })._init();
   wo.Peer = await require('./modules/P2P/index.js');
-  wo.P2P = await require('./modules/P2P/P2P.js')._init();
   wo.EventBus = require('./modules/util/EventBus.js')(process);
   wo.Consensus = require('./modules/Consensus/index.js')('proxy', wo.Config.consensus);
   mylog.info('Initializing chain............');
@@ -297,7 +296,8 @@ function serverInit() { // 配置并启动 Web 服务
     wo.Socket.sockets.on('connection',(socket)=>{
       // 处理操作
       mylog.info('new client connected');
-      socket.send('hello')
+      // socket.send('hello')
+      socket.on('peer', wo.Peer.eventHandler)
     });
     wo.EventBus.send(200, "链进程初始化完毕");
     //启动区块链部署程序

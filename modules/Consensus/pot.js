@@ -5,12 +5,12 @@
  * 3.分叉处理
  * 4.在另一个进程收到API调用的处理程序
  */
+const POT = {}
 const Schedule = require('node-schedule')
 const electTime = (wo.Config.BLOCK_PERIOD / 3).toFixed(0) * 1
 const mineTime = (wo.Config.BLOCK_PERIOD / 3).toFixed(0) * 2
 /******************** Public of instances ********************/
 
-const POT = {}
 async function calibrate() {
   //启动前本机链情况检查
   // mylog.info('此刻本机链的最高块 : ' + (await wo.Chain.getTopBlock()).height);
