@@ -31,7 +31,7 @@ my.scheduleJob = []
 my.peerAddressArray = []
 my.self = new Peers({
   ownerAddress: wo.Crypto.secword2address(wo.Config.ownerSecword),
-  accessPoint: wo.Config.protocol + '://' + wo.Config.host + port,
+  accessPoint: wo.Config.protocol + '://' + wo.Config.host + wo.Config.port,
   host: wo.Config.host,
   port: wo.Config.port,      //web服务端口
 })
