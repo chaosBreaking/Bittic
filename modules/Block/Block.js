@@ -191,13 +191,6 @@ MOM.executeActions = async function (actionPool) {
   return null
 }
 
-MOM.normalize=function(){
-  for (let action of this.actionHashList) {
-//    action.normalize();
-  }
-  return this
-}
-
 /*********************** Public members of class *******************/
 
 DAD.api={} // 面向前端应用的API

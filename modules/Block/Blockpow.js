@@ -147,12 +147,6 @@ MOM.verifyActionList = async function(){
 MOM.executeActions = () => {
   return 1
 }
-MOM.normalize=function(){
-  for (let action of this.actionHashList) {
-//    action.normalize();
-  }
-  return this
-}
 
 /*********************** Public members of class *******************/
 

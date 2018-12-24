@@ -191,18 +191,6 @@ function serverInit() { // 配置并启动 Web 服务
     }
     /////////// authentication ///////////////////
     option._req = ask
-    async function normalize(result) { // 有的实例的normalize 需要当前用户信息，比如 Message 要根据当前用户判断 vote 。所以这个函数定义在这里，把含有当前用户信息的option给它
-      if (result && result instanceof wo.Ling) { // 是 Ling 元素。注意，字符串也有 normalize 方法，在WSL16+node9.4里会报错“RangeError: The normalization form should be one of NFC, NFD, NFKC, NFKD.”，所以必须判断是Ling，而不能只判断具有normalize方法。
-        await result.normalize(option) // 有的 normalize 需要 option，例如检查当前用户是否投票了某消息
-      } else if (result && typeof result === 'object') { // 是其他对象或数组
-        for (var i in result) {
-          await normalize(result[i])
-        }
-      } else if (typeof result === 'undefined') { // reply.json(undefined 或 nothing) 会导致什么都不输出给前端，可能导致前端默默出错。因此这时返回null。
-        result = null
-      }
-      return result
-    }
 
     reply.setHeader('charset', 'utf-8')
     reply.setHeader('Access-Control-Allow-Origin', '*')
@@ -216,7 +204,7 @@ function serverInit() { // 配置并启动 Web 服务
     try {
       if (wo[_who] && wo[_who][_api] && wo[_who][_api].hasOwnProperty(_act) && typeof wo[_who][_api][_act] === 'function') {
         var result = await wo[_who][_api][_act](option)
-        reply.json(await normalize(result)) // 似乎 json(...) 相当于 send(JSON.stringify(...))。如果json(undefined或nothing)会什么也不输出给前端，可能导致前端默默出错；json(null/NaN/Infinity)会输出null给前端（因为JSON.stringify(NaN/Infinity)返回"null"）。
+        reply.json(result) // 似乎 json(...) 相当于 send(JSON.stringify(...))。如果json(undefined或nothing)会什么也不输出给前端，可能导致前端默默出错；json(null/NaN/Infinity)会输出null给前端（因为JSON.stringify(NaN/Infinity)返回"null"）。
       } else {
         reply.json(null)
       }
