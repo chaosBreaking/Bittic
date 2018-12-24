@@ -15,6 +15,9 @@
     "deepmerge": "^2.1.0",
     "errorhandler": "^1.5.0",
     "express": "^4.14.1",
+    "fon.base": "git+https://git.faronear.org/fon/fon.base#20181205",
+    "fon.data": "git+https://git.faronear.org/fon/fon.data#20181205",
+    "fon.ling": "git+https://git.faronear.org/fon/fon.ling#20181205",
     "http-proxy": "^1.16.2",
     "ioredis": "^4.0.0",
     "ip": "^1.1.5",
@@ -32,6 +35,7 @@
     "sntp": "^3.0.1",
     "socket.io": "^1.0.6",
     "sqlite": "^3.0.0",
+    "tic.crypto": "git+https://git.faronear.org/tic/tic.crypto#20181205",
     "tweetnacl": "^1.0.0",
     "uuid": "^3.0.1"
   },
@@ -44,9 +48,9 @@
   },
   "scripts": {
     "setup": "npm install",
-    "start": "cross-env NODE_ENV=development supervisor -i Data.log,node_modules,Data.sqlite --harmony server.js",
-    "inspect": "cross-env NODE_ENV=development supervisor -i Data.log,node_modules,Data.sqlite --inspect --harmony server.js",
-    "service": "cross-env NODE_ENV=production supervisor -i Data.log,node_modules,Data.sqlite --harmony server.js -P https > Data.log/service.log",
+    "start": "cross-env NODE_ENV=development supervisor -i data.log,node_modules,data.sqlite --harmony server.js",
+    "inspect": "cross-env NODE_ENV=development supervisor -i data.log,node_modules,data.sqlite --inspect --harmony server.js",
+    "service": "cross-env NODE_ENV=production supervisor -i data.log,node_modules,data.sqlite --harmony server.js -P https > data.log/service.log",
     "dev": "node init.js -n devnet"
   },
   "author": ""

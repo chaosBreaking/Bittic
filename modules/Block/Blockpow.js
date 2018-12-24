@@ -1,4 +1,4 @@
-var Ling = require('../../Ling/_Ling.js')
+var Ling = wo.Ling
 
 /******************** Public members of instance ********************/
 
@@ -112,7 +112,7 @@ MOM.verifyActionList = async function(){
   if(this.actionHashList.length === 0 )
     return true
   let actionList = await wo.Action.getAll({Action:{blockHash:this.hash}, config:{limit:this.actionHashList.length}})
-  let actionHashList = wo.Tool.extend([], this.actionHashList)
+  let actionHashList = JSON.parse(JSON.stringify(this.actionHashList))
   for (let action of actionList){
     if(actionHashList.indexOf(action.blockHash) !== -1)
     {

@@ -1,4 +1,4 @@
-const Ling = require('../../Ling/_Ling.js')
+const Ling = wo.Ling
 
 class Tac extends Ling {
   constructor(prop){

@@ -1,2 +1,0 @@
-var mongodb=require('mongodb');
-

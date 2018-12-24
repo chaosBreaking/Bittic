@@ -1,14 +1,14 @@
 const Ling = wo.Ling
-const url = require('url');
-const Schedule = require('node-schedule');
-const RequestPromise = require('request-promise-native'); // request-promise/-native。https://www.npmjs.com/package/request-promise. 还看到一个方法：Bluebird.promisifyAll(require("request"));
-const store = require('../../util/StoreApi.js')('redis')
+const url = require('url')
+const Schedule = require('node-schedule')
+const RequestPromise = require('request-promise-native') // request-promise/-native。https://www.npmjs.com/package/request-promise. 还看到一个方法：Bluebird.promisifyAll(require("request"));
+const store = require('../util/StoreApi.js')('redis')
 
 class Peers extends Ling {
   constructor(prop) {
     super(prop)
-    this._class = this.constructor.name;
-    this.setProp(prop);
+    this._class = this.constructor.name
+    this.setProp(prop)
   }
 }
 

@@ -134,7 +134,7 @@ MOM.verifyActionList = async function(){
     return true
 
   let actionList = await wo.Action.getAll({Action:{blockHash:this.hash}, config:{limit:this.actionHashList.length}})
-  let actionHashList = wo.Tool.extend([], this.actionHashList);
+  let actionHashList = JSON.parse(JSON.stringify(this.actionHashList))
   if(actionList && actionList.length > 0){
     for (let action of actionList){
       if(actionHashList.indexOf(action.hash) !== -1)

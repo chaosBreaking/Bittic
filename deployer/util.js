@@ -46,7 +46,7 @@ const getConfigData = function(data) {
     seedSet: [], // 系统默认的种子节点
   
     dbType: 'sqlite',
-    dbName: 'Data.sqlite/tic.sqlite',
+    dbName: 'data.sqlite/tic.sqlite',
     redis_index: 1,
     
     NET_TYPE: ['mainnet', 'testnet', 'devnet'],

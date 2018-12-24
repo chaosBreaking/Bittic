@@ -1,7 +1,7 @@
 'use strict'
 module.exports = { // 全大写字母的，代表系统常量，不要在 userConfig 或命令行参数里覆盖。小写驼峰的，是用户可以覆盖的。
-  netType: 'testnet', // 默认进入测试网
-  consensus: null, // 共识机制。可选设为 ConsPot, ConsAlone。
+  netType: 'devnet', // 默认进入测试网
+  consensus: 'pot', // 共识机制。可选设为 ConsPot, ConsAlone。
   protocol: 'http', // http|https|httpall
   host: null, // 本节点的从外部可访问的 IP or Hostname，不能是 127.0.0.1 或 localhost
   port: 6842, // 本节点的 Web服务端口号
@@ -14,7 +14,7 @@ module.exports = { // 全大写字母的，代表系统常量，不要在 userCo
   seedSet: [], // 系统默认的种子节点
 
   dbType: 'sqlite',
-  dbName: 'Data.sqlite/tic.sqlite',
+  dbName: 'data.sqlite/tic.sqlite',
   redisIndex: 0,
   
   NET_TYPE: ['mainnet', 'testnet', 'devnet'],

@@ -1,8 +1,8 @@
 'use strict'
-const fs = require('fs');
-const cluster = require('cluster');
-const socket = require('socket.io');
-const mylog = require('./util/Logger.js');
+const fs = require('fs')
+const cluster = require('cluster')
+const socket = require('socket.io')
+const mylog = require('fon.base/Logger.js')({root:'data.log'}) // 简写 console.log，为了少敲几个字母
 
 function config() {
   // 配置参数（按优先级从低到高）：
@@ -19,13 +19,13 @@ function config() {
   commander
     .version(Config.VERSION, '-v, --version') // 默认是 -V。如果要 -v，就要加 '-v --version'
     .option('-S, --configPath <src>', 'path of configfiles')
-    .option('-c, --consensus <type>', 'Consensus type: Pot (default), Pow, Alone, etc.')
+    .option('-c, --consensus <type>', 'Consensus type: Pot|Pow|Alone, default to ' + Config.consensus)
     .option('--dbType <type>', 'Database type mysql|sqlite')
     .option('--dbName <name>', 'Database name')
     .option('-H, --host <host>', 'host ip or domain name')
     .option('-n, --netType <net>', 'devnet/testnet/mainnet')
     .option('-o, --ownerSecword <secword>', 'Node owner\'s secword')
-    .option('-P, --protocol <protocol>', 'Server protocol http|https|httpall, default ' + Config.protocol)
+    .option('-P, --protocol <protocol>', 'Server protocol: http|https|httpall, default ' + Config.protocol)
     .option('-p, --port <port>', 'Server port, default' + Config.port)
     .option('-l, --link <link>', 'P2P protocol: http|udp')
     .option('-s, --seedSet <seedSet>', 'Peers array in JSON, such as \'["http://ip_or_dn:port"]\'')
@@ -56,7 +56,7 @@ function config() {
 
   Config.dbType = commander.dbType || Config.dbType
   Config.dbName = commander.dbName || Config.dbName
-  Config.host = commander.host || Config.host || require('./util/Network.js').getMyIp() // // 本节点的从外部可访问的 IP or Hostname，不能是 127.0.0.1 或 localhost
+  Config.host = commander.host || Config.host || require('fon.base/Network.js').getMyIp() // // 本节点的从外部可访问的 IP or Hostname，不能是 127.0.0.1 或 localhost
   Config.netType = commander.netType || Config.netType
   Config.ownerSecword = commander.ownerSecword || Config.ownerSecword
   Config.protocol = commander.protocol || Config.protocol
@@ -71,11 +71,9 @@ function config() {
     Config.GENESIS_EPOCHE = Config.GENESIS_BLOCK[Config.netType].timestamp
     Config.GENESIS_MESSAGE = Config.GENESIS_BLOCK[Config.netType].message
     Config.INITIAL_ACCOUNT = Config.INITIAL_ACCOUNT[Config.netType]
-    Config.dbName = Config.dbName + '.' + Config.netType      
+    Config.dbName=`${Config.dbName}-${Config.consensus}-${Config.netType}.${Config.dbType}`
     if (Config.netType === 'devnet') {
-        Config.GENESIS_EPOCHE = require('./util/Date.js').time2epoche({
-          type: 'prevHour'
-        }) // nextMin: 下一分钟（单机测试）， prevHour: 前一小时（多机测试），或 new Date('2018-07-03T10:15:00.000Z') // 为了方便开发，暂不使用固定的创世时间，而是生成当前时刻之后的第一个0秒，作为创世时间
+      Config.GENESIS_EPOCHE = require('fon.base/Date.js').time2epoche({ type: 'prevHour' }) // nextMin: 下一分钟（单机测试）， prevHour: 前一小时（多机测试），或 new Date('2018-07-03T10:15:00.000Z') // 为了方便开发，暂不使用固定的创世时间，而是生成当前时刻之后的第一个0秒，作为创世时间
     }
   
     mylog.info('Configuration is ready.')
@@ -85,17 +83,21 @@ function config() {
     process.exit()
   }
 }
+
 async function masterInit(worker) {
-  global.mylog = require('./util/Logger.js')
-  global.wo = {}
-  wo.Tool = new(require('./util/Egg.js'))()
-  wo.Config = config()
-  wo.Crypto = require('./util/Crypto.js')
-  if (!wo.Crypto.isSecword(wo.Config.ownerSecword)) {
-    mylog.error('Invalid secword! Please setup a secword in ConfigSecret.js')
+  global.mylog = require('fon.base/Logger.js')({root:'data.log'}) // 简写 console.log，为了少敲几个字母
+
+  global.wo = {} // wo 代表 world或‘我’，是当前的命名空间，把各种类都放在这里，防止和其他库的冲突。
+// 通过 JSON.parse(JSON.stringify(this.actionHashList)) 来取代 extend，彻底解除对wo.Tool依赖 wo.Tool = new (require('fon.base/Egg.js'))()
+  wo.Config = config() // 依次载入系统默认配置、用户配置文件、命令行参数
+  wo.Crypto = require('tic.crypto')
+  if (!wo.Crypto.isSecword(wo.Config.ownerSecword)){
+    mylog.warn('Invalid secword! Please setup a secword in ConfigSecret.js')
     process.exit()
   }
-  wo.Ling = require('./Ling/_Ling.js')
+
+  wo.Ling = require('fon.ling')
+
   wo.Block = require('./modules/Block/index.js')(wo.Config.consensus)
   wo.Peer = await require('./modules/P2P/index.js')
   wo.Store = await require('./modules/util/Store.js')('redis') //  必须指定数据库,另外不能_init(),否则会覆盖子进程已经设定好的内容
@@ -104,37 +106,44 @@ async function masterInit(worker) {
   mylog.info('初始化共识模块')
   wo.Consensus = await require('./modules/Consensus/index.js')(wo.Config.consensus)._init()
 }
+
 async function workerInit() {
-  global.mylog = require('./util/Logger.js')
-  global.wo = {}
-  wo.Tool = new(require('./util/Egg.js'))()
-  wo.Config = config()
-  wo.Crypto = require('./util/Crypto.js')
-  if (!wo.Crypto.isSecword(wo.Config.ownerSecword)) {
+  global.mylog = require('fon.base/Logger.js')({root:'data.log'}) // 简写 console.log，为了少敲几个字母
+
+  global.wo = {} // wo 代表 world或‘我’，是当前的命名空间，把各种类都放在这里，防止和其他库的冲突。
+// 通过 JSON.parse(JSON.stringify(this.actionHashList)) 来取代 extend，彻底解除对wo.Tool依赖 wo.Tool = new (require('fon.base/Egg.js'))()
+  wo.Config = config() // 依次载入系统默认配置、用户配置文件、命令行参数
+  wo.Crypto = require('tic.crypto')
+  if (!wo.Crypto.isSecword(wo.Config.ownerSecword)){
     mylog.error('Invalid secword! Please setup a secword in ConfigSecret.js')
     process.exit()
   }
+
   mylog.info('Initializing database......')
-  wo.Data = await require('./Data/' + wo.Config.dbType)._init(wo.Config.dbName);
-  mylog.info('Loading classes and Creating tables......');
-  wo.Ling = require('./Ling/_Ling.js');
-  wo.Account = await require('./modules/Token/Account.js');
-  wo.Action = await require('./modules/Action/Action.js')._init();
-  wo.Tac = await require('./modules/Token/Tac.js')._init();
-  wo.ActTransfer = require('./modules/Action/ActTransfer.js');
-  wo.ActStorage = require('./modules/Action/ActStorage.js');
-  wo.ActMultisig = require('./modules/Action/ActMultisig.js');
-  wo.ActTac = require('./modules/Action/ActTac.js');
-  wo.Bancor = require('./modules/Token/Bancor.js')._init();
-  wo.Block = await require('./modules/Block/index.js')(wo.Config.consensus)._init();
-  wo.Store = await require('./modules/util/Store.js')('redis', { db: wo.Config.redisIndex })._init();
-  wo.Peer = await require('./modules/P2P/index.js');
-  wo.P2P = await require('./modules/P2P/P2P.js')._init();
-  wo.EventBus = require('./modules/util/EventBus.js')(process);
-  wo.Consensus = require('./modules/Consensus/index.js')('proxy', wo.Config.consensus);
-  mylog.info('Initializing chain............');
-  wo.Chain = await require('./modules/Chain/Chain.js')._init();
-  return 0;
+  wo.Data = await require('fon.data')(wo.Config.dbType)._init(wo.Config.dbName)
+
+  mylog.info('Loading classes and Creating tables......')
+  wo.Ling = require('fon.ling')
+  // wo.Session=await require('fon.ling/Session.js')._init() // 目前不使用。
+
+  wo.Account = await require('./modules/Token/Account.js')
+  wo.Action = await require('./modules/Action/Action.js')._init()
+  wo.Tac = await require('./modules/Token/Tac.js')._init()
+  wo.ActTransfer = require('./modules/Action/ActTransfer.js')
+  wo.ActStorage = require('./modules/Action/ActStorage.js')
+  wo.ActMultisig = require('./modules/Action/ActMultisig.js')
+  wo.ActTac = require('./modules/Action/ActTac.js')
+  wo.Bancor = require('./modules/Token/Bancor.js')._init()
+  wo.Block = await require('./modules/Block/index.js')(wo.Config.consensus)._init()
+  wo.Store = await require('./modules/util/Store.js')('redis', { db: wo.Config.redisIndex })._init()
+  wo.Peer = await require('./modules/P2P/index.js')
+  wo.P2P = await require('./modules/P2P/P2P.js')._init()
+  wo.EventBus = require('./modules/util/EventBus.js')(process)
+  wo.Consensus = require('./modules/Consensus/index.js')('proxy', wo.Config.consensus)
+
+  mylog.info('Initializing chain............')
+  wo.Chain = await require('./modules/Chain/Chain.js')._init()
+  return 0
 }
 
 function serverInit() { // 配置并启动 Web 服务
@@ -153,7 +162,7 @@ function serverInit() { // 配置并启动 Web 服务
 
   /*** 通用中间件 ***/
 
-  server.use(Morgan('development' === server.get('env') ? 'dev' : 'combined')) // , {stream:require('fs').createWriteStream(path.join(__dirname+'/Data.log', 'http.log'), {flags: 'a', defaultEncoding: 'utf8'})})) // format: combined, common, dev, short, tiny.  发现 defaultEncoding 并不起作用。
+  server.use(Morgan('development' === server.get('env') ? 'dev' : 'combined')) // , {stream:require('fs').createWriteStream(path.join(__dirname+'/data.log', 'http.log'), {flags: 'a', defaultEncoding: 'utf8'})})) // format: combined, common, dev, short, tiny.  发现 defaultEncoding 并不起作用。
   server.use(MethodOverride())
   server.use(CookieParser())
   server.use(BodyParser.json({
@@ -174,14 +183,14 @@ function serverInit() { // 配置并启动 Web 服务
     /* 把前端传来的json参数，重新解码成对象 */
     var option = {}
     for (let key in ask.query) { // GET 方法传来的参数
-      option[key] = wo.Tool.json2obj(ask.query[key])
+      option[key] = wo.Ling.json2obj(ask.query[key])
       mylog.info(key + " : " + option[key])
     }
     for (let key in ask.body) { // POST 方法传来的参数
-      option[key] = wo.Tool.json2obj(ask.body[key])
+      option[key] = wo.Ling.json2obj(ask.body[key])
     }
     /////////// authentication ///////////////////
-    option._req = ask;
+    option._req = ask
     async function normalize(result) { // 有的实例的normalize 需要当前用户信息，比如 Message 要根据当前用户判断 vote 。所以这个函数定义在这里，把含有当前用户信息的option给它
       if (result && result instanceof wo.Ling) { // 是 Ling 元素。注意，字符串也有 normalize 方法，在WSL16+node9.4里会报错“RangeError: The normalization form should be one of NFC, NFD, NFKC, NFKD.”，所以必须判断是Ling，而不能只判断具有normalize方法。
         await result.normalize(option) // 有的 normalize 需要 option，例如检查当前用户是否投票了某消息
@@ -235,15 +244,15 @@ function serverInit() { // 配置并启动 Web 服务
     webServer = require('http').createServer(server)
     webServer.listen(wo.Config.port, function (err) {
       mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, wo.Config.port, server.settings.env)
-    });
+    })
   } else if ('https' === wo.Config.protocol) { // 启用 https。从 http或https 网页访问 https的ticnode/socket 都可以，socket.io 内容也是一致的。
     webServer = require('https').createServer({
       key: fs.readFileSync(wo.Config.sslKey),
       cert: fs.readFileSync(wo.Config.sslCert) // , ca: [ fs.readFileSync(wo.Config.sslCA) ] // only for self-signed certificate: https://nodejs.org/api/tls.html#tls_tls_createserver_options_secureconnectionlistener
-    }, server);
+    }, server)
     webServer.listen(wo.Config.port, function (err) {
       mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, wo.Config.port, server.settings.env)
-    });
+    })
   } else if ('httpall' === wo.Config.protocol) { // 同时启用 http 和 https
     let portHttp = wo.Config.port ? wo.Config.port : 80 // 如果port参数已设置，使用它；否则默认为80
     webServer = require('http').createServer(server)
@@ -265,41 +274,41 @@ function serverInit() { // 配置并启动 Web 服务
 
 (async function Start() {
   if (cluster.isMaster) {
-    let worker = cluster.fork();
+    let worker = cluster.fork()
     cluster.once('message', async (worker, message) => {
       if(message.code == 200) {
-        mylog.warn(`[Master] 主程序初始化完毕，启动共识模块......`);
-        await masterInit(worker);
-        return 0;
+        mylog.warn(`[Master] 主程序初始化完毕，启动共识模块......`)
+        await masterInit(worker)
+        return 0
       }
-    });
+    })
 
     cluster.on('exit', function (worker, code, signal) {
-      mylog.error('worker ' + worker.process.pid + ' died, Restarting');
-      var worker = cluster.fork();
+      mylog.error('worker ' + worker.process.pid + ' died, Restarting')
+      var worker = cluster.fork()
       cluster.once('message', async (worker, message) => {
         if (message.code == 200) {
-            mylog.warn(`[Master] 主程序初始化完毕，启动共识模块......`);
-            await masterInit(worker);
-            return 0;
+            mylog.warn(`[Master] 主程序初始化完毕，启动共识模块......`)
+            await masterInit(worker)
+            return 0
         }
-      });
-    });
+      })
+    })
   }
   else {
     /**BlockChain以及RPC服务进程 */
-    await workerInit();
-    let webServer = serverInit();
-    wo.Socket = socket.listen(webServer);
+    await workerInit()
+    let webServer = serverInit()
+    wo.Socket = socket.listen(webServer)
     wo.Socket.sockets.on("open",()=>{
-      mylog.info('Socket started');
+      mylog.info('Socket started')
     })
     wo.Socket.sockets.on('connection',(socket)=>{
       // 处理操作
-      mylog.info('new client connected');
+      mylog.info('new client connected')
       socket.send('hello')
-    });
-    wo.EventBus.send(200, "链进程初始化完毕");
+    })
+    wo.EventBus.send(200, "链进程初始化完毕")
     //启动区块链部署程序
     try {
       (require('./deployer/util.js').execAsync)('node ./deployer/listener.js')
