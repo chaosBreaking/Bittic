@@ -1,7 +1,5 @@
 const Ling = wo.Ling
 
-const BigNumber=require('bignumber.js') // https://github.com/MikeMcl/bignumber.js  几个库的比较: node-bignum: 使用到openssl，在windows上需要下载二进制包，有时下载失败。bigi: 不错。 bignumber.js：不错。
-
 const DAD=module.exports=function Bancor(model) { // 构建类
   this._class=this.constructor.name
   this.setProp(model)
