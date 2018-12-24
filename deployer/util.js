@@ -51,7 +51,7 @@ const getConfigData = function(data) {
     
     NET_TYPE: ['mainnet', 'testnet', 'devnet'],
     NET_MAGIC: { mainnet: '1m1', testnet: '2t2', devnet: '3d3' },
-    NET_PORT: { mainnet: 6842, testnet: 6842, devnet: 6842 },
+    NET_PORT: { mainnet: 8888, testnet: 8888, devnet: 8888 },
     NET_SEEDSET: {
       mainnet: [],
       testnet: [],

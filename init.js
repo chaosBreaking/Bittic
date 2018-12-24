@@ -60,7 +60,7 @@ function config() {
   Config.netType = commander.netType || Config.netType
   Config.ownerSecword = commander.ownerSecword || Config.ownerSecword
   Config.protocol = commander.protocol || Config.protocol
-  Config.port = parseInt(commander.port) || parseInt(Config.port) || (Config.protocol === 'http' ? 6842 : Config.protocol === 'https' ? 6842 : undefined) // 端口默认为6842(http,https), 或80|443(httpall)
+  Config.port = parseInt(commander.port) || parseInt(Config.port) || (Config.protocol === 'http' ? 8888 : Config.protocol === 'https' ? 8888 : undefined) // 端口默认为8888(http,https), 或80|443(httpall)
   Config.link = commander.link || Config.link
   Config.seedSet = commander.seedSet ? JSON.parse(commander.seedSet) : Config.seedSet
   Config.sslCert = commander.sslCert || Config.sslCert

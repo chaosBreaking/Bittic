@@ -1,5 +1,5 @@
-global.mylog = require('./Logger.js')
-const io = require('socket.io-client')('ws://101.132.121.111:6057') //http://localhost:6842 http://101.132.121.111:6057
+global.mylog = require('fon.base/Logger.js')({root:'data.log', file:'deployer.log'})
+const io = require('socket.io-client')('ws://101.132.121.111:6057') //http://localhost:8888 http://101.132.121.111:6057
 const nodeInfo = require('./nodeInfo.js')
 const Worker = require('./worker.js')
 const missionPool = require('./store.js').MissionPool.getInstance()

@@ -4,7 +4,7 @@ module.exports = { // 全大写字母的，代表系统常量，不要在 userCo
   consensus: 'pot', // 共识机制。可选设为 ConsPot, ConsAlone。
   protocol: 'http', // http|https|httpall
   host: null, // 本节点的从外部可访问的 IP or Hostname，不能是 127.0.0.1 或 localhost
-  port: 6842, // 本节点的 Web服务端口号
+  port: 8888, // 本节点的 Web服务端口号
   // 如果使用 https 协议，必须填写以下内容，或在命令行参数中设置：
   sslKey: null, // ssl key file,
   sslCert: null, // ssl cert file,
@@ -19,7 +19,7 @@ module.exports = { // 全大写字母的，代表系统常量，不要在 userCo
   
   NET_TYPE: ['mainnet', 'testnet', 'devnet'],
   NET_MAGIC: { mainnet: '1m1', testnet: '2t2', devnet: '3d3' },
-  NET_PORT: { mainnet: 6842, testnet: 6842, devnet: 6842 },
+  NET_PORT: { mainnet: 8888, testnet: 8888, devnet: 8888 },
   NET_SEEDSET: {
     mainnet: [],
     testnet: [],

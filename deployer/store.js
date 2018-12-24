@@ -1,4 +1,3 @@
-// const mylog = require('./Logger.js')
 const fs = require('fs')
 
 class MissionPool {

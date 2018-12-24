@@ -17,9 +17,7 @@ class Mission extends events {
     this.emit('finished',{
       //chainInfo 部署的区块链的信息
       chainName: 'TIC',
-      port: 6842,
-      consPort: 6888,
-      p2pPort: 60842
+      port: 8888
     })
     更新进度
     this.emit('update',this.process)
