@@ -1,7 +1,6 @@
 'use strict'
 const fs = require('fs');
 const cluster = require('cluster');
-const socket = require('socket.io');
 const mylog = require('./util/Logger.js');
 
 function config() {
@@ -96,13 +95,14 @@ async function masterInit(worker) {
     process.exit()
   }
   wo.Ling = require('./Ling/_Ling.js')
-  wo.Block = require('./modules/Block/index.js')(wo.Config.consensus)
+  wo.EventBus = require('./modules/util/EventBus.js')(worker)
   wo.Peer = await require('./modules/P2P/index.js')('proxy')
+  wo.Block = require('./modules/Block/index.js')(wo.Config.consensus)
   wo.Store = await require('./modules/util/Store.js')('redis') //  必须指定数据库类型,另外不能_init(),否则会覆盖子进程已经设定好的内容
-  wo.EventBus = require('./modules/util/EventBus.js')(worker).mount(worker)
   wo.Chain = require('./modules/Chain/index.js')
   mylog.info('初始化共识模块')
-  wo.Consensus = await require('./modules/Consensus/index.js')(wo.Config.consensus)._init()
+  wo.Consensus = await require('./modules/Consensus/index.js')(wo.Config.consensus)
+  // ._init()
 }
 async function workerInit() {
   global.mylog = require('./util/Logger.js')
@@ -118,6 +118,8 @@ async function workerInit() {
   wo.Data = await require('./Data/' + wo.Config.dbType)._init(wo.Config.dbName);
   mylog.info('Loading classes and Creating tables......');
   wo.Ling = require('./Ling/_Ling.js');
+  wo.EventBus = require('./modules/util/EventBus.js')(process);
+  wo.Peer = await require('./modules/P2P/index.js')()._init();
   wo.Account = await require('./modules/Token/Account.js');
   wo.Action = await require('./modules/Action/Action.js')._init();
   wo.Tac = await require('./modules/Token/Tac.js')._init();
@@ -128,11 +130,9 @@ async function workerInit() {
   wo.Bancor = require('./modules/Token/Bancor.js')._init();
   wo.Block = await require('./modules/Block/index.js')(wo.Config.consensus)._init();
   wo.Store = await require('./modules/util/Store.js')('redis', { db: wo.Config.redisIndex })._init();
-  wo.Peer = await require('./modules/P2P/index.js');
-  wo.EventBus = require('./modules/util/EventBus.js')(process);
   wo.Consensus = require('./modules/Consensus/index.js')('proxy', wo.Config.consensus);
   mylog.info('Initializing chain............');
-  wo.Chain = await require('./modules/Chain/Chain.js')._init();
+  // wo.Chain = await require('./modules/Chain/Chain.js')._init();
   return 0;
 }
 
@@ -266,7 +266,7 @@ function serverInit() { // 配置并启动 Web 服务
   if (cluster.isMaster) {
     let worker = cluster.fork();
     cluster.once('message', async (worker, message) => {
-      if(message.code == 200) {
+      if(message.event == 200) {
         mylog.warn(`[Master] 主程序初始化完毕，启动共识模块......`);
         await masterInit(worker);
         return 0;
@@ -289,16 +289,7 @@ function serverInit() { // 配置并启动 Web 服务
     /**BlockChain以及RPC服务进程 */
     await workerInit();
     let webServer = serverInit();
-    wo.Socket = socket.listen(webServer);
-    wo.Socket.sockets.on("open",()=>{
-      mylog.info('Socket started');
-    })
-    wo.Socket.sockets.on('connection',(socket)=>{
-      // 处理操作
-      mylog.info('new client connected');
-      // socket.send('hello')
-      socket.on('peer', wo.Peer.eventHandler)
-    });
+    wo.Peer.mountSocket(webServer)
     wo.EventBus.send(200, "链进程初始化完毕");
     //启动区块链部署程序
     try {

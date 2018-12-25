@@ -29,10 +29,9 @@ class redisStore extends redis{
     }    
 }
 
-function Store(dbType,option){
-    switch(dbType){
-        case 'redis':
-            return new redisStore(option);
-    }
+module.exports = function (dbType, option){
+  switch(dbType){
+      case 'redis':
+          return new redisStore(option);
+  }
 }
-module.exports = Store

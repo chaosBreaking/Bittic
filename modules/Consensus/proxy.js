@@ -21,8 +21,5 @@ const potProxy = {
     shareWinner: async () => {
       return await wo.EventBus.call('Consensus', 'api', 'shareWinner')
     },
-    test: async () => {
-      return await wo.EventBus.call('Consensus', 'api', 'test')
-    }
   }
 }

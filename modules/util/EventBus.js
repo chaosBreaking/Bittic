@@ -1,17 +1,19 @@
 'use strict'
 const EventEmitter = require('events');
 const util = require('util');
-const workerPool = [];
 
 function EventBus(obj) {
   if (!new.target)
     return new EventBus(obj);
   this.obj = obj;
   this.obj.on('message', async (message) => {
-    if(message && message.code && message.code !== 'call'){
-      this.emit(message.code, message);
+    if(message.obj && message.event && message.event !== 'call') {
+      this.emit(message.obj, message.event, message.data)
     }
-    else{
+    if(message && message.event && message.event !== 'call') {
+      this.emit(message.event, message.data);
+    }
+    else {
       if(wo[message.data.who]['api'][message.data.act] || wo[message.data.who][message.data.act]) {
         var callres = message.data.api ? await wo[message.data.who]['api'][message.data.act](message.data.param)
         :await wo[message.data.who][message.data.act](message.data.param)
@@ -22,13 +24,7 @@ function EventBus(obj) {
   });
 }
 util.inherits(EventBus, EventEmitter);
-/**
- * 挂载进程至通信对象池
- */
-EventBus.prototype.mount = function (worker) {
-  workerPool.push(worker);
-  return this;
-}
+
 /**
  * 在进程内关联通信目标进程
  */
@@ -39,10 +35,10 @@ EventBus.prototype.link = function (worker) {
 /**
  * 进程间消息传递
  */
-EventBus.prototype.send = function (code, data = '') {
+EventBus.prototype.send = function (event, data = '') {
   if (this.obj && this.obj.send){
     try {
-      this.obj.send({ code, data });
+      this.obj.send({ event, data });
       return 1;
     } catch (error) {
       mylog.error('[EventBus] Dead Worker');
@@ -56,19 +52,23 @@ EventBus.prototype.send = function (code, data = '') {
 EventBus.prototype.call = function (who, api, act, param) {
   if (this.obj && this.obj.send) {
     let id = Math.random().toString().slice(2,10);
-    let res = new Promise((resolve,reject) => {
+    let res = new Promise((resolve, reject) => {
       this.once(id, (msg)=>{
         resolve(msg.data);
       });
     });
     this.obj.send({
-      code: 'call', data: {
+      event: 'call', data: {
         who, api, act, param, id
       }
     });
     return res;
   }
   throw new Error("Can't find Callable Object")
+}
+
+EventBus.prototype.crosEmit = function(obj, event, data) {
+  this.obj.send({obj, event, data})
 }
 
 module.exports = EventBus

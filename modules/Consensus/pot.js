@@ -1,3 +1,4 @@
+'use strict'
 // 共识模块
 /**
  * 1.取得最后一个区块
@@ -82,7 +83,7 @@ POT.signOnce = async function () {
     signForOwner();
     return 0;
   }
-  mylog.error('本机状态异常，无法进行启动共识')
+  mylog.error('本机状态异常，无法进行启动共识,开始校正......')
   mylog.error(heightNow,(await wo.Chain.getTopBlock()).height)
   await calibrate();
 }
@@ -149,7 +150,7 @@ POT.electOnce = async function () {
       my.bestPot.pubkey = my.selfPot.pubkey;
       my.signBlock = new wo.Block({ winnerMessage: my.selfPot.message, winnerSignature: my.selfPot.signature, winnerPubkey: my.selfPot.pubkey, type: 'SignBlock' }) // 把候选签名打包进本节点的虚拟块
       my.signBlock.packMe({}, await wo.Chain.getTopBlock(), wo.Crypto.secword2keypair(wo.Config.ownerSecword))
-      await wo.Peer.broadcast('/Consensus/electWatcher', {Consensus: { Block: JSON.stringify(my.signBlock) }})
+      await wo.Peer.broadcast('Consensus/electWatcher', {Consensus: { Block: JSON.stringify(my.signBlock) }})
     }
     else {
       mylog.info('本节点没有收集到时间证明，本轮不参与竞选')
@@ -243,6 +244,7 @@ POT.mineOnce = async function () {
   return 0
 }
 POT.api.mineWatcher = async function (option) { // 监听别人发来的区块
+  mylog.info('mineWatcher!!!!被触发')
   if (option
     && option.Block
     && option.Block.winnerSignature === my.bestPot.signature
@@ -361,9 +363,8 @@ POT.stopScheduleJob = function () {
   my.scheduleJobs[2].cancel()
 }
 
-POT.api.test = async function (target) {
-  return 'success'
-}
+wo.Peer.on('electWatcher', POT.api.electWatcher)
+wo.Peer.on('mineWatcher', POT.api.mineWatcher)
 /********************** Private in class *********************/
 
 const my = {}
