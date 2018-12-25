@@ -35,15 +35,15 @@ module.exports = { // 全大写字母的，代表系统常量，不要在 userCo
 
   GENESIS_HEIGHT: 0,
   GENESIS_BLOCK : {
-    "mainnet": {
+    mainnet: {
       timestamp: new Date('2019-06-06T00:00:00.000Z'),
       message: 'History is Future, Future is Now'
     },
-    "testnet": {
+    testnet: {
       timestamp: new Date('2018-12-09T08:18:00.000Z'),
       message: 'The Cabinet Office minister David Lidington today defended Philip Hammond’s decision to issue a new warning that a no-deal Brexit would significantly damage the economy.'    
     },
-    "devnet": {
+    devnet: {
       timestamp: '',
       message: 'some big things start out small'    
     }
@@ -68,27 +68,36 @@ module.exports = { // 全大写字母的，代表系统常量，不要在 userCo
   MARK_LINKED: 'MARK_LINKED', // 建立了关系（care, know, join 等）
   MARK_RELEASED: 'MARK_RELEASED', // 解除了关系（care, know, join 等）
 
+  GENESIS_ACCOUNT: { // 创世账户，用于创建height=0创世块
+    secword: "skill loyal dove price spirit illegal bulk rose tattoo congress few amount",
+    //    pubkey: '656315fb1a34dafbaba2421cb2a6e6685754a0e68dab28be9b90201b4220acd1',
+    //    seckey: '5334cce097b645559de70d365292bb1ad045f22a1915df0e1790d1f1da6de617656315fb1a34dafbaba2421cb2a6e6685754a0e68dab28be9b90201b4220acd1',
+    //    address: 'Tq4YQAbMAmoNmUK1mBDi9rqPoeCofawbCa' 
+  },
   INITIAL_ACCOUNT: {
-    "mainnet": {
+    mainnet: {
       address: 'TpNH7NQoYLYjCDiAJddQX1LP4BrzAQ2Vw7'
     },
-    "testnet": {
+    testnet: {
       //    secword: 'window air repeat sense bring smoke legend shed accuse loan spy fringe'
       //    pubkey: 'd1ed688dccd996c11cba2749d3a916977b0c5977a1d40d1b5ad83606e3303150',
       //    seckey: '3d42f647287f315e91236be24ed2e13654e0471c9c82b0bf43b96146020b6863d1ed688dccd996c11cba2749d3a916977b0c5977a1d40d1b5ad83606e3303150',
-      address: 'Ttm24Wb877P6EHbNKzswoK6yvnTQqFYaqo'    },
-    "devnet": {
+      address: 'Ttm24Wb877P6EHbNKzswoK6yvnTQqFYaqo'
+    },
+    devnet: {
       //    secword: 'clever journey cave maze luxury juice trigger discover bamboo net shoot put',
       //    pubkey: '0fee122794b94feadcc07a72e69110e1000b6515ea67b4dba90f20dc48f999f8',
       //    seckey: 'df814a79def4fa6e5bff2a19f44a5811163600db35670dca0b9bacc0994db05f0fee122794b94feadcc07a72e69110e1000b6515ea67b4dba90f20dc48f999f8',
       address: 'TxAEimQbqVRUoPncGLrrpmP82yhtoLmxJE'
     }
   },
-  GENESIS_ACCOUNT: { // 创世账户，用于创建height=0创世块
-    secword: "skill loyal dove price spirit illegal bulk rose tattoo congress few amount",
-    //    pubkey: '656315fb1a34dafbaba2421cb2a6e6685754a0e68dab28be9b90201b4220acd1',
-    //    seckey: '5334cce097b645559de70d365292bb1ad045f22a1915df0e1790d1f1da6de617656315fb1a34dafbaba2421cb2a6e6685754a0e68dab28be9b90201b4220acd1',
-    //    address: 'Tq4YQAbMAmoNmUK1mBDi9rqPoeCofawbCa' 
-  }
+  DEV_ACCOUNT: [
+    {
+      secword: 'brand moment media marine enroll verb blanket toilet unit exercise choose nuclear',
+      pubkey: 'f21b1b5b4e533ad52ac5f55ba10da1d978e3cc54f3a28daa80475ccfd3b43f3c',
+      seckey: 'c34ccff7ddcbac11a1275ef5339a6df11f0beab5dbf7283f964bde1201576005f21b1b5b4e533ad52ac5f55ba10da1d978e3cc54f3a28daa80475ccfd3b43f3c',
+      address: 'Tm3C6oELhJsF5EZBPD1ppdfNjgd2RxMUmj'
+    }
+  ]
 
 }

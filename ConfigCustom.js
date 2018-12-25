@@ -1,10 +1,11 @@
 module.exports={
-  // 应当在 ConfigSecret.js 中覆盖，或在命令行参数中设置。测试网的第一个节点应当使用测试网初始账户。不同网的第一个节点都应当用该网的初始账户。默认为devnet的初始账户。
-  ownerSecword: 'clever journey cave maze luxury juice trigger discover bamboo net shoot put', 
+  // ownerSecword 必须在用户配置文件中设置，或在命令行参数中设置，否则默认创建一个随机密语。
+  // 一个网络的第一个节点总是应当使用该网的初始账户，否则无法出块，无法给其他账户转账。默认为开发网的初始账户。
+  ownerSecword: 'clever journey cave maze luxury juice trigger discover bamboo net shoot put',
   // 如果使用 https 协议:
-  sslKey: '/etc/letsencrypt/live/.../privkey.pem', // ssl key file,
-  sslCert: '/etc/letsencrypt/live/.../cert.pem', // ssl cert file,
-  sslCA: '/etc/letsencrypt/live/.../fullchain.pem', // ssl ca file,
+  sslKey: '', // ssl key file such as /etc/letsencrypt/live/.../privkey.pem
+  sslCert: '', // ssl cert file such as /etc/letsencrypt/live/.../cert.pem
+  sslCA: '', // ssl ca file such as /etc/letsencrypt/live/.../fullchain.pem
   // 节点主人设置的种子节点
   seedSet: [],
 }

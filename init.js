@@ -2,7 +2,7 @@
 const fs = require('fs')
 const cluster = require('cluster')
 const socket = require('socket.io')
-const mylog = require('fon.base/Logger.js')({root:'data.log'}) // 简写 console.log，为了少敲几个字母
+const mylog = require('fon.base/Logger.js')({root:'data.log', file:'tic.log'}) // 简写 console.log，为了少敲几个字母
 
 function config() {
   // 配置参数（按优先级从低到高）：
@@ -55,9 +55,7 @@ function config() {
   }
 
   // 把命令行参数 合并入配置。
-  Config.consensus = commander.consensus || Config.consensus || 'pot'
-  mylog.info('Consensus used: ', Config.consensus)
-
+  Config.consensus = commander.consensus || Config.consensus
   Config.dbType = commander.dbType || Config.dbType
   Config.dbName = commander.dbName || Config.dbName
   Config.host = commander.host || Config.host || require('fon.base/Network.js').getMyIp() // // 本节点的从外部可访问的 IP or Hostname，不能是 127.0.0.1 或 localhost
@@ -72,31 +70,39 @@ function config() {
   Config.sslCA = commander.sslCA || Config.sslCA
   Config.redisIndex = commander.redisIndex || Config.redisIndex
   try {
-    Config.GENESIS_EPOCHE = Config.GENESIS_BLOCK[Config.netType].timestamp
+    Config.dbName=`${Config.dbName}-${Config.consensus}-${Config.netType}.${Config.dbType}`
     Config.GENESIS_MESSAGE = Config.GENESIS_BLOCK[Config.netType].message
     Config.INITIAL_ACCOUNT = Config.INITIAL_ACCOUNT[Config.netType]
-    Config.dbName=`${Config.dbName}-${Config.consensus}-${Config.netType}.${Config.dbType}`
-    if (Config.netType === 'devnet') {
-      Config.GENESIS_EPOCHE = require('fon.base/Date.js').time2epoche({ type: 'prevHour' }) // nextMin: 下一分钟（单机测试）， prevHour: 前一小时（多机测试），或 new Date('2018-07-03T10:15:00.000Z') // 为了方便开发，暂不使用固定的创世时间，而是生成当前时刻之后的第一个0秒，作为创世时间
-    }
+    Config.GENESIS_EPOCHE = (Config.netType === 'devnet') ? 
+      require('fon.base/Date.js').time2epoche({ type: 'prevHour' }) : // nextMin: 下一分钟（单机测试）， prevHour: 前一小时（多机测试），或 new Date('2018-07-03T10:15:00.000Z') // 为了方便开发，暂不使用固定的创世时间，而是生成当前时刻之后的第一个0秒，作为创世时间
+      Config.GENESIS_BLOCK[Config.netType].timestamp
   
-    mylog.info('Configuration is ready.')
+    mylog.info('Configuration is ready')
+    mylog.info(`  consensus=====${Config.consensus}`)
+    mylog.info(`  netType=====${Config.netType}`)
+    mylog.info(`  dbType=====${Config.dbType}`)
+    mylog.info(`  dbName=====${Config.dbName}`)
+    mylog.info(`  protocol=====${Config.protocol}`)
+    mylog.info(`  host=====${Config.host}`)
+    mylog.info(`  port=====${Config.port}`)
+    mylog.info(`  ownerSecword=====${Config.ownerSecword}`)
+   
     return Config
   } catch (error) {
-    mylog.error("Error: Invalid Config File or Config Commander!")
+    mylog.error('Error: Invalid Config File or Config Commander!')
     process.exit()
   }
 }
 
 async function masterInit(worker) {
-  global.mylog = require('fon.base/Logger.js')({root:'data.log'}) // 简写 console.log，为了少敲几个字母
+  global.mylog = require('fon.base/Logger.js')({root:'data.log', file:'tic.log'}) // 简写 console.log，为了少敲几个字母
 
   global.wo = {} // wo 代表 world或‘我’，是当前的命名空间，把各种类都放在这里，防止和其他库的冲突。
 // 通过 JSON.parse(JSON.stringify(this.actionHashList)) 来取代 extend，彻底解除对wo.Tool依赖 wo.Tool = new (require('fon.base/Egg.js'))()
   wo.Config = config() // 依次载入系统默认配置、用户配置文件、命令行参数
   wo.Crypto = require('tic.crypto')
   if (!wo.Crypto.isSecword(wo.Config.ownerSecword)){
-    mylog.warn('Invalid secword! Please setup a secword in ConfigSecret.js')
+    mylog.warn(`Invalid secword: "${wo.Config.ownerSecword}". Please setup a secword in config file or command line.`)
     process.exit()
   }
 
@@ -112,14 +118,14 @@ async function masterInit(worker) {
 }
 
 async function workerInit() {
-  global.mylog = require('fon.base/Logger.js')({root:'data.log'}) // 简写 console.log，为了少敲几个字母
+  global.mylog = require('fon.base/Logger.js')({root:'data.log', file:'tic.log'}) // 简写 console.log，为了少敲几个字母
 
   global.wo = {} // wo 代表 world或‘我’，是当前的命名空间，把各种类都放在这里，防止和其他库的冲突。
 // 通过 JSON.parse(JSON.stringify(this.actionHashList)) 来取代 extend，彻底解除对wo.Tool依赖 wo.Tool = new (require('fon.base/Egg.js'))()
   wo.Config = config() // 依次载入系统默认配置、用户配置文件、命令行参数
   wo.Crypto = require('tic.crypto')
   if (!wo.Crypto.isSecword(wo.Config.ownerSecword)){
-    mylog.error('Invalid secword! Please setup a secword in ConfigSecret.js')
+    mylog.error(`Invalid secword: "${wo.Config.ownerSecword}". Please setup a secword in config file or command line.`)
     process.exit()
   }
 

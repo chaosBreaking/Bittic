@@ -35,8 +35,10 @@ Chain.createGenesis = async function () {
   // 在开发链上，自动给当前用户预存一笔，使其能够挖矿
   // 给两个账户加钱，防止两机测试时互不相认
   if (wo.Config.netType === 'devnet') {
-    await wo.Store.increase('Ttm24Wb877P6EHbNKzswoK6yvnTQqFYaqo', 100000);
-    await wo.Store.increase('TxAEimQbqVRUoPncGLrrpmP82yhtoLmxJE', 100000);
+    for (let acc of wo.Config.DEV_ACCOUNT){
+      await wo.Store.increase(wo.Crypto.secword2address(acc.secword), 100000)
+      mylog.info(`devnet adds 100000 coin to "${wo.Crypto.secword2address(acc.secword)} of "${acc.secword}"`)
+    }
   }
   mylog.info('Genesis is created and verified: ' + my.genesis.verifySig())
   return my.genesis
@@ -46,7 +48,7 @@ Chain.verifyChainFromDb = async function () {
   mylog.info('开始验证数据库中的区块')
   await wo.Block.dropAll({ Block: { height: '<=' + wo.Config.GENESIS_HEIGHT } }) // 极端罕见的可能，有错误的（为了测试，手工加入的）height<创世块的区块，也删掉它。  
   let blockList = await wo.Block.getAll({ Block: { height: '>' + my.topBlock.height }, config: { limit: 100, order: 'height ASC' } })
-  let errorFlag = false;
+  let errorFlag = false
   while (Array.isArray(blockList) && blockList.length > 0 && my.topBlock.height < Date.time2height() - 1) {
     mylog.info('取出' + blockList.length + '个区块')
     for (let block of blockList) {
@@ -57,14 +59,14 @@ Chain.verifyChainFromDb = async function () {
         }
         else {
           mylog.error('非法区块' + block.height,'：包含无法获取或验证的交易')
-          errorFlag = true;
+          errorFlag = true
           break
         }
       }
       else{
         //取出的区块在验证过程中出错则直接退出循环，从外部同步
         mylog.warn('block ' + block.height + ' 验证失败！从数据库中删除...')
-        errorFlag = true;
+        errorFlag = true
         break
       }
     }
