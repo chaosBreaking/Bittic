@@ -6,8 +6,8 @@ const mylog = require('fon.base/Logger.js')({root:'data.log'}) // 简写 console
 
 function config() {
   // 配置参数（按优先级从低到高）：
-  // ConfigSys: 系统常量（全大写） 以及 默认参数（小写开头驼峰式）
-  // ConfigUser: 用户或应用自定义参数。本文件不应纳入版本管理。
+  // ConfigBasic: 系统常量（全大写） 以及 默认参数（小写开头驼峰式）
+  // ConfigCustom: 用户或应用自定义参数。本文件不应纳入版本管理。
   // ConfigSecret: 机密参数，例如哈希盐，webtoken密钥，等等。本文件绝对不能纳入版本管理。
   // 命令行参数
   const commander = require('commander')
@@ -37,13 +37,17 @@ function config() {
 
   // 读取配置文件
   try {
-    if (fs.existsSync(`${commander.configPath}/ConfigSys.js`) || fs.existsSync(`./ConfigSys.js`)) {
-      Config = require(`${commander.configPath || '.'}/ConfigSys.js`)
-      mylog.info('ConfigSys loaded')
+    if (fs.existsSync(`${commander.configPath}/ConfigBasic.js`) || fs.existsSync(`./ConfigBasic.js`)) {
+      Config = require(`${commander.configPath || '.'}/ConfigBasic.js`)
+      mylog.info('ConfigBasic loaded')
     }
-    if (fs.existsSync(`${commander.configPath}/ConfigUser.js`) || fs.existsSync(`./ConfigSys.js`)) { // 如果存在，覆盖掉 ConfigSys 里的默认参数
-      Config = deepmerge(Config, require(`${commander.configPath || '.'}/ConfigUser.js`)) // 注意，objectMerge后，产生了一个新的对象，而不是在原来的Config里添加
-      mylog.info('ConfigUser loaded')
+    if (fs.existsSync(`${commander.configPath}/ConfigCustom.js`) || fs.existsSync(`./ConfigCustom.js`)) { // 如果存在，覆盖掉 ConfigBasic 里的默认参数
+      Config = deepmerge(Config, require(`${commander.configPath || '.'}/ConfigCustom.js`)) // 注意，objectMerge后，产生了一个新的对象，而不是在原来的Config里添加
+      mylog.info('ConfigCustom loaded')
+    }
+    if (fs.existsSync(`${commander.configPath}/ConfigSecret.js`) || fs.existsSync(`./ConfigSecret.js`)) { // 如果存在，覆盖掉 ConfigBasic 里的默认参数
+      Config = deepmerge(Config, require(`${commander.configPath || '.'}/ConfigSecret.js`)) // 注意，objectMerge后，产生了一个新的对象，而不是在原来的Config里添加
+      mylog.info('ConfigSecret loaded')
     }
   } catch (err) {
     mylog.error('Loading config files failed: ' + err.message)
