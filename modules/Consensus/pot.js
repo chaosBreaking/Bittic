@@ -24,7 +24,7 @@ async function calibrate() {
   if (missLastBlock) {
     // 上一块没有及时出现
     mylog.warn(`缺失区块，开始广播进行同步......`)
-    let result = await wo.Peer.randomcast('/Block/getBlock', { Block: { height: (await wo.Chain.getTopBlock()).height + 1 } })
+    let result = await wo.Peer.call('Block/getBlock', { Block: { height: (await wo.Chain.getTopBlock()).height + 1 } })
     if (result && result.height === (await wo.Chain.getTopBlock()).height + 1) {
       let topBlock = new wo.Block(result)
       await wo.Chain.appendBlock(topBlock)
@@ -150,7 +150,7 @@ POT.electOnce = async function () {
       my.bestPot.pubkey = my.selfPot.pubkey;
       my.signBlock = new wo.Block({ winnerMessage: my.selfPot.message, winnerSignature: my.selfPot.signature, winnerPubkey: my.selfPot.pubkey, type: 'SignBlock' }) // 把候选签名打包进本节点的虚拟块
       my.signBlock.packMe({}, await wo.Chain.getTopBlock(), wo.Crypto.secword2keypair(wo.Config.ownerSecword))
-      await wo.Peer.broadcast('Consensus/electWatcher', {Consensus: { Block: JSON.stringify(my.signBlock) }})
+      await wo.Peer.emitPeers('electWatcher', { Block: JSON.stringify(my.signBlock) })
     }
     else {
       mylog.info('本节点没有收集到时间证明，本轮不参与竞选')
@@ -185,7 +185,7 @@ POT.api.electWatcher = async function (option) { // 互相转发最优的签名�
       my.bestPot.pubkey = option.Block.winnerPubkey
       my.bestPot.message = option.Block.winnerMessage
       my.signBlock = option.Block // 保存新收到的签名块
-      wo.Peer.broadcast('/Consensus/electWatcher', {Consensus: { Block: JSON.stringify(option.Block) }}) // 就进行广播
+      wo.Peer.emitPeers('electWatcher', { Block: JSON.stringify(option.Block) })
     }
     else if (userBalance < wo.Config.SIGNER_THRESHOLD
       || packerBalance < wo.Config.PACKER_THRESHOLD) {
@@ -236,8 +236,8 @@ POT.mineOnce = async function () {
         winnerPubkey: my.selfPot.pubkey
       })
       mylog.info('本节点出块哈希为： ', newBlock.hash)
-      wo.Peer.broadcast('/Consensus/mineWatcher', {Consensus: { Block: newBlock }});
-      return 0;
+      wo.Peer.emitPeers('mineWatcher', { Block: newBlock })
+      return 0
     }
     mylog.info('本节点没有赢')
   }
@@ -254,7 +254,7 @@ POT.api.mineWatcher = async function (option) { // 监听别人发来的区块
   ) {
     // 注意不要接受我自己作为获胜者创建的块，以及不要重复接受已同步的区块
     wo.Chain.appendBlock(option.Block)
-    wo.Peer.broadcast('/Consensus/mineWatcher', {Consensus: { Block: option.Block }})
+    wo.Peer.emitPeers('mineWatcher', { Block: option.Block })
     mylog.info('本节点收到全网赢家的区块哈希为：' + option.Block.hash + '，全网赢家的地址为' + wo.Crypto.pubkey2address(option.Block.winnerPubkey) + '，打包节点的地址为 ' + wo.Crypto.pubkey2address(option.Block.packerPubkey))
   }
   return 0
@@ -264,7 +264,7 @@ POT.api.mineWatcher = async function (option) { // 监听别人发来的区块
 POT.forkHandler = async function (option) {
   if ((await wo.Chain.getTopBlock()).height <= Date.time2height() - 2)
     return "高度未达到分叉标准"
-  let res = await wo.Peer.broadcast('/Consensus/getRBS', {Consensus: { target: option.Block.packerPubkey }})//取第一个元素
+  let res = await wo.Peer.call('/Consensus/getRBS', { target: option.Block.packerPubkey })//取第一个元素
   if (!res) {
     mylog.warn("没拿到对方缓存表")
     return null
@@ -306,7 +306,7 @@ POT.forkHandler = async function (option) {
         //获取本块所有交易
         let actionList = await wo.Action.getAll({ Action: { blockHash: block.hash }, config: { limit: block.actionHashList.length } })
         for (let action of actionList) {
-          wo.Peer.broadcast('/Action/prepare', option) // 将自己区块内的交易广播出去
+          wo.Peer.emitPeers('prepare', option) // 将自己区块内的交易广播出去
         }
       }
       await block.dropMe()

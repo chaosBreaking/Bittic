@@ -99,7 +99,6 @@ DAD._init1=async function(){
 
       //广播
       wo.NetUDP.Broadcast({type:'newblock',data:block});      
-      //wo.Peer.broadcast('/Consensus/mineWatcher', {Block:JSON.stringify(wo.Chain.getTopBlock())})
     }  
   }
 

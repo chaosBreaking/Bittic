@@ -156,7 +156,7 @@ MOM.verifyActionList = async function(){
   while (actionHashList.length > 0){
     let actionHash = actionHashList.pop()
     for(let count = 0; count < 4; count++){
-      var missAction = await wo.Peer.randomcast('/Action/getAction', { Action:{ hash:actionHash } })
+      var missAction = await wo.Peer.call('Action/getAction', { Action:{ hash:actionHash } })
       if(missAction){
         if (wo[missAction.type].validater(missAction)){
           await wo[missAction.type].execute(missAction)    //执行该Action

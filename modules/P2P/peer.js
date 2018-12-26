@@ -28,8 +28,8 @@ class Peer {
       !peer.port ||
       !peer.accessPoint || 
       !peer.ownerAddress ||
-      // peer.accessPoint.includes('192.168') || 
-      peer.accessPoint.includes('localhost') || 
+      peer.accessPoint.includes('192.168') || 
+      // peer.accessPoint.includes('localhost') || 
       peer.accessPoint.includes('127.0')
     )
       return false

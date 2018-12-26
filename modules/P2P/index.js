@@ -12,11 +12,13 @@ const myself = new Peer({
   host: wo.Config.host,
   port: wo.Config.port,
 })
+const MAX_CALL_TIMEOUT = 200
 
 class NetMonitor extends event {
   constructor(prop) {
     super(prop)
     this.peerBook = {}
+    this.ids2address = {}
     this.scheduleJob = []
   }
   static getInstance(option) {
@@ -51,28 +53,33 @@ NetMonitor.prototype._init = async function () {
   // 建立种子节点库
   if (wo.Config.seedSet && Array.isArray(wo.Config.seedSet) && wo.Config.seedSet.length > 0) {
     mylog.info('初始化种子节点')
-    await Promise.all(wo.Config.seedSet.map((peer, index) => {
+    await Promise.all(wo.Config.seedSet.map((peer) => {
       if(Object.keys(this.peerBook).length >= wo.Config.PEER_POOL_CAPACITY)
         return 0
       let connect = io(getUrl(peer))
       if(connect) {
         connect.emit('Ping', myself, async (peerInfo) => {
-          mylog.info('收到节点echo：', peerInfo.ownerAddress)
-          this.peerBook[peerInfo.ownerAddress] = connect
-          await this.storePeer(peerInfo)
+          this.addNewPeer(peerInfo, connect)
         })
         connect.emit('sharePeers', (peers = []) => {
-          if(!Array.isArray(peers) || peers.length === 0) return 0
-          mylog.info('收到共享节点')
           this.sharePeersHandler(peers)
         })
       }
     }))
   }
-  setInterval(()=>{
+  setInterval(async ()=>{
     mylog.info(`当前拥有${Object.keys(this.peerBook).length}个节点`)
-    if(this.socket)
-      this.socket.emit('test','收到没')
+    if(this.socket) {
+      // this.emitPeers('Peer', 'Ping', '?')
+      let data = await this.call('Block/getBlock', {height: 1})
+      if(data)
+        mylog.info('成功取得数据', data)
+      else 
+        mylog.info('断开......')
+      
+      // .then((data) => {
+      // })
+    }
   }, 5000)
   // this.scheduleJob[0] = Schedule.scheduleJob(`*/59 * * * * *`, NetMonitor.updatePool)
   return this
@@ -83,64 +90,39 @@ NetMonitor.prototype.mountSocket = function (webServer) {
   })
   this.socket.on('connection', (socket) => {
     mylog.info('New Client Connected')
-    // 定义其他节点连接到自己的socket后的监听器和处理函数
-    socket.on('Ping', (nodeInfo, echo) => {
-      if(nodeInfo && echo && typeof echo === 'function') {
-        this.pingHandler(nodeInfo)
-        return echo(myself)
-      }
-    })
-    socket.on('sharePeers', async (echo) => {
-      return echo(await this.getPeers())
-    })
-    socket.on('call', async (data, echo) => {
-      //RPC 只允许被调用类的api内定义的函数
-      if(data && data.route && typeof data.route === 'string' && echo && typeof echo === 'function') {
-        let [obj, fn] = data.route.split('/')
-        if(wo[obj] && wo[obj]['api'] && wo[obj]['api'][fn])
-          return echo(await wo[obj]['api'][fn](data.param))
-      }
-    })
-    socket.on('emit', (req) => {
-      //触发节点事件，节点触发的事件需要wo.Peer的监听器
-      if(req && req.event) {
-        this.emit(req.event, req.data)
-        wo.EventBus.crosEmit('Peer', req.event, req.data)
-      }
-    })
-    socket.on('broadcast', (data) => {
-      //广播消息(签名或交易等事务)
-      this.emit('broadcast', data)
-      wo.EventBus.crosEmit('Peer', 'broadcast', data)
-    })
+    this.addEventHandler(socket)
   });
-}
-NetMonitor.prototype.sharePeersHandler = async function(peers = []) {
-  peers = [...peers]
-  if(Array.isArray(peers) && peers.length > 0) {
-    for(let peer of peers) {
-      if(Object.keys(this.peerBook).length >= PEER_POOL_CAPACITY)
-        break
-      if(!this.checkValid(peers))
-        continue
-      let connect = io(getUrl(peers))
-      if(connect.connected) {
-        connect.once('echo', async (peerInfo) => {
-          mylog.info('收到节点echo：', peerInfo.ownerAddress)
-          this.peerBook[peerInfo.ownerAddress] = connect
-          await this.storePeer(peerInfo)
-        })
-        connect.emit('peer', {
-          type: 'ping',
-          data: myself
-        })
-      }
-    }
-  }
 }
 NetMonitor.prototype.checkValid = function(peer) {
   return Peer.checkValid(peer) && peer.ownerAddress !== myself.ownerAddress
 }
+NetMonitor.prototype.addNewPeer = function (peerInfo, connect) {
+  if(!this.checkValid(peerInfo) || !connect) return 0
+  mylog.info('收到节点echo：', peerInfo.ownerAddress)
+  if(connect.ids) this.ids2address[connect.ids] = peerInfo.ownerAddress;
+  connect.id = peerInfo.ownerAddress
+  this.peerBook[peerInfo.ownerAddress] = connect
+  this.addEventHandler(connect)
+  this.storePeer(peerInfo)
+}
+NetMonitor.prototype.sharePeersHandler = async function(peers = []) {
+  if(!Array.isArray(peers) || peers.length === 0) return 0
+  mylog.info('收到共享节点')
+  peers = [...peers]
+  for(let peer of peers) {
+    if(Object.keys(this.peerBook).length >= PEER_POOL_CAPACITY)
+      break
+    if(!this.checkValid(peer))
+      continue
+    let connect = io(getUrl(peer))
+    if(connect) {
+      connect.emit('Ping', myself, async (peerInfo) => {
+        this.addNewPeer(peerInfo, connect)
+      })
+    }
+  }
+}
+
 /**
  *
  * @desc 检查一个传入节点的合法性后加入节点池
@@ -149,12 +131,13 @@ NetMonitor.prototype.checkValid = function(peer) {
  */
 NetMonitor.prototype.storePeer = async function (peer) {
   if (this.checkValid(peer)) {
+    peer = Object.getPrototypeOf(peer) === 'Peer'? peer: new Peer(peer)
     await store.hset('peers', peer.ownerAddress, JSON.stringify(peer));
     return peer
   }
   return null
 }
-NetMonitor.prototype.storePeerList = async function (peerList) {
+NetMonitor.prototype.storePeerList = async function (peerData) {
   if (!Array.isArray(peerData)) {
     var peer = new Peer(peerData);
     await this.storePeer(peer);
@@ -200,12 +183,12 @@ NetMonitor.prototype.delPeer = async function (ownerAddress) {
  * @param {*} option
  * @returns {Peer} myself
  */
-NetMonitor.prototype.pingHandler = async function (peerInfo) {
+NetMonitor.prototype.pingHandler = async function (peerInfo, connect) {
   if (peerInfo && this.checkValid(peerInfo)) {
     let isNewPeer = !(await this.getPeers())[peerInfo.ownerAddress]
     if (isNewPeer) { // 是新邻居发来的ping？把新邻居加入节点池
-      await this.addNewPeer(new Peer(peerInfo))
-      mylog.info(`加入新节点 -- ${option.Peer.ownerAddress}-${option.Peer.accessPoint}:${option.Peer.port}`)
+      await this.addNewPeer(peerInfo, connect)
+      mylog.info(`加入新节点 -- ${peerInfo.ownerAddress}-${peerInfo.accessPoint}:${peerInfo.port}`)
     }
     return myself // 把远方节点的信息添加一些资料后，返回给远方节点
   }
@@ -217,38 +200,97 @@ NetMonitor.prototype.sharePeer = async function () { // 响应邻居请求，返
   let res = Object.values(await this.getPeers() || {}) // todo: 检查 option.Peer.ownerAddress 不要把邻居节点返回给这个邻居自己。
   return res
 }
+NetMonitor.prototype.popOnePeer = function() {
+  let ownerAddress = Object.keys(this.peerBook)[Math.floor(Math.random(Object.keys(this.peerBook).length - 1))]
+  let socket = this.peerBook[ownerAddress]
+  delete this.peerBook[ownerAddress]
+  return {
+    ownerAddress,
+    socket
+  }
+}
+NetMonitor.prototype.pushPeerBack = function(ownerAddress, socket) {
+  return this.peerBook[ownerAddress] = socket
+}
 
 // wo.Peer.broadcast('/Consensus/electWatcher', {Consensus: { Block: JSON.stringify(option.Block) }}) // 就进行广播
-NetMonitor.prototype.broadcast = async function(route, param) {
-  this.socket.broadcast({
-    route, param
-  })
+NetMonitor.prototype.emitPeers = function(event, data, socket = '') {
+  if(socket && socket.broadcast && socket.broadcast.emit) socket.broadcast.emit('emit', {event, data})
+  this.socket.emit('emit', {event, data})
+  for(let peerAddress in this.peerBook) {
+    this.peerBook[peerAddress].emit('emit', {event, data})
+  }
 }
-NetMonitor.prototype.randomcast = async function() {
-  return true
+NetMonitor.prototype.broadcast = function(data, socket = '') {
+  if(socket && socket.broadcast) socket.broadcast(data)         //再次转发收到的广播，过滤掉了发给我的节点
+  this.socket.broadcast(data)               //广播给连接到我的
+  for(let peerAddress in this.peerBook) {   //广播给我连接到的
+    this.peerBook[peerAddress].emit('broadcast', data)
+  }
+}
+NetMonitor.prototype.call = async function(route, param, rec = 2) {
+  let {ownerAddress, socket} = this.popOnePeer()
+  if(!socket || !socket.emit || !rec) {
+    if(!rec)
+      this.delPeer(ownerAddress) 
+    return 0
+  }
+  mylog.info('called --', rec)
+  let callMission = new Promise((resolve, reject) => {
+    socket.emit('call', route, param, (res) => {
+      resolve(res)
+    })
+  })
+  let timeoutMission = new Promise((resolve, reject) => {
+    setTimeout(() => { resolve(null) }, MAX_CALL_TIMEOUT)
+  })
+  let data = await Promise.race([callMission, timeoutMission])
+  if(data) {
+    this.pushPeerBack(ownerAddress, socket)
+    return data
+  }
+  return this.call(route, param, rec - 1)
 }
 
-/**
- * socket.emit('peer',{
- *  type:['ping', 'sharePeers', 'heartBeat'],
- *  data: myself
- * })
- */
-NetMonitor.prototype.eventHandler = async function(data, socket) {
-  if(data && data.type) {
-    switch(data.type) {
-      case 'ping':
-        await this.ping(data)
-        socket.emit('echo', myself)
-        return 0
-      case 'sharePeers':
-        let res = await this.sharePeer()
-        socket.emit('sharePeers', res)
-        return 0
-      case 'heartBeat':
-        return socket.emit('heartBeat',{data: myself})
+NetMonitor.prototype.addEventHandler = function(socket) {
+  //给新的节点挂载事件监听器
+  socket.on('Ping', (nodeInfo, echo) => {
+    if(nodeInfo && echo && typeof echo === 'function') {
+      this.pingHandler(nodeInfo, socket)
+      return echo(myself)
     }
-  }
+  })
+  socket.on('sharePeers', async (echo) => {
+    return echo(await this.getPeers())
+  })
+  socket.on('call', async (data, echo) => {
+    //RPC 只允许被调用类的api内定义的函数
+    if(data && data.route && typeof data.route === 'string' && echo && typeof echo === 'function') {
+      let [obj, fn] = data.route.split('/')
+      if(wo[obj] && wo[obj]['api'] && wo[obj]['api'][fn])
+        return echo(await wo[obj]['api'][fn](data.param))
+    }
+  })
+  socket.on('emit', (req) => {
+    //其他节点通过触发Peer的emit事件,来节点触发的事件需要wo.Peer的监听器
+    if(req && req.event) {
+      this.emit(req.event, req.data)
+      wo.EventBus.crosEmit('Peer', req.event, req.data)
+      this.emitPeers(req.event, req.data, socket) //继续向外广播
+    }
+  })
+  socket.on('broadcast', (data) => {
+    //广播消息(签名或交易等事务)
+    this.emit('broadcast', data)
+    wo.EventBus.crosEmit('Peer', 'broadcast', data)
+    this.broadcast(data, socket)  //继续向外广播
+  })
+  socket.on('disconnect', () => {
+    if(socket.id) {
+      delete this.peerBook[socket.id]
+      this.delPeer(socket.id)
+    }
+  })
 }
 module.exports = function(type = '') {
   if(type === 'proxy') {
