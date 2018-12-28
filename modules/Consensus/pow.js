@@ -1,6 +1,6 @@
 'use strict'
 const event = require('events')
-const Block = require('../Block/Blockpow.js')
+const Block = require('../Block/BlockPow.js')
 class Pow extends event{
   constructor() {
     super();
