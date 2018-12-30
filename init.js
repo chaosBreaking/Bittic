@@ -199,7 +199,7 @@ function serverInit() { // 配置并启动 Web 服务
     extended: true
   }))
   server.use(Cors())
-  server.use(Express.static(__dirname + '/Web')) // 可以指定到 node应用之外的目录上。windows里要把 \ 换成 /。
+  server.use(Express.static(__dirname + '../node.console.web.site/dist')) // 可以指定到 node应用之外的目录上。windows里要把 \ 换成 /。
 
   /*** 路由中间件 ***/
 
