@@ -95,7 +95,6 @@ function config() {
 }
 
 async function masterInit(worker) {
-  require('fon.base/Date.js') // todo: 暂时用用，等time2height迁移到pot就取消。
   global.mylog = require('fon.base/Logger.js')({root:'data.log', file:'tic.log'}) // 简写 console.log，为了少敲几个字母
 
   global.wo = {} // wo 代表 world或‘我’，是当前的命名空间，把各种类都放在这里，防止和其他库的冲突。
@@ -127,7 +126,6 @@ async function masterInit(worker) {
 }
 
 async function workerInit() {
-  require('fon.base/Date.js')  // todo:暂时用用，等time2height迁移到pot就取消。
   global.mylog = require('fon.base/Logger.js')({root:'data.log', file:'tic.log'}) // 简写 console.log，为了少敲几个字母
 
   global.wo = {} // wo 代表 world或‘我’，是当前的命名空间，把各种类都放在这里，防止和其他库的冲突。
