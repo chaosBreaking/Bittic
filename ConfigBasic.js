@@ -40,7 +40,7 @@ module.exports = { // 全大写字母的，代表系统常量，不要在 userCo
       message: 'History is Future, Future is Now'
     },
     testnet: {
-      timestamp: new Date('2019-01-01T18:18:00.000Z'),
+      timestamp: new Date('2018-12-30T06:36:00.000Z'),
       message: 'The Cabinet Office minister David Lidington today defended Philip Hammond’s decision to issue a new warning that a no-deal Brexit would significantly damage the economy.'    
     },
     devnet: {

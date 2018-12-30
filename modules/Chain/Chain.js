@@ -49,7 +49,7 @@ Chain.verifyChainFromDb = async function () {
   await wo.Block.dropAll({ Block: { height: '<=' + wo.Config.GENESIS_HEIGHT } }) // 极端罕见的可能，有错误的（为了测试，手工加入的）height<创世块的区块，也删掉它。  
   let blockList = await wo.Block.getAll({ Block: { height: '>' + my.topBlock.height }, config: { limit: 100, order: 'height ASC' } })
   let errorFlag = false
-  while (Array.isArray(blockList) && blockList.length > 0 && my.topBlock.height < Date.time2height() - 1) {
+  while (Array.isArray(blockList) && blockList.length > 0) {
     mylog.info('取出' + blockList.length + '个区块')
     for (let block of blockList) {
       if (block.height === my.topBlock.height + 1 && block.lastBlockHash === my.topBlock.hash && block.verifySig() && block.verifyHash()) {
@@ -91,7 +91,7 @@ Chain.updateChainFromPeer = async function () { // 向其他节点获取自己�
   if (my.addingLock) return 0;
   my.addingLock = 1;
   mylog.info('开始向邻居节点同步区块');
-  for (let count = 0; wo.Config.consensus === "pot" && Date.time2height() > (my.topBlock.height + 1) && count < 3; count++) { // 确保更新到截至当前时刻的最高区块。
+  for (let count = 0; count < 3; count++) { // 确保更新到截至当前时刻的最高区块。
     mylog.info(`向全网广播同步请求-->开始第${count}轮同步`);
     let blockList = await wo.Peer.randomcast('/Block/getBlockList', { Block: { height: '>' + my.topBlock.height }, config: { limit: 100, order: 'height ASC' } })
     if (Array.isArray(blockList) && blockList.length > 0) {

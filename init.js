@@ -74,7 +74,7 @@ function config() {
     Config.GENESIS_MESSAGE = Config.GENESIS_BLOCK[Config.netType].message
     Config.INITIAL_ACCOUNT = Config.INITIAL_ACCOUNT[Config.netType]
     Config.GENESIS_EPOCHE = (Config.netType === 'devnet')
-      ? require('fon.base/Date.js').time2epoche({ type: 'prevHour' }) // nextMin: 下一分钟（单机测试）， prevHour: 前一小时（多机测试），或 new Date('2018-07-03T10:15:00.000Z') // 为了方便开发，暂不使用固定的创世时间，而是生成当前时刻之后的第一个0秒，作为创世时间
+      ? require('./modules/util/Date.js').time2epoche({ type: 'prevHour' }) // nextMin: 下一分钟（单机测试）， prevHour: 前一小时（多机测试），或 new Date('2018-07-03T10:15:00.000Z') // 为了方便开发，暂不使用固定的创世时间，而是生成当前时刻之后的第一个0秒，作为创世时间
       : Config.GENESIS_BLOCK[Config.netType].timestamp
   
     mylog.info('Configuration is ready')

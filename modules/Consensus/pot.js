@@ -8,6 +8,7 @@
 const Schedule = require('node-schedule')
 const electTime = (wo.Config.BLOCK_PERIOD / 3).toFixed(0) * 1
 const mineTime = (wo.Config.BLOCK_PERIOD / 3).toFixed(0) * 2
+require('../util/Date.js')
 /******************** Public of instances ********************/
 
 const POT = {}
@@ -15,7 +16,7 @@ async function calibrate() {
   //启动前本机链情况检查
   // mylog.info('此刻本机链的最高块 : ' + (await wo.Chain.getTopBlock()).height);
   let heightNow = Date.time2height();
-  let canStartNow = heightNow === (await wo.Chain.getTopBlock()).height + 1 && (new Date().getSeconds() < electTime - 5 || new Date().getSeconds() < electTime + wo.Config.BLOCK_PERIOD - 5)
+  let canStartNow = heightNow === (await wo.Chain.getTopBlock()).height + 1 && ((new Date().getSeconds() < electTime - 5) || (new Date().getSeconds() < electTime + wo.Config.BLOCK_PERIOD - 5))
   if (canStartNow) { // 注意，前面的同步可能花了20多秒，到这里已经是在竞选阶段。所以再加个当前秒数的限制。
     return 1;
   }
@@ -37,12 +38,15 @@ async function calibrate() {
   }
   else if (heightNow > (await wo.Chain.getTopBlock()).height + 1) {
     mylog.info(`此时刻应该到达的高度：[${heightNow}]  当前本机链的最高块高度：[${(await wo.Chain.getTopBlock()).height}]`)
-    mylog.warn('>===== 开始进行区块更新和同步 =====>');
+    mylog.info('>===== 开始进行区块更新和同步 =====>');
     let topBlock = await wo.Chain.updateChainFromPeer()
     mylog.info(`>===== 当前更新到高度：${topBlock.height} =====>`);
     if (Date.time2height() - topBlock.height > 1) {
       topBlock = await wo.Chain.getTopBlock()
-      for (let height = topBlock.height + 1; height <= Date.time2height(); height++) {
+      for (let height = topBlock.height + 1; height < Date.time2height(); height++) {
+        await wo.Chain.createVirtBlock()
+      }
+      if((new Date().getSeconds() > mineTime) || (new Date().getSeconds() > mineTime + wo.Config.BLOCK_PERIOD)) {
         await wo.Chain.createVirtBlock()
       }
       return 1
