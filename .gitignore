@@ -11,3 +11,5 @@ package-lock.json
 test*
 ConfigSecret.js
 .idea
+*.db
+*.rdb
