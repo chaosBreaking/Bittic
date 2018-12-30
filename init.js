@@ -60,9 +60,9 @@ function config() {
   Config.dbName = commander.dbName || Config.dbName
   Config.host = commander.host || Config.host || require('fon.base/Network.js').getMyIp() // // 本节点的从外部可访问的 IP or Hostname，不能是 127.0.0.1 或 localhost
   Config.netType = commander.netType || Config.netType
-  Config.ownerSecword = commander.ownerSecword || Config.ownerSecword
+  Config.ownerSecword = commander.ownerSecword || Config.ownerSecword || (Config.netType==='devnet' ? Config.INITIAL_ACCOUNT.devnet.secword : undefined)
   Config.protocol = commander.protocol || Config.protocol
-  Config.port = parseInt(commander.port) || parseInt(Config.port) || (Config.protocol === 'http' ? 8888 : Config.protocol === 'https' ? 8888 : undefined) // 端口默认为8888(http,https), 或80|443(httpall)
+  Config.port = parseInt(commander.port) || parseInt(Config.port) || (Config.protocol === 'http' ? 80 : Config.protocol === 'https' ? 443 : undefined) // 端口默认为http 80, https 443, 或80|443(httpall)
   Config.link = commander.link || Config.link
   Config.seedSet = commander.seedSet ? JSON.parse(commander.seedSet) : Config.seedSet
   Config.sslCert = commander.sslCert || Config.sslCert
@@ -73,9 +73,9 @@ function config() {
     Config.dbName=`${Config.dbName}-${Config.consensus}-${Config.netType}.${Config.dbType}`
     Config.GENESIS_MESSAGE = Config.GENESIS_BLOCK[Config.netType].message
     Config.INITIAL_ACCOUNT = Config.INITIAL_ACCOUNT[Config.netType]
-    Config.GENESIS_EPOCHE = (Config.netType === 'devnet') ? 
-      require('fon.base/Date.js').time2epoche({ type: 'prevHour' }) : // nextMin: 下一分钟（单机测试）， prevHour: 前一小时（多机测试），或 new Date('2018-07-03T10:15:00.000Z') // 为了方便开发，暂不使用固定的创世时间，而是生成当前时刻之后的第一个0秒，作为创世时间
-      Config.GENESIS_BLOCK[Config.netType].timestamp
+    Config.GENESIS_EPOCHE = (Config.netType === 'devnet')
+      ? require('fon.base/Date.js').time2epoche({ type: 'prevHour' }) // nextMin: 下一分钟（单机测试）， prevHour: 前一小时（多机测试），或 new Date('2018-07-03T10:15:00.000Z') // 为了方便开发，暂不使用固定的创世时间，而是生成当前时刻之后的第一个0秒，作为创世时间
+      : Config.GENESIS_BLOCK[Config.netType].timestamp
   
     mylog.info('Configuration is ready')
     mylog.info(`  consensus=====${Config.consensus}`)
@@ -101,6 +101,14 @@ async function masterInit(worker) {
 // 通过 JSON.parse(JSON.stringify(this.actionHashList)) 来取代 extend，彻底解除对wo.Tool依赖 wo.Tool = new (require('fon.base/Egg.js'))()
   wo.Config = config() // 依次载入系统默认配置、用户配置文件、命令行参数
   wo.Crypto = require('tic.crypto')
+  if (wo.Config.netType==='devnet' && wo.Config.ownerSecword==='dev1'){ // 允许开发者在命令行里 -o 'dev1' 来指定使用预设的开发者账号
+    wo.Config.ownerSecword=wo.Config.DEV_ACCOUNT[0].secword
+    mylog.info(`current node for devnet is instructed to use dev1 secword "${wo.Config.ownerSecword}"`)
+  }
+  if (wo.Config.netType!=='devnet' && wo.Config.ownerSecword===wo.Config.INITIAL_ACCOUNT.devnet.secword){
+    mylog.warn(`Public devnet secword cannot be used for other networks. Please setup your own private secword.`)
+    mylog.warn('非开发网禁止使用已知的开发网初始账号')
+  }
   if (!wo.Crypto.isSecword(wo.Config.ownerSecword)){
     mylog.warn(`Invalid secword: "${wo.Config.ownerSecword}". Please setup a secword in config file or command line.`)
     process.exit()
@@ -110,7 +118,7 @@ async function masterInit(worker) {
 
   wo.Block = require('./modules/Block/index.js')(wo.Config.consensus)
   wo.Peer = await require('./modules/P2P/index.js')
-  wo.Store = await require('./modules/util/Store.js')('redis') //  必须指定数据库,另外不能_init(),否则会覆盖子进程已经设定好的内容
+  wo.Store = await require('./modules/util/Store.js')('redis') // 必须指定数据库,另外不能_init(),否则会覆盖子进程已经设定好的内容
   wo.EventBus = require('./modules/util/EventBus.js')(worker).mount(worker)
   wo.Chain = require('./modules/Chain/index.js')
   mylog.info('初始化共识模块')
@@ -124,6 +132,14 @@ async function workerInit() {
 // 通过 JSON.parse(JSON.stringify(this.actionHashList)) 来取代 extend，彻底解除对wo.Tool依赖 wo.Tool = new (require('fon.base/Egg.js'))()
   wo.Config = config() // 依次载入系统默认配置、用户配置文件、命令行参数
   wo.Crypto = require('tic.crypto')
+  if (wo.Config.netType==='devnet' && wo.Config.ownerSecword==='dev1'){ // 允许开发者在命令行里 -o 'dev1' 来指定使用预设的开发者账号
+    wo.Config.ownerSecword=wo.Config.DEV_ACCOUNT[0].secword
+    mylog.info(`current node for devnet is instructed to use dev1 secword "${wo.Config.ownerSecword}"`)
+  }
+  if (wo.Config.netType!=='devnet' && wo.Config.ownerSecword===wo.Config.INITIAL_ACCOUNT.devnet.secword){
+    mylog.warn(`Public devnet secword cannot be used for other networks. Please setup your own private secword.`)
+    mylog.warn('非开发网禁止使用已知的开发网初始账号')
+  }
   if (!wo.Crypto.isSecword(wo.Config.ownerSecword)){
     mylog.error(`Invalid secword: "${wo.Config.ownerSecword}". Please setup a secword in config file or command line.`)
     process.exit()

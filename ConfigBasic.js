@@ -85,7 +85,7 @@ module.exports = { // 全大写字母的，代表系统常量，不要在 userCo
       address: 'Ttm24Wb877P6EHbNKzswoK6yvnTQqFYaqo'
     },
     devnet: {
-      //    secword: 'clever journey cave maze luxury juice trigger discover bamboo net shoot put',
+      secword: 'clever journey cave maze luxury juice trigger discover bamboo net shoot put',
       //    pubkey: '0fee122794b94feadcc07a72e69110e1000b6515ea67b4dba90f20dc48f999f8',
       //    seckey: 'df814a79def4fa6e5bff2a19f44a5811163600db35670dca0b9bacc0994db05f0fee122794b94feadcc07a72e69110e1000b6515ea67b4dba90f20dc48f999f8',
       address: 'TxAEimQbqVRUoPncGLrrpmP82yhtoLmxJE'
