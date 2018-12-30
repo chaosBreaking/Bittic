@@ -85,18 +85,24 @@ module.exports = { // 全大写字母的，代表系统常量，不要在 userCo
       address: 'Ttm24Wb877P6EHbNKzswoK6yvnTQqFYaqo'
     },
     devnet: {
-      secword: 'clever journey cave maze luxury juice trigger discover bamboo net shoot put',
+      //    secword: 'clever journey cave maze luxury juice trigger discover bamboo net shoot put',
       //    pubkey: '0fee122794b94feadcc07a72e69110e1000b6515ea67b4dba90f20dc48f999f8',
       //    seckey: 'df814a79def4fa6e5bff2a19f44a5811163600db35670dca0b9bacc0994db05f0fee122794b94feadcc07a72e69110e1000b6515ea67b4dba90f20dc48f999f8',
       address: 'TxAEimQbqVRUoPncGLrrpmP82yhtoLmxJE'
     }
   },
   DEV_ACCOUNT: [
+    { // 第0个账号=初始账号
+      secword: 'clever journey cave maze luxury juice trigger discover bamboo net shoot put',
+      // pubkey: '0fee122794b94feadcc07a72e69110e1000b6515ea67b4dba90f20dc48f999f8',
+      // seckey: 'df814a79def4fa6e5bff2a19f44a5811163600db35670dca0b9bacc0994db05f0fee122794b94feadcc07a72e69110e1000b6515ea67b4dba90f20dc48f999f8',
+      // address: 'TxAEimQbqVRUoPncGLrrpmP82yhtoLmxJE'
+    },
     {
       secword: 'brand moment media marine enroll verb blanket toilet unit exercise choose nuclear',
-      pubkey: 'f21b1b5b4e533ad52ac5f55ba10da1d978e3cc54f3a28daa80475ccfd3b43f3c',
-      seckey: 'c34ccff7ddcbac11a1275ef5339a6df11f0beab5dbf7283f964bde1201576005f21b1b5b4e533ad52ac5f55ba10da1d978e3cc54f3a28daa80475ccfd3b43f3c',
-      address: 'Tm3C6oELhJsF5EZBPD1ppdfNjgd2RxMUmj'
+      // pubkey: 'f21b1b5b4e533ad52ac5f55ba10da1d978e3cc54f3a28daa80475ccfd3b43f3c',
+      // seckey: 'c34ccff7ddcbac11a1275ef5339a6df11f0beab5dbf7283f964bde1201576005f21b1b5b4e533ad52ac5f55ba10da1d978e3cc54f3a28daa80475ccfd3b43f3c',
+      // address: 'Tm3C6oELhJsF5EZBPD1ppdfNjgd2RxMUmj'
     }
   ]
 

@@ -60,7 +60,7 @@ function config() {
   Config.dbName = commander.dbName || Config.dbName
   Config.host = commander.host || Config.host || require('fon.base/Network.js').getMyIp() // // 本节点的从外部可访问的 IP or Hostname，不能是 127.0.0.1 或 localhost
   Config.netType = commander.netType || Config.netType
-  Config.ownerSecword = commander.ownerSecword || Config.ownerSecword || (Config.netType==='devnet' ? Config.INITIAL_ACCOUNT.devnet.secword : undefined)
+  Config.ownerSecword = commander.ownerSecword || Config.ownerSecword || (Config.netType==='devnet' ? Config.DEV_ACCOUNT[0].secword : undefined) // 如果没有设置secword并且在devnet，就用devnet的初始账号，使得不需要任何参数就能运行。
   Config.protocol = commander.protocol || Config.protocol
   Config.port = parseInt(commander.port) || parseInt(Config.port) || (Config.protocol === 'http' ? 80 : Config.protocol === 'https' ? 443 : undefined) // 端口默认为http 80, https 443, 或80|443(httpall)
   Config.link = commander.link || Config.link
@@ -102,10 +102,10 @@ async function masterInit(worker) {
   wo.Config = config() // 依次载入系统默认配置、用户配置文件、命令行参数
   wo.Crypto = require('tic.crypto')
   if (wo.Config.netType==='devnet' && wo.Config.ownerSecword==='dev1'){ // 允许开发者在命令行里 -o 'dev1' 来指定使用预设的开发者账号
-    wo.Config.ownerSecword=wo.Config.DEV_ACCOUNT[0].secword
+    wo.Config.ownerSecword=wo.Config.DEV_ACCOUNT[1].secword
     mylog.info(`current node for devnet is instructed to use dev1 secword "${wo.Config.ownerSecword}"`)
   }
-  if (wo.Config.netType!=='devnet' && wo.Config.ownerSecword===wo.Config.INITIAL_ACCOUNT.devnet.secword){
+  if (wo.Config.netType!=='devnet' && wo.Config.ownerSecword===wo.Config.DEV_ACCOUNT[0].secword){
     mylog.warn(`Public devnet secword cannot be used for other networks. Please setup your own private secword.`)
     mylog.warn('非开发网禁止使用已知的开发网初始账号')
   }
@@ -133,10 +133,10 @@ async function workerInit() {
   wo.Config = config() // 依次载入系统默认配置、用户配置文件、命令行参数
   wo.Crypto = require('tic.crypto')
   if (wo.Config.netType==='devnet' && wo.Config.ownerSecword==='dev1'){ // 允许开发者在命令行里 -o 'dev1' 来指定使用预设的开发者账号
-    wo.Config.ownerSecword=wo.Config.DEV_ACCOUNT[0].secword
+    wo.Config.ownerSecword=wo.Config.DEV_ACCOUNT[1].secword
     mylog.info(`current node for devnet is instructed to use dev1 secword "${wo.Config.ownerSecword}"`)
   }
-  if (wo.Config.netType!=='devnet' && wo.Config.ownerSecword===wo.Config.INITIAL_ACCOUNT.devnet.secword){
+  if (wo.Config.netType!=='devnet' && wo.Config.ownerSecword===wo.Config.DEV_ACCOUNT[0].secword){
     mylog.warn(`Public devnet secword cannot be used for other networks. Please setup your own private secword.`)
     mylog.warn('非开发网禁止使用已知的开发网初始账号')
   }
