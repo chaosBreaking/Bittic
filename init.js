@@ -1,5 +1,6 @@
 'use strict'
 const fs = require('fs')
+const path = require('path')
 const cluster = require('cluster')
 const socket = require('socket.io')
 const mylog = require('fon.base/Logger.js')({root:'data.log', file:'tic.log'}) // 简写 console.log，为了少敲几个字母
@@ -199,7 +200,7 @@ function serverInit() { // 配置并启动 Web 服务
     extended: true
   }))
   server.use(Cors())
-  server.use(Express.static(__dirname + '../node.console.web.site/dist')) // 可以指定到 node应用之外的目录上。windows里要把 \ 换成 /。
+  server.use(Express.static(path.join(__dirname,'../node.console.web.site/dist'), {index:'index.html'})) // 可以指定到 node应用之外的目录上。windows里要把 \ 换成 /。
 
   /*** 路由中间件 ***/
 
