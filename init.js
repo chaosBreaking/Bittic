@@ -184,6 +184,7 @@ function serverInit() { // 配置并启动 Web 服务
   const CookieParser = require('cookie-parser')
   const BodyParser = require('body-parser')
   const ErrorHandler = require('errorhandler')
+  const Compression = require('compression')
 
   const server = Express()
 
@@ -193,13 +194,12 @@ function serverInit() { // 配置并启动 Web 服务
   server.use(MethodOverride())
   server.use(CookieParser())
   server.use(BodyParser.json({
-    limit: '50mb'
-  })) // 用于过滤 POST 参数
-  server.use(BodyParser.urlencoded({
     limit: '50mb',
     extended: true
-  }))
+  })) // 用于过滤 POST 参数
   server.use(Cors())
+  server.use(Compression())
+
   server.use(Express.static(path.join(__dirname,'../node.console.web.site/dist'), {index:'index.html'})) // 可以指定到 node应用之外的目录上。windows里要把 \ 换成 /。
 
   /*** 路由中间件 ***/
@@ -220,8 +220,8 @@ function serverInit() { // 配置并启动 Web 服务
     option._req = ask
 
     reply.setHeader('charset', 'utf-8')
-    reply.setHeader('Access-Control-Allow-Origin', '*')
-    reply.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE')
+//    reply.setHeader('Access-Control-Allow-Origin', '*') // 用了 Cors中间件，就不需要手工再设置了。
+//    reply.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE')
     reply.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,Content-Type')
 
     let _who = ask.params._who
