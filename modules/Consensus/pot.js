@@ -18,6 +18,9 @@ async function calibrate() {
   let heightNow = Date.time2height();
   let canStartNow = heightNow === (await wo.Chain.getTopBlock()).height + 1 && ((new Date().getSeconds() < electTime - 5) || (new Date().getSeconds() < electTime + wo.Config.BLOCK_PERIOD - 5))
   if (canStartNow) { // 注意，前面的同步可能花了20多秒，到这里已经是在竞选阶段。所以再加个当前秒数的限制。
+    if((new Date().getSeconds() > mineTime) || (new Date().getSeconds() > mineTime + wo.Config.BLOCK_PERIOD)) {
+      await wo.Chain.createVirtBlock()
+    }
     return 1;
   }
   let missLastBlock = heightNow === (await wo.Chain.getTopBlock()).height + 2 && my.signBlock && (await wo.Chain.getTopBlock()).height === my.signBlock.height - 1
@@ -88,7 +91,7 @@ POT.signOnce = async function () {
   }
   mylog.error('本机状态异常，无法进行启动共识')
   mylog.error(heightNow,(await wo.Chain.getTopBlock()).height)
-  await calibrate();
+  await POT._init();
 }
 POT.api.signWatcher = async function (option) { // 监听收集终端用户的签名
   if (my.currentPhase !== 'signing') {
