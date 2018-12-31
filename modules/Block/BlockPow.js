@@ -68,7 +68,7 @@ MOM.packMe = async function (actionBatch, lastBlock, keypair) { // 后台节点�
   this.version = 0
   this.totalFee = 0
   this.totalAmount = 0
-  this.timestamp = lastBlock?new Date():wo.Config.GENESIS_EPOCHE
+  this.timestamp = lastBlock?new Date():wo.Config.GENESIS_EPOCH
   this.packerPubkey = keypair.pubkey
 
   this.actionHashList = Object.keys(actionBatch.actionPool ? actionBatch.actionPool : {});

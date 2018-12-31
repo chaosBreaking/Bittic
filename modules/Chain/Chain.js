@@ -27,7 +27,7 @@ Chain._init = async function () {
 
 Chain.createGenesis = async function () {
   mylog.info(`======== Net ${wo.Config.netType} ========`)
-  mylog.info(`GENESIS_EPOCHE: ${wo.Config.GENESIS_EPOCHE.toJSON()}`)
+  mylog.info(`GENESIS_EPOCH: ${wo.Config.GENESIS_EPOCH.toJSON()}`)
   my.genesis = new wo.Block(wo.Config.GENESIS_BLOCK[wo.Config.netType])
   my.genesis.packMe({}, null, wo.Crypto.secword2keypair(wo.Config.GENESIS_ACCOUNT.secword))
   await Chain.pushTopBlock(my.genesis)

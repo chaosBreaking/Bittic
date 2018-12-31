@@ -18,7 +18,7 @@ DAD.api={} // 面向前端应用的API
 DAD._init=async function(){
 
   if (wo.Consensus){
-    wo.Config.GENESIS_EPOCHE= new Date('2018-04-17T06:15:00.000Z')//Date.time2epoche() //Date.time2epoche() // 为了方便开发，暂不使用固定的创世时间，而是生成当前时刻之后的第一个0秒，作为创世时间
+    wo.Config.GENESIS_EPOCH= new Date('2018-04-17T06:15:00.000Z')//Date.time2epoche() //Date.time2epoche() // 为了方便开发，暂不使用固定的创世时间，而是生成当前时刻之后的第一个0秒，作为创世时间
   }
 
   await DAD.createGenesis()
@@ -40,9 +40,9 @@ DAD._init=async function(){
 }
 
 DAD.createGenesis=async function(){
-  mylog.info('创世时分 GENESIS_EPOCHE='+wo.Config.GENESIS_EPOCHE.toJSON())
+  mylog.info('创世时分 GENESIS_EPOCH='+wo.Config.GENESIS_EPOCH.toJSON())
   my.genesis=new wo.Block({
-    timestamp:wo.Config.GENESIS_EPOCHE,
+    timestamp:wo.Config.GENESIS_EPOCH,
     message:'Some big things start out small'
   })
   await my.genesis.packMe([], null, wo.Crypto.secword2keypair(my.genesisAccount.secword))

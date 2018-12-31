@@ -36,15 +36,15 @@ module.exports = { // 全大写字母的，代表系统常量，不要在 userCo
   GENESIS_HEIGHT: 0,
   GENESIS_BLOCK : {
     mainnet: {
-      timestamp: new Date('2019-06-06T00:00:00.000Z'),
+      timestamp: '2019-06-06T00:00:00.000Z',
       message: 'History is Future, Future is Now'
     },
     testnet: {
-      timestamp: new Date('2018-12-30T14:41:00.000Z'),
+      timestamp: '2018-12-30T14:41:00.000Z',
       message: 'The Cabinet Office minister David Lidington today defended Philip Hammond’s decision to issue a new warning that a no-deal Brexit would significantly damage the economy.'    
     },
     devnet: {
-      timestamp: '',
+      timestamp: 'prevHour', // prevHour, nextMin, now或留空或任意其他。 nextMin: 下一分钟（单机测试）， prevHour: 前一小时（多机测试），now或留空或任意其他：此刻。为了方便开发，暂不使用固定的创世时间。
       message: 'some big things start out small'    
     }
   },

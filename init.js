@@ -23,6 +23,7 @@ function config() {
     .option('-c, --consensus <type>', 'Consensus type: Pot|Pow|Alone, default to ' + Config.consensus)
     .option('--dbType <type>', 'Database type mysql|sqlite')
     .option('--dbName <name>', 'Database name')
+    .option('-e, --epoch <epoch>', 'Genesis epoch in ISO format string for mainnet/testnet, or prevHour|nextMin|now for devnet')
     .option('-H, --host <host>', 'host ip or domain name')
     .option('-n, --netType <net>', 'devnet/testnet/mainnet')
     .option('-o, --ownerSecword <secword>', 'Node owner\'s secword')
@@ -72,12 +73,14 @@ function config() {
   Config.redisIndex = commander.redisIndex || Config.redisIndex
   try {
     Config.dbName=`${Config.dbName}-${Config.consensus}-${Config.netType}.${Config.dbType}`
-    Config.GENESIS_MESSAGE = Config.GENESIS_BLOCK[Config.netType].message
     Config.INITIAL_ACCOUNT = Config.INITIAL_ACCOUNT[Config.netType]
-    Config.GENESIS_EPOCHE = (Config.netType === 'devnet')
-      ? require('./modules/util/Date.js').time2epoche({ type: 'prevHour' }) // nextMin: 下一分钟（单机测试）， prevHour: 前一小时（多机测试），或 new Date('2018-07-03T10:15:00.000Z') // 为了方便开发，暂不使用固定的创世时间，而是生成当前时刻之后的第一个0秒，作为创世时间
-      : Config.GENESIS_BLOCK[Config.netType].timestamp
-  
+    Config.GENESIS_MESSAGE = Config.GENESIS_BLOCK[Config.netType].message
+    Config.GENESIS_EPOCH = /^\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d\.\d\d\dZ$/.test(commander.epoch) 
+      ? new Date(commander.epoch) // 不论对什么网，优先采用命令行参数指定的纪元
+      : (Config.netType === 'devnet')
+        ? require('./modules/util/Date.js').time2epoche({ type: commander.epoch || Config.GENESIS_BLOCK[Config.netType].timestamp }) 
+        : new Date(Config.GENESIS_BLOCK[Config.netType].timestamp)
+
     mylog.info('Configuration is ready')
     mylog.info(`  consensus=====${Config.consensus}`)
     mylog.info(`  netType=====${Config.netType}`)
@@ -86,6 +89,8 @@ function config() {
     mylog.info(`  protocol=====${Config.protocol}`)
     mylog.info(`  host=====${Config.host}`)
     mylog.info(`  port=====${Config.port}`)
+    mylog.info(`  GENESIS_EPOCH=====${Config.GENESIS_EPOCH.toJSON()}`)
+    mylog.info(`  INITIAL_ACCOUNT=====${Config.INITIAL_ACCOUNT.address}`)
     mylog.info(`  ownerSecword=====${Config.ownerSecword}`)
    
     return Config

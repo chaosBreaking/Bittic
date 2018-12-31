@@ -76,7 +76,7 @@ MOM.packMe = function (actionBatch, lastBlock, keypair) { // 后台节点挖矿�
   this.version = wo.Config.VERSION;
   this.packerPubkey = keypair.pubkey;
   this.lastBlockHash = lastBlock?lastBlock.hash:null;
-  this.timestamp = lastBlock?new Date():wo.Config.GENESIS_EPOCHE;
+  this.timestamp = lastBlock?new Date():wo.Config.GENESIS_EPOCH;
 
   if(this.type!=="SignBlock")
   {

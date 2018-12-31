@@ -1,6 +1,6 @@
 Date.time2height=function(time){ // 创世块时刻（必须是0秒000毫秒）0.000到59.999为0，下一分钟0.000~59.999为1，...... 所以这代表了 当前所在分钟将要出的块的高度。注意，反向也成立，创世时刻之前是-1，-2，...
   time=time || new Date()
-  return Math.floor((time - wo.Config.GENESIS_EPOCHE) / (wo.Config.BLOCK_PERIOD * 1000))
+  return Math.floor((time - wo.Config.GENESIS_EPOCH) / (wo.Config.BLOCK_PERIOD * 1000))
 }
 
 Date.time2epoche=function(option){
@@ -16,6 +16,6 @@ Date.time2epoche=function(option){
     time.setMilliseconds(0)
     return time
   }
-  return new Date()
+  return time // 如果option.type='now'或任何其他不认识的内容，就返回输入参数time或者当前时刻。
 }
 module.exports = Date
