@@ -52,6 +52,8 @@ async function calibrate() {
       if((new Date().getSeconds() > mineTime) || (new Date().getSeconds() > mineTime + wo.Config.BLOCK_PERIOD)) {
         await wo.Chain.createVirtBlock()
       }
+      if (new Date().getSeconds() < electTime - 5 && !my.selfPot.signature)
+        POT.signOnce();
       return 1
     }
   }
@@ -63,8 +65,6 @@ POT._init = async function () {
     my.scheduleJobs[0] = Schedule.scheduleJob({ second: [0, wo.Config.BLOCK_PERIOD] }, POT.signOnce); // 每分钟的第0秒
     my.scheduleJobs[1] = Schedule.scheduleJob({ second: [electTime, wo.Config.BLOCK_PERIOD + electTime] }, POT.electOnce);
     my.scheduleJobs[2] = Schedule.scheduleJob({ second: [mineTime, wo.Config.BLOCK_PERIOD + mineTime] }, POT.mineOnce);
-    if (new Date().getSeconds() < electTime - 5 && !my.selfPot.signature)
-      POT.signOnce();
   }
   else {
     setTimeout(POT._init, Math.abs(wo.Config.BLOCK_PERIOD - new Date().getSeconds()));
@@ -89,9 +89,9 @@ POT.signOnce = async function () {
     signForOwner();
     return 0;
   }
-  mylog.error('本机状态异常，无法进行启动共识')
-  mylog.error(heightNow,(await wo.Chain.getTopBlock()).height)
-  await POT._init();
+  mylog.error('本机状态异常，无法启动共识')
+  mylog.error(heightNow, (await wo.Chain.getTopBlock()).height)
+  await calibrate();
 }
 POT.api.signWatcher = async function (option) { // 监听收集终端用户的签名
   if (my.currentPhase !== 'signing') {
