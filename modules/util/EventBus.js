@@ -8,11 +8,13 @@ function EventBus(obj) {
     return new EventBus(obj);
   this.obj = obj;
   this.obj.on('message', async (message) => {
-    if(message && message.code && message.code !== 'call'){
+    if(!message || !message.data) return 0
+    if(message && message.code && message.code !== 'call') {
       this.emit(message.code, message);
     }
     else{
-      if(wo[message.data.who]['api'][message.data.act] || wo[message.data.who][message.data.act]) {
+      if(!message.data.who) return 0
+      if(wo[message.data.who][message.data.act] || wo[message.data.who]['api'][message.data.act]) {
         var callres = message.data.api ? await wo[message.data.who]['api'][message.data.act](message.data.param)
         :await wo[message.data.who][message.data.act](message.data.param)
         wo.EventBus.send(message.data.id, callres);
