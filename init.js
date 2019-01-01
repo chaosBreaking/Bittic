@@ -112,11 +112,12 @@ async function masterInit(worker) {
     mylog.info(`current node for devnet is instructed to use dev1 secword "${wo.Config.ownerSecword}"`)
   }
   if (wo.Config.netType!=='devnet' && wo.Config.ownerSecword===wo.Config.DEV_ACCOUNT[0].secword){
-    mylog.warn(`Public devnet secword cannot be used for other networks. Please setup your own private secword.`)
-    mylog.warn('非开发网禁止使用已知的开发网初始账号')
+    mylog.error(`Public devnet secword cannot be used for other networks. Please setup your own private secword.`)
+    mylog.error('非开发网禁止使用已知的开发网初始账号')
+    process.exit()
   }
   if (!wo.Crypto.isSecword(wo.Config.ownerSecword)){
-    mylog.warn(`Invalid secword: "${wo.Config.ownerSecword}". Please setup a secword in config file or command line.`)
+    mylog.error(`Invalid secword: "${wo.Config.ownerSecword}". Please setup a secword in config file or command line.`)
     process.exit()
   }
 
@@ -143,8 +144,9 @@ async function workerInit() {
     mylog.info(`current node for devnet is instructed to use dev1 secword "${wo.Config.ownerSecword}"`)
   }
   if (wo.Config.netType!=='devnet' && wo.Config.ownerSecword===wo.Config.DEV_ACCOUNT[0].secword){
-    mylog.warn(`Public devnet secword cannot be used for other networks. Please setup your own private secword.`)
-    mylog.warn('非开发网禁止使用已知的开发网初始账号')
+    mylog.error(`Public devnet secword cannot be used for other networks. Please setup your own private secword.`)
+    mylog.error('非开发网禁止使用已知的开发网初始账号')
+    process.exit()
   }
   if (!wo.Crypto.isSecword(wo.Config.ownerSecword)){
     mylog.error(`Invalid secword: "${wo.Config.ownerSecword}". Please setup a secword in config file or command line.`)
