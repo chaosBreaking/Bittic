@@ -297,24 +297,12 @@ function serverInit() { // 配置并启动 Web 服务
 (async function Start() {
   if (cluster.isMaster) {
     let worker = cluster.fork()
-    cluster.once('message', async (worker, message) => {
+    cluster.on('message', async (worker, message) => {
       if(message.code == 200) {
         mylog.warn(`[Master] 主程序初始化完毕，启动共识模块......`)
         await masterInit(worker)
         return 0
       }
-    })
-
-    cluster.on('exit', function (worker, code, signal) {
-      mylog.error('worker ' + worker.process.pid + ' died, Restarting')
-      var worker = cluster.fork()
-      cluster.once('message', async (worker, message) => {
-        if (message.code == 200) {
-            mylog.warn(`[Master] 主程序初始化完毕，启动共识模块......`)
-            await masterInit(worker)
-            return 0
-        }
-      })
     })
   }
   else {
