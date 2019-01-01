@@ -28,8 +28,8 @@ module.exports = { // 全大写字母的，代表系统常量，不要在 userCo
   VERSION: '0.0.1',
   BLOCK_PERIOD: 60, // 出块周期(s)
   BLOCK_MAX_SIZE: 1 * 1024 * 1024, // 每个区块的最大容量：1M字节
-  PEER_CHECKING_PERIOD: 60 * 1000, // 每隔多久ping一个邻居
-  PEER_CHECKING_TIMEOUT: 10, // *60*1000, // 5分钟没有响应就认为邻居节点死了
+  PEER_CHECKING_PERIOD: [37] , // 单位是秒钟，每分钟的第几秒ping一个邻居。注意，尽量不要和pot的关键时间点冲突。
+  PEER_CHECKING_TIMEOUT: 10, // 单位是次数，多少次没有响应就认为邻居节点死了
   PEER_POOL_CAPACITY: 10, // 保持几个邻居节点
 
   GENESIS_HEIGHT: 0,
@@ -39,7 +39,7 @@ module.exports = { // 全大写字母的，代表系统常量，不要在 userCo
       message: 'History is Future, Future is Now'
     },
     testnet: {
-      timestamp: '2018-12-30T14:41:00.000Z',
+      timestamp: '2019-01-01T18:18:18.888Z',
       message: 'The Cabinet Office minister David Lidington today defended Philip Hammond’s decision to issue a new warning that a no-deal Brexit would significantly damage the economy.'    
     },
     devnet: {

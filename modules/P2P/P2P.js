@@ -74,7 +74,7 @@ Peers._init = async function () {
       // setInterval(Peers.updatePool, wo.Config.PEER_CHECKING_PERIOD) 
       // 多久检查一个节点？假设每个节点有12个peer，5秒检查一个，1分钟可检查一圈。而且5秒足够ping响应。
   }
-  my.scheduleJob[0] = Schedule.scheduleJob(`*/59 * * * * *`, Peers.updatePool)
+  my.scheduleJob[0] = Schedule.scheduleJob({second: wo.Config.PEER_CHECKING_PERIOD}, Peers.updatePool)
   return this
 }
 
@@ -274,8 +274,7 @@ Peers.api = {} // 对外可RPC调用的方法
  */
 Peers.api.ping = async function (option) {
   if (option && option.Peer && Peers.isValid(option.Peer)) {
-    let isNewPeer = !(await Peers.getPeers())[option.Peer.ownerAddress]
-    if (isNewPeer) { // 是新邻居发来的ping？把新邻居加入节点池
+    if (!my.peerAddressArray[option.Peer.ownerAddress]) { // 是新邻居发来的ping？把新邻居加入节点池
       // var fromHost = option._req.headers['x-forwarded-for'] || option._req.connection.remoteAddress || option._req.socket.remoteAddress || option._req.connection.socket.remoteAddress
       // var fromPort = option._req.connection.remotePort
       // option.Peer.host = fromHost
@@ -295,6 +294,9 @@ Peers.api.getMyInfo = async function () {
 
 Peers.api.sharePeer = async function () { // 响应邻居请求，返回更多节点。option.Peer是邻居节点。
   let res = Object.values(await Peers.getPeers() || {}) // todo: 检查 option.Peer.ownerAddress 不要把邻居节点返回给这个邻居自己。
+  mylog.warn(await Peers.getPeers()) // 为什么是空的？
+  mylog.info(res)
+  mylog.info(my.peerAddressArray)
   return res
 }
 
