@@ -11,8 +11,6 @@ module.exports = { // 全大写字母的，代表系统常量，不要在 userCo
   sslCA: null, // ssl ca file,
   link: 'http', // http|udp
 
-  seedSet: [], // 系统默认的种子节点
-
   dbType: 'sqlite',
   dbName: 'data.sqlite/tic.sqlite',
   redisIndex: 0,
@@ -20,11 +18,12 @@ module.exports = { // 全大写字母的，代表系统常量，不要在 userCo
   NET_TYPE: ['mainnet', 'testnet', 'devnet'],
   NET_MAGIC: { mainnet: '1m1', testnet: '2t2', devnet: '3d3' },
   NET_PORT: { mainnet: 8888, testnet: 8888, devnet: 8888 },
-  NET_SEEDSET: {
+  NET_SEEDSET: { // 系统默认的种子节点
     mainnet: ['http://mainnet.bittic.net:8888'],
     testnet: ['http://testnet.bittic.net:8888'],
     devnet: []
   },
+  seedSet: [], // 节点主人可在自定义配置中添加的种子
 
   VERSION: '0.0.1',
   BLOCK_PERIOD: 60, // 出块周期(s)

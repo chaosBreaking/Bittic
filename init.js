@@ -66,7 +66,9 @@ function config() {
   Config.protocol = commander.protocol || Config.protocol
   Config.port = parseInt(commander.port) || parseInt(Config.port) || (Config.protocol === 'http' ? 80 : Config.protocol === 'https' ? 443 : undefined) // 端口默认为http 80, https 443, 或80|443(httpall)
   Config.link = commander.link || Config.link
-  Config.seedSet = commander.seedSet ? JSON.parse(commander.seedSet) : Config.seedSet
+  Config.seedSet = commander.seedSet 
+    ? deepmerge(JSON.parse(commander.seedSet), deepmerge(Config.seedSet, Config.NET_SEEDSET[Config.netType]))
+    : deepmerge(Config.seedSet, Config.NET_SEEDSET[Config.netType])
   Config.sslCert = commander.sslCert || Config.sslCert
   Config.sslKey = commander.sslKey || Config.sslKey
   Config.sslCA = commander.sslCA || Config.sslCA
@@ -89,6 +91,7 @@ function config() {
     mylog.info(`  protocol=====${Config.protocol}`)
     mylog.info(`  host=====${Config.host}`)
     mylog.info(`  port=====${Config.port}`)
+    mylog.info(`  seedSet=====${Config.seedSet}`)
     mylog.info(`  GENESIS_EPOCH=====${Config.GENESIS_EPOCH.toJSON()}`)
     mylog.info(`  INITIAL_ACCOUNT=====${Config.INITIAL_ACCOUNT.address}`)
     mylog.info(`  ownerSecword=====${Config.ownerSecword}`)
