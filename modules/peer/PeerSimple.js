@@ -141,7 +141,7 @@ DAD.updatePool = async function () { // 一次性检查节点池里所有节点�
 }
 
 DAD.broadcast = async function (api, message, peerSet) { // api='/类名/方法名'  向所有邻居发出广播，返回所有结果的数组。可通过 peerSet 参数指定广播对象。
-  let peerSet = peerSet || await DAD.getPeerList()
+  peerSet = peerSet || await DAD.getPeerList()
   mylog.info(`广播调用${api}`)
   if (peerSet && peerSet.length > 0) {
     let res = await Promise.all(peerSet.map(peer => RequestPromise({
@@ -158,7 +158,7 @@ DAD.broadcast = async function (api, message, peerSet) { // api='/类名/方法�
 }
 
 DAD.randomcast = async function (api, message, peerSet) { // 随机挑选一个节点发出请求，返回结果。可通过 peerSet 参数指定广播对象。
-  let peerSet = peerSet || await DAD.getPeerList()
+  peerSet = peerSet || await DAD.getPeerList()
   if (peerSet && peerSet.length > 0) {
     var peer = peerSet[wo.Crypto.randomNumber({ max: peerSet.length })]
     if (peer && peer.accessPoint) {
