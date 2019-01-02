@@ -47,9 +47,10 @@ DAD._init = async function () {
         uri: url.resolve(peerUrl, '/api/Peer/ping'),
         body: { Peer: JSON.stringify(my.self) }, // 告诉对方，我是谁，以及发出ping的时间
         json: true
-      }).then(async function (result) {
-        mylog.info(`获得种子反馈：${result}`)
-        await DAD.addPeer(Object.assign(result, { accessPoint: peerUrl, ownerAddress: result.ownerAddress }))
+      }).then(async function (peer) {
+        mylog.info(`获得种子反馈：${JSON.stringify(peer)}`)
+        if (DAD.isValid(peer)) 
+          await DAD.addPeer(peer)
       }).catch(function (err) {
         mylog.warn(`无法连通种子节点：${peerUrl}，错误提示：${err.message}`)
       })
@@ -261,6 +262,10 @@ DAD.api.ping = async function (option) {
   }
   mylog.warn('节点记录失败：错误的节点信息')
   return null
+}
+
+DAD.api.getInfo = function () {
+  return my.self
 }
 
 DAD.api.sharePeer = async function () { // 响应邻居请求，返回更多节点。option.Peer是邻居节点。
