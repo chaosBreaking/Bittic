@@ -120,7 +120,7 @@ DAD.updatePool = async function () { // 一次性检查节点池里所有节点�
             mylog.warn(`节点 ${peer.accessPoint} 连续 ${peer.brokenCount} 次无响应`)
           }else{
             mylog.error(`节点 ${peer.accessPoint} 已超过 ${wo.Config.PEER_CHECKING_TIMEOUT} 次无响应，删除出节点池`)
-            DAD.delPeer(peer.ownerAddress)
+            DAD.dropPeer(peer.ownerAddress)
           }
         }
         return undefined
@@ -218,13 +218,13 @@ DAD.getPeerList = async function () {
  * @returns {Peer} peer
  */
 DAD.addPeer = async function (peer) {
-  if (this.isValid(peer) && !DAD.hasPeer(peer)) {
+  if (this.isValid(peer) && !DAD.hasPeer(peer.ownerAddress)) {
     await store.hset('peers', peer.ownerAddress, JSON.stringify(peer))
     return peer
   }
   return null
 }
-DAD.delPeer = async function (ownerAddress) {
+DAD.dropPeer = async function (ownerAddress) {
   if (ownerAddress) {
     return await store.hdel('peers', ownerAddress)
   }
