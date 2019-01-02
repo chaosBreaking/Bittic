@@ -26,11 +26,11 @@ function config() {
     .option('-e, --epoch <epoch>', 'Genesis epoch in ISO format string for mainnet/testnet, or prevHour|nextMin|now for devnet')
     .option('-H, --host <host>', 'host ip or domain name')
     .option('-n, --netType <net>', 'devnet/testnet/mainnet')
-    .option('-o, --ownerSecword <secword>', 'Node owner\'s secword')
+    .option('-o, --ownerSecword <secword>', 'Node owner\'s secword or random|dev1')
     .option('-P, --protocol <protocol>', 'Server protocol: http|https|httpall, default ' + Config.protocol)
     .option('-p, --port <port>', 'Server port, default' + Config.port)
-    .option('-l, --link <link>', 'P2P protocol: http|udp')
-    .option('-s, --seedSet <seedSet>', 'Peers array in JSON, such as \'["http://ip_or_dn:port"]\'')
+    .option('-l, --link <link>', 'etwork Nconnection: http|udp')
+    .option('-s, --seedSet <seedSet>', 'Peer list in JSON, such as \'["http://ip_or_dn:port"]\'')
     .option('--sslCert <cert>', 'SSL cert file')
     .option('--sslKey <key>', 'SSL privkey file')
     .option('--sslCA <ca>', 'SSL ca bundle file')
@@ -111,8 +111,12 @@ async function masterInit(worker) {
   wo.Config = config() // 依次载入系统默认配置、用户配置文件、命令行参数
   wo.Crypto = require('tic.crypto')
   if (wo.Config.netType==='devnet' && wo.Config.ownerSecword==='dev1'){ // 允许开发者在命令行里 -o 'dev1' 来指定使用预设的开发者账号
-    wo.Config.ownerSecword=wo.Config.DEV_ACCOUNT[1].secword
+    wo.Config.ownerSecword = wo.Config.DEV_ACCOUNT[1].secword
     mylog.info(`current node for devnet is instructed to use dev1 secword "${wo.Config.ownerSecword}"`)
+  }
+  if (wo.Config.ownerSecword==='random'){
+    wo.Config.ownerSecword = wo.Crypto.randomSecword()
+    mylog.info(`random secword is used: ${wo.Config.ownerSecword}`)
   }
   if (wo.Config.netType!=='devnet' && wo.Config.ownerSecword===wo.Config.DEV_ACCOUNT[0].secword){
     mylog.error(`Public devnet secword cannot be used for other networks. Please setup your own private secword.`)
@@ -127,7 +131,7 @@ async function masterInit(worker) {
   wo.Ling = require('fon.ling')
 
   wo.Block = require('./modules/Block/index.js')(wo.Config.consensus)
-  wo.Peer = await require('./modules/P2P/index.js')
+  wo.Peer = await require('./modules/peer/index.js')
   wo.Store = await require('./modules/util/Store.js')('redis') // 必须指定数据库,另外不能_init(),否则会覆盖子进程已经设定好的内容
   wo.EventBus = require('./modules/util/EventBus.js')(worker).mount(worker)
   wo.Chain = require('./modules/Chain/index.js')
@@ -143,8 +147,12 @@ async function workerInit() {
   wo.Config = config() // 依次载入系统默认配置、用户配置文件、命令行参数
   wo.Crypto = require('tic.crypto')
   if (wo.Config.netType==='devnet' && wo.Config.ownerSecword==='dev1'){ // 允许开发者在命令行里 -o 'dev1' 来指定使用预设的开发者账号
-    wo.Config.ownerSecword=wo.Config.DEV_ACCOUNT[1].secword
+    wo.Config.ownerSecword = wo.Config.DEV_ACCOUNT[1].secword
     mylog.info(`current node for devnet is instructed to use dev1 secword "${wo.Config.ownerSecword}"`)
+  }
+  if (wo.Config.ownerSecword==='random'){
+    wo.Config.ownerSecword = wo.Crypto.randomSecword()
+    mylog.info(`random secword is used: ${wo.Config.ownerSecword}`)
   }
   if (wo.Config.netType!=='devnet' && wo.Config.ownerSecword===wo.Config.DEV_ACCOUNT[0].secword){
     mylog.error(`Public devnet secword cannot be used for other networks. Please setup your own private secword.`)
@@ -173,8 +181,7 @@ async function workerInit() {
   wo.Bancor = require('./modules/Token/Bancor.js')._init()
   wo.Block = await require('./modules/Block/index.js')(wo.Config.consensus)._init()
   wo.Store = await require('./modules/util/Store.js')('redis', { db: wo.Config.redisIndex })._init()
-  wo.Peer = await require('./modules/P2P/index.js')
-  wo.P2P = await require('./modules/P2P/P2P.js')._init()
+  wo.Peer = await require('./modules/peer/PeerSimple.js')._init()
   wo.EventBus = require('./modules/util/EventBus.js')(process)
   wo.Consensus = require('./modules/Consensus/index.js')('proxy', wo.Config.consensus)
 
@@ -297,7 +304,7 @@ function serverInit() { // 配置并启动 Web 服务
   return webServer
 }
 
-(async function Start() {
+(async function start() {
   if (cluster.isMaster) {
     let worker = cluster.fork()
     cluster.on('message', async (worker, message) => {
@@ -317,7 +324,7 @@ function serverInit() { // 配置并启动 Web 服务
       mylog.info('Socket started')
     })
     wo.Socket.sockets.on('connection',(socket)=>{
-      // 处理操作
+      // 处理操s
       mylog.info('new client connected')
       socket.send('hello')
     })
