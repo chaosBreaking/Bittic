@@ -131,7 +131,7 @@ async function masterInit(worker) {
   wo.Ling = require('fon.ling')
 
   wo.Block = require('./modules/Block/index.js')(wo.Config.consensus)
-  wo.Peer = await require('./modules/peer/index.js')
+  wo.Peer = await require('./modules/peer/PeerSimple.js')
   wo.Store = await require('./modules/util/Store.js')('redis') // 必须指定数据库,另外不能_init(),否则会覆盖子进程已经设定好的内容
   wo.EventBus = require('./modules/util/EventBus.js')(worker).mount(worker)
   wo.Chain = require('./modules/Chain/index.js')
