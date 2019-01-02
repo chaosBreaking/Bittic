@@ -82,7 +82,7 @@ DAD._init = async function () {
 DAD.updatePool = async function () { // 一次性检查节点池里所有节点，测试其连通性，把超时无响应的邻居从池中删除。
   mylog.info('updating peer pool')
   let peerSet = Object.values(await DAD.getPeerList())
-  let resultArray = await Promise.all(peerSet.map(peer => {
+  let resultArray = await Promise.all(peerSet.map(async peer => {
     mylog.info(`Checking ${peer.accessPoint}......`)
     if (peer && peer.checking !== 'pending') { // 是当前还有效的peer。如果已经dead，就不再执行，即不放回 pool 了。
       peer.checking = 'pending' // 正在检查中，做个标记，以防又重复被检查
