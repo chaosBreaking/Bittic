@@ -28,7 +28,6 @@ DAD.prototype._model = { // 数据模型，用来初始化每个对象的数据
 
 const my = {}
 my.scheduleJob = []
-my.peerAddressArray = []
 my.self = new DAD({
   ownerAddress: wo.Crypto.secword2address(wo.Config.ownerSecword),
   accessPoint: wo.Config.protocol + '://' + wo.Config.host + ':' + wo.Config.port,
@@ -50,7 +49,7 @@ DAD._init = async function () {
         json: true
       }).then(async function (result) {
         mylog.info(`获得种子反馈：${result}`)
-        await DAD.addPeer2Pool(Object.assign(result, { accessPoint: peerUrl, ownerAddress: result.ownerAddress }))
+        await DAD.addPeer(Object.assign(result, { accessPoint: peerUrl, ownerAddress: result.ownerAddress }))
       }).catch(function (err) {
         mylog.warn(`无法连通种子节点：${peerUrl}，错误提示：${err.message}`)
       })
@@ -66,7 +65,9 @@ DAD._init = async function () {
           body: {}, // 告诉对方，我是谁，以及发出ping的时间
           json: true
         }).then(async peerArray => {
-          await DAD.addPeer2Pool(peerArray)
+          for (let peer of peerArray) {
+            await DAD.addPeer(peer)
+          }
         }).catch(err => {
           mylog.warn('获取邻居节点失败')
         })
@@ -81,7 +82,7 @@ DAD._init = async function () {
 DAD.updatePool = async function () { // 一次性检查节点池里所有节点，测试其连通性，把超时无响应的邻居从池中删除。
   mylog.info('updating peer pool')
   let peerSet = Object.values(await DAD.getPeerList())
-  let resultSet = await Promise.all(peerSet.map(peer => {
+  let resultArray = await Promise.all(peerSet.map(peer => {
     mylog.info(`Checking ${peer.accessPoint}......`)
     if (peer && peer.checking !== 'pending') { // 是当前还有效的peer。如果已经dead，就不再执行，即不放回 pool 了。
       peer.checking = 'pending' // 正在检查中，做个标记，以防又重复被检查
@@ -119,22 +120,22 @@ DAD.updatePool = async function () { // 一次性检查节点池里所有节点�
           }else{
             mylog.error(`节点 ${peer.accessPoint} 已超过 ${wo.Config.PEER_CHECKING_TIMEOUT} 次无响应，删除出节点池`)
             DAD.delPeer(peer.ownerAddress)
-            // 补充一个新邻居
-            if (my.peerAddressArray.length < wo.Config.PEER_POOL_CAPACITY) {
-              let peerSet = await DAD.randomcast('/Peer/sharePeer', { Peer: JSON.stringify(my.self) }) // 先向邻居池 peerPool 申请
-              //      || await DAD.randomcast('/Peer/sharePeer',{Peer:my.self},my.seedSet) // 也许邻居池为空，那就向种子节点申请。
-              if (peerSet && peerSet.length > 0) {
-                await DAD.addPeer2Pool(peerSet[wo.Crypto.randomNumber({ max: peerSet.length })]) // 随机挑选一个节点加入邻居池
-              }
-            }
           }
         }
         return undefined
       })
       peer.checking = 'idle'
     }
-    return resultSet
+    return resultArray
   }))
+
+  // 补充新邻居 // todo: 每次不该只加一个，而是要加满 PEER_POOL_CAPACITY
+  if (Object.values(await DAD.getPeerList()).length < wo.Config.PEER_POOL_CAPACITY) {
+    let newPeerSet = await DAD.randomcast('/Peer/sharePeer', { Peer: JSON.stringify(my.self) }) // 先向邻居池 peerPool 申请
+    if (newPeerSet && newPeerSet.length > 0) {
+      await DAD.addPeer(newPeerSet[wo.Crypto.randomNumber({ max: newPeerSet.length })]) // 随机挑选一个节点加入邻居池
+    }
+  }
 
 }
 
@@ -195,58 +196,6 @@ DAD.isValid = function (peer) {
     return false
   return true
 }
-/**
- * @method
- * @param {string} ownerAddress
- * @returns {Peer} peer
- * @desc 从节点集合里不放回的取出一个节点(未指定ownerAddress时则取出最后一个)
- */
-DAD.shiftPeerPool = async function (ownerAddress) {
-  if(ownerAddress){
-    my.peerAddressArray.splice(my.peerAddressArray.indexOf(ownerAddress),1)
-    await store.hdel('peers', ownerAddress)
-    return peer
-  }
-  let address = my.peerAddressArray.shift()
-  let peer = JSON.parse(await store.hget('peers', address))
-  if (peer) {
-    store.hdel('peers', address)
-    return peer
-  }
-  return null
-}
-
-DAD.addPeer2Pool = async function (peerData) { // 把peer原始数据转成peer对象，存入节点池(数组)
-  if (!Array.isArray(peerData)) {
-    var peer = new DAD(peerData)
-    await DAD.pushPeerPool(peer)
-  }
-  else {
-    for (let peer of peerData) {
-      try {
-        await DAD.pushPeerPool(typeof peer === 'string' ? JSON.parse(peer) : peer)
-      } catch (error) {
-        continue
-      }
-    }
-  }
-  return DAD.getPeerList()
-}
-
-/**
- *
- * @desc 检查一个传入节点的合法性后加入节点池
- * @param {Peer} peer
- * @returns {Peer} peer
- */
-DAD.pushPeerPool = async function (peer) {
-  if (this.isValid(peer) && my.peerAddressArray.indexOf(peer.ownerAddress) === -1) {
-    my.peerAddressArray.push(peer.ownerAddress)
-    await store.hset('peers', peer.ownerAddress, JSON.stringify(peer))
-    return peer
-  }
-  return null
-}
 
 /**
  *
@@ -261,12 +210,35 @@ DAD.getPeerList = async function () {
   }
   return peers
 }
+/**
+ *
+ * @desc 检查一个传入节点的合法性后加入节点池
+ * @param {Peer} peer
+ * @returns {Peer} peer
+ */
+DAD.addPeer = async function (peer) {
+  if (this.isValid(peer) && !DAD.hasPeer(peer)) {
+    await store.hset('peers', peer.ownerAddress, JSON.stringify(peer))
+    return peer
+  }
+  return null
+}
 DAD.delPeer = async function (ownerAddress) {
   if (ownerAddress) {
     return await store.hdel('peers', ownerAddress)
   }
   return null
 }
+DAD.hasPeer = async function (ownerAddress) {
+  if (ownerAddress){
+    let peers = await store.hgetall('peers')
+    if (peers && peers[ownerAddress]) {
+      return true
+    }
+  }
+  return false
+}
+
 DAD.api = {} // 对外可RPC调用的方法
 
 /**
@@ -277,12 +249,12 @@ DAD.api = {} // 对外可RPC调用的方法
  */
 DAD.api.ping = async function (option) {
   if (option && option.Peer && DAD.isValid(option.Peer)) {
-    if (!my.peerAddressArray[option.Peer.ownerAddress]) { // 是新邻居发来的ping？把新邻居加入节点池
+    if (!DAD.hasPeer(option.Peer.ownerAddress)) { // 是新邻居发来的ping？把新邻居加入节点池
       // var fromHost = option._req.headers['x-forwarded-for'] || option._req.connection.remoteAddress || option._req.socket.remoteAddress || option._req.connection.socket.remoteAddress
       // var fromPort = option._req.connection.remotePort
       // option.Peer.host = fromHost
       // option.Peer.port = fromPort
-      await DAD.pushPeerPool(new DAD(option.Peer))
+      await DAD.addPeer(new DAD(option.Peer))
       mylog.info(`加入新节点: ${option.Peer.accessPoint} of owner ${option.Peer.ownerAddress}`)
     }
     return my.self // 把远方节点的信息添加一些资料后，返回给远方节点
@@ -295,6 +267,5 @@ DAD.api.sharePeer = async function () { // 响应邻居请求，返回更多节�
   let res = Object.values(await DAD.getPeerList() || {}) // todo: 检查 option.Peer.ownerAddress 不要把邻居节点返回给这个邻居自己。
   mylog.warn(await DAD.getPeerList()) // 为什么是空的？
   mylog.info(res)
-  mylog.info(my.peerAddressArray)
   return res
 }
