@@ -236,7 +236,7 @@ DAD.api = {} // 对外可RPC调用的方法
  */
 DAD.api.ping = async function (option) {
   if (option && option.Peer && DAD.isValid(option.Peer)) {
-    if (!DAD.hasPeer(option.Peer.ownerAddress)) { // 是新邻居发来的ping？把新邻居加入节点池
+    if (!(await DAD.hasPeer(option.Peer.ownerAddress))) { // 是新邻居发来的ping？把新邻居加入节点池
       // var fromHost = option._req.headers['x-forwarded-for'] || option._req.connection.remoteAddress || option._req.socket.remoteAddress || option._req.connection.socket.remoteAddress
       // var fromPort = option._req.connection.remotePort
       // option.Peer.host = fromHost
