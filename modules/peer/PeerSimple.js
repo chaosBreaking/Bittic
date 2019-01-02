@@ -254,7 +254,7 @@ DAD.api.getInfo = function () {
   return my.self
 }
 
-DAD.getPeerNumnber = DAD.api.getPeerNumber = async function () {
+DAD.getPeerNumber = DAD.api.getPeerNumber = async function () {
   let peerDict = await store.hgetall('peers')
   return Object.keys(peerDict).length
 }
