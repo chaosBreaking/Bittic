@@ -218,7 +218,7 @@ DAD.getPeerList = async function () {
  * @returns {Peer} peer
  */
 DAD.addPeer = async function (peer) {
-  if (this.isValid(peer) && !DAD.hasPeer(peer.ownerAddress)) {
+  if (this.isValid(peer) && !(await DAD.hasPeer(peer.ownerAddress))) {
     await store.hset('peers', peer.ownerAddress, JSON.stringify(peer))
     return peer
   }
