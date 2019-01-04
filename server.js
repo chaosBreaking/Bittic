@@ -3,7 +3,7 @@ const fs = require('fs')
 const path = require('path')
 const cluster = require('cluster')
 const socket = require('socket.io')
-const mylog = require('fon.base/Logger.js')({root:'data.log', file:'tic.log'}) // 简写 console.log，为了少敲几个字母
+global.mylog = require('fon.base/Logger.js')({root:'data.log', file:'tic.log'}) // 简写 console.log，为了少敲几个字母
 
 function config() {
   // 配置参数（按优先级从低到高）：
@@ -105,11 +105,8 @@ function config() {
   }
 }
 
-async function initAll() {
-  global.mylog = require('fon.base/Logger.js')({root:'data.log', file:'tic.log'}) // 简写 console.log，为了少敲几个字母
-
+async function initSingle() {
   global.wo = {} // wo 代表 world或‘我’，是当前的命名空间，把各种类都放在这里，防止和其他库的冲突。
-// 通过 JSON.parse(JSON.stringify(this.actionHashList)) 来取代 extend，彻底解除对wo.Tool依赖 wo.Tool = new (require('fon.base/Egg.js'))()
   wo.Config = config() // 依次载入系统默认配置、用户配置文件、命令行参数
   wo.Crypto = require('tic.crypto')
   if (wo.Config.netType==='devnet' && wo.Config.ownerSecword==='dev1'){ // 允许开发者在命令行里 -o 'dev1' 来指定使用预设的开发者账号
@@ -159,7 +156,7 @@ async function initAll() {
 }
 
 async function initMaster(worker) {
-  global.mylog = require('fon.base/Logger.js')({root:'data.log', file:'tic.log'}) // 简写 console.log，为了少敲几个字母
+  global.mylog = require('fon.base/Logger.js')({root:'data.log', file:'tic.master.log'}) // 简写 console.log，为了少敲几个字母
 
   global.wo = {} // wo 代表 world或‘我’，是当前的命名空间，把各种类都放在这里，防止和其他库的冲突。
 // 通过 JSON.parse(JSON.stringify(this.actionHashList)) 来取代 extend，彻底解除对wo.Tool依赖 wo.Tool = new (require('fon.base/Egg.js'))()
@@ -195,7 +192,7 @@ async function initMaster(worker) {
 }
 
 async function initWorker() {
-  global.mylog = require('fon.base/Logger.js')({root:'data.log', file:'tic.log'}) // 简写 console.log，为了少敲几个字母
+  global.mylog = require('fon.base/Logger.js')({root:'data.log', file:'tic.worker.log'}) // 简写 console.log，为了少敲几个字母
 
   global.wo = {} // wo 代表 world或‘我’，是当前的命名空间，把各种类都放在这里，防止和其他库的冲突。
 // 通过 JSON.parse(JSON.stringify(this.actionHashList)) 来取代 extend，彻底解除对wo.Tool依赖 wo.Tool = new (require('fon.base/Egg.js'))()
@@ -360,16 +357,14 @@ function initServer() { // 配置并启动 Web 服务
 }
 
 (async function start() {
-
   if (config().thread === 'single'){
-    await initAll()
+    await initSingle()
     let webServer = initServer()
     wo.Socket = socket.listen(webServer)
     wo.Socket.sockets.on("open",()=>{
       mylog.info('Socket started')
     })
     wo.Socket.sockets.on('connection',(socket)=>{
-      // 处理操s
       mylog.info('new client connected')
       socket.send('hello')
     })
@@ -399,7 +394,6 @@ function initServer() { // 配置并启动 Web 服务
         mylog.info('Socket started')
       })
       wo.Socket.sockets.on('connection',(socket)=>{
-        // 处理操s
         mylog.info('new client connected')
         socket.send('hello')
       })
