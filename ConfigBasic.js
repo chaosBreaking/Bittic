@@ -10,6 +10,7 @@ module.exports = { // 全大写字母的，代表系统常量，不要在 userCo
   sslCert: null, // ssl cert file,
   sslCA: null, // ssl ca file,
   link: 'http', // http|udp
+  thread: 'cluster', // signle|cluster: 单进程或多进程
 
   dbType: 'sqlite',
   dbName: 'data.sqlite/tic.sqlite',
