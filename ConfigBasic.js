@@ -10,8 +10,7 @@ module.exports = { // 全大写字母的，代表系统常量，不要在 userCo
   sslCert: null, // ssl cert file,
   sslCA: null, // ssl ca file,
   link: 'http', // http|udp
-
-  seedSet: [], // 系统默认的种子节点
+  thread: 'cluster', // signle|cluster: 单进程或多进程
 
   dbType: 'sqlite',
   dbName: 'data.sqlite/tic.sqlite',
@@ -20,17 +19,18 @@ module.exports = { // 全大写字母的，代表系统常量，不要在 userCo
   NET_TYPE: ['mainnet', 'testnet', 'devnet'],
   NET_MAGIC: { mainnet: '1m1', testnet: '2t2', devnet: '3d3' },
   NET_PORT: { mainnet: 8888, testnet: 8888, devnet: 8888 },
-  NET_SEEDSET: {
+  NET_SEEDSET: { // 系统默认的种子节点
     mainnet: ['http://mainnet.bittic.net:8888'],
-    testnet: ['http://testnet.bittic.net:8888'],
+    testnet: [],
     devnet: []
   },
+  seedSet: [], // 节点主人可在自定义配置中添加的种子
 
   VERSION: '0.0.1',
   BLOCK_PERIOD: 60, // 出块周期(s)
   BLOCK_MAX_SIZE: 1 * 1024 * 1024, // 每个区块的最大容量：1M字节
-  PEER_CHECKING_PERIOD: 60 * 1000, // 每隔多久ping一个邻居
-  PEER_CHECKING_TIMEOUT: 10, // *60*1000, // 5分钟没有响应就认为邻居节点死了
+  PEER_CHECKING_PERIOD: [37] , // 单位是秒钟，每分钟的第几秒ping一个邻居。注意，尽量不要和pot的关键时间点冲突。
+  PEER_CHECKING_TIMEOUT: 10, // 单位是次数，多少次没有响应就认为邻居节点死了
   PEER_POOL_CAPACITY: 10, // 保持几个邻居节点
 
   GENESIS_HEIGHT: 0,
@@ -40,7 +40,7 @@ module.exports = { // 全大写字母的，代表系统常量，不要在 userCo
       message: 'History is Future, Future is Now'
     },
     testnet: {
-      timestamp: '2018-12-30T14:41:00.000Z',
+      timestamp: '2019-01-05T14:10:00.000Z',
       message: 'The Cabinet Office minister David Lidington today defended Philip Hammond’s decision to issue a new warning that a no-deal Brexit would significantly damage the economy.'    
     },
     devnet: {

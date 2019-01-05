@@ -13,85 +13,187 @@ require('../util/Date.js')
 
 const POT = {}
 async function calibrate() {
-  //启动前本机链情况检查
-  // mylog.info('此刻本机链的最高块 : ' + (await wo.Chain.getTopBlock()).height);
-  let heightNow = Date.time2height();
-  let canStartNow = heightNow === (await wo.Chain.getTopBlock()).height + 1 && ((new Date().getSeconds() < electTime - 5) || (new Date().getSeconds() < electTime + wo.Config.BLOCK_PERIOD - 5))
-  if (canStartNow) { // 注意，前面的同步可能花了20多秒，到这里已经是在竞选阶段。所以再加个当前秒数的限制。
-    if((new Date().getSeconds() > mineTime) || (new Date().getSeconds() > mineTime + wo.Config.BLOCK_PERIOD)) {
-      await wo.Chain.createVirtBlock()
-    }
-    return 1;
-  }
-  let missLastBlock = heightNow === (await wo.Chain.getTopBlock()).height + 2 && my.signBlock && (await wo.Chain.getTopBlock()).height === my.signBlock.height - 1
+	/** 
+	 * topHeight === heightNow - 1 
+	 * 		time -> [0, electTime) ---> signOnce
+	 * 		time -> [electTime, electTime + period) ---> 自己不签名，也不收集签名，等待别人的块
+	 * 		time -> [mineTime, mineTime + period) ---> 广播请求最新区块，成功则加入，失败则创建虚拟块
+	*/
+	let missLastBlock = my.signBlock && 
+		Date.time2height() === my.signBlock.height
+		&& (await wo.Chain.getTopBlock()).height === my.signBlock.height - 1
   if (missLastBlock) {
     // 上一块没有及时出现
-    mylog.warn(`缺失区块，开始广播进行同步......`)
+    mylog.warn('上一块没有正常出现，开始广播进行同步......')
     let result = await wo.Peer.randomcast('/Block/getBlock', { Block: { height: (await wo.Chain.getTopBlock()).height + 1 } })
     if (result && result.height === (await wo.Chain.getTopBlock()).height + 1) {
       let topBlock = new wo.Block(result)
       await wo.Chain.appendBlock(topBlock)
       mylog.info('成功添加区块')
     }
-    if (!result) {
+    else {
       mylog.info('无法获取上轮获胜节点的区块！使用空块......')
       my.signBlock = null
       await wo.Chain.appendBlock(my.signBlock)
-    }
-  }
-  else if (heightNow > (await wo.Chain.getTopBlock()).height + 1) {
-    mylog.info(`此时刻应该到达的高度：[${heightNow}]  当前本机链的最高块高度：[${(await wo.Chain.getTopBlock()).height}]`)
-    mylog.info('>===== 开始进行区块更新和同步 =====>');
-    let topBlock = await wo.Chain.updateChainFromPeer()
-    mylog.info(`>===== 当前更新到高度：${topBlock.height} =====>`);
-    if (Date.time2height() - topBlock.height > 1) {
-      topBlock = await wo.Chain.getTopBlock()
-      for (let height = topBlock.height + 1; height < Date.time2height(); height++) {
-        await wo.Chain.createVirtBlock()
-      }
-      if((new Date().getSeconds() > mineTime) || (new Date().getSeconds() > mineTime + wo.Config.BLOCK_PERIOD)) {
-        await wo.Chain.createVirtBlock()
-      }
-      if (new Date().getSeconds() < electTime - 5 && !my.selfPot.signature)
-        POT.signOnce();
-      return 1
-    }
+		}
+		return 0
+	}
+	let needUpdate = Date.time2height() > (await wo.Chain.getTopBlock()).height + 1
+  if (needUpdate) {
+    mylog.info(`此时刻应该到达的高度：[${Date.time2height()}]  当前本机链的最高块高度：[${(await wo.Chain.getTopBlock()).height}]`)
+    mylog.info('>===== 开始进行区块更新和同步 =====>')
+		await wo.Chain.updateChainFromPeer()
+		let topBlock = await wo.Chain.getTopBlock()
+		mylog.info(`>===== 当前更新到高度：${topBlock.height} =====>`)
+		if(topBlock.height === Date.time2height() && getTimeSlot() === 'mineTime') {
+			// 成功更新到最新区块但是已经到了出块期，停止后续操作
+			mylog.info('已经更新到最新区块，当前时间已错过本轮出块，准备参与下一轮次出块竞选...')
+		}
+		else if (Date.time2height() === topBlock.height + 1) {
+			// 只差最新的一个区块
+			if(getTimeSlot() === 'mineTime'){
+				//如果在出块时间，则向其他节点广播和同步最新区块
+				let latestBlock = await wo.Peer.randomcast('/Block/getBlock', { Block: { height: topBlock.height + 1 }})
+				let block = new wo.Block(latestBlock)
+				if (block.lastBlockHash === topBlock.hash && block.verifySig() && block.verifyHash()) {
+					mylog.info('取得最新区块，准备参加下一轮出块竞选...')
+				}
+				else {
+					mylog.info('无法更新到最新一块，创建虚拟块')
+					await wo.Chain.createVirtBlock()
+				}
+			}
+			else {
+				//如果不是在签名期的话，就可以等待mineOnce了,停止后续操作
+				mylog.info('已经更新所有已出区块，等待本轮最新区块出块...')
+			}
+		}
+		else {
+			//缺少较多区块而且无法从外界同步，则创建虚拟块
+			mylog.info('无法从外界同步到区块，创建虚拟块...')
+			for (let height = topBlock.height + 1; height < Date.time2height(); height++) {
+				await wo.Chain.createVirtBlock()
+			}
+			if(getTimeSlot() !== 'signTime') {
+				//不是在签名期间的话，就直接创建到最新的高度
+				mylog.info('本轮错过出块，创建最新的虚拟块...')
+				await wo.Chain.createVirtBlock()
+				setTimeout(POT.signOnce, 60 - new Date().getSeconds())
+			}
+			else {
+				//处于签名期，则正常开始一个出块周期
+				if (!my.selfPot.signature) {
+					mylog.info('处于签名期，正常开始一个出块周期,执行签名')
+					await POT.signOnce()
+				}
+			}
+		}
   }
   return 0
 }
-
+function getTimeSlot () {
+	let thisSec = new Date().getSeconds()
+	if(thisSec >= 0 && thisSec < electTime || thisSec < (electTime + wo.Config.BLOCK_PERIOD % wo.Config.BLOCK_PERIOD))
+		return 'signTime'
+	else if((thisSec >= electTime || thisSec >= (electTime + wo.Config.BLOCK_PERIOD % wo.Config.BLOCK_PERIOD)) && (thisSec < mineTime || thisSec < (mineTime + wo.Config.BLOCK_PERIOD % wo.Config.BLOCK_PERIOD)))
+		return 'electTime'
+	else if(thisSec >= mineTime || thisSec >= (mineTime + wo.Config.BLOCK_PERIOD % wo.Config.BLOCK_PERIOD))
+		return 'mineTime'
+}
 POT._init = async function () {
-  if (await calibrate()) {
-    my.scheduleJobs[0] = Schedule.scheduleJob({ second: [0, wo.Config.BLOCK_PERIOD] }, POT.signOnce); // 每分钟的第0秒
-    my.scheduleJobs[1] = Schedule.scheduleJob({ second: [electTime, wo.Config.BLOCK_PERIOD + electTime] }, POT.electOnce);
-    my.scheduleJobs[2] = Schedule.scheduleJob({ second: [mineTime, wo.Config.BLOCK_PERIOD + mineTime] }, POT.mineOnce);
+	/** 
+	 * topHeight === heightNow - 1 
+	 * 		time -> [0, electTime) ---> signOnce
+	 * 		time -> [electTime, electTime + period) ---> 自己不签名，也不收集签名，等待别人的块
+	 * 		time -> [mineTime, mineTime + period) ---> 广播请求最新区块，成功则加入，失败则创建虚拟块
+	*/
+	let canStartNow = (Date.time2height() === (await wo.Chain.getTopBlock()).height + 1) && getTimeSlot() === 'signTime'
+  if (canStartNow) {
+		if (!my.selfPot.signature) {
+			await POT.signOnce()
+		}
   }
-  else {
-    setTimeout(POT._init, Math.abs(wo.Config.BLOCK_PERIOD - new Date().getSeconds()));
-  }
-  return this
+	else {
+		mylog.info(`此时刻应该到达的高度：[${Date.time2height()}]  当前本机链的最高块高度：[${(await wo.Chain.getTopBlock()).height}]`)
+		mylog.info('>===== 开始进行区块更新和同步 =====>')
+		await wo.Chain.updateChainFromPeer()
+		let topBlock = await wo.Chain.getTopBlock()
+		mylog.info(`>===== 当前更新到高度：${topBlock.height} =====>`)
+		if(topBlock.height === Date.time2height() && getTimeSlot() === 'mineTime') {
+			// 成功更新到最新区块但是已经到了出块期，停止后续操作
+			mylog.info('已经更新到最新区块，当前时间已错过本轮出块，准备参与下一轮次出块竞选...')
+		}
+		else if (Date.time2height() === topBlock.height + 1) {
+			// 只差最新的一个区块
+			if(getTimeSlot() === 'mineTime'){
+				//如果在出块时间，则向其他节点广播和同步最新区块
+				let latestBlock = await wo.Peer.randomcast('/Block/getBlock', { Block: { height: topBlock.height + 1 }})
+				let block = new wo.Block(latestBlock)
+				if (block.lastBlockHash === topBlock.hash && block.verifySig() && block.verifyHash()) {
+					mylog.info('取得最新区块，准备参加下一轮出块竞选...')
+				}
+				else {
+					mylog.info('无法更新到最新一块，创建虚拟块')
+					await wo.Chain.createVirtBlock()
+				}
+			}
+			else {
+				//如果不是在签名期的话，就可以等待mineOnce了,停止后续操作
+				mylog.info('已经更新所有已出区块，等待本轮最新区块出块...')
+			}
+		}
+		else {
+			//缺少较多区块而且无法从外界同步，则创建虚拟块
+			mylog.info('无法从外界同步到区块，创建虚拟块...')
+			for (let height = topBlock.height + 1; height < Date.time2height(); height++) {
+				await wo.Chain.createVirtBlock()
+			}
+			if(getTimeSlot() !== 'signTime') {
+				//不是在签名期间的话，就直接创建到最新的高度
+				mylog.info('本轮错过出块，创建最新的虚拟块...')
+				await wo.Chain.createVirtBlock()
+				setTimeout(POT.signOnce, 60 - new Date().getSeconds())
+			}
+			else {
+				//处于签名期，则正常开始一个出块周期
+				if (!my.selfPot.signature) {
+					mylog.info('处于签名期，正常开始一个出块周期,执行签名')
+					await POT.signOnce()
+				}
+			}
+		}
+	}
+	mylog.info('设置定时任务...')
+	my.scheduleJobs[0] = Schedule.scheduleJob({ second: [0, wo.Config.BLOCK_PERIOD] }, POT.signOnce) // 每分钟的第0秒
+	my.scheduleJobs[1] = Schedule.scheduleJob({ second: [electTime, wo.Config.BLOCK_PERIOD + electTime] }, POT.electOnce)
+	my.scheduleJobs[2] = Schedule.scheduleJob({ second: [mineTime, wo.Config.BLOCK_PERIOD + mineTime] }, POT.mineOnce)
+	return this
 }
 
 POT.api = {}
 // 第一阶段：用户签名收集
 POT.signOnce = async function () {
-  //  todo: 检查高度是否正确，如果不正确，把my.signBlock添加进去
-  my.currentPhase = 'signing';
-  heightNow = Date.time2height()
-  let canSignForMyself = heightNow === (await wo.Chain.getTopBlock()).height + 1
-    && (new Date().getSeconds() < electTime - 5 || new Date().getSeconds() < electTime + wo.Config.BLOCK_PERIOD - 5)
+	my.currentPhase = 'signing'
+	mylog.info('<====== 签名阶段 ======>')
+  let heightNow = Date.time2height()
+	mylog.info('Aim to ', heightNow, 'mytop ', (await wo.Chain.getTopBlock()).height)
+	if(my.selfPot.signature) my.selfPot = {}
+	if((await wo.Chain.getTopBlock()).height < heightNow - 1) {
+		mylog.error('本机状态异常,无法签名')
+		await calibrate()
+		return 0
+	}
+  let canSignForMyself = Date.time2height() === (await wo.Chain.getTopBlock()).height + 1 && getTimeSlot() === 'signTime' && !my.selfPot.signature
   if (canSignForMyself) { // 注意，前面的同步可能花了20多秒，到这里已经是在竞选阶段。所以再加个当前秒数的限制。
     my.signerPool = {}
     my.packerPool = {}
     my.selfPot = {} // 注意，不要 my.selfPot=my.bestPot={} 这样指向了同一个对象！
     my.bestPot = {} // 如果设signature=null，就可能会===compareSig返回的null，就产生错误了。因此保留为undefined.
-    mylog.info(new Date() + '：签名阶段开始 for block=' + ((await wo.Chain.getTopBlock()).height + 1))
-    signForOwner();
-    return 0;
-  }
-  mylog.error('本机状态异常，无法启动共识')
-  mylog.error(heightNow, (await wo.Chain.getTopBlock()).height)
-  await calibrate();
+    mylog.info(new Date() + '：签名阶段开始 for block=' + Date.time2height() ,'using block', ((await wo.Chain.getTopBlock()).height))
+    signForOwner()
+    return 0
+	}
+	return 0
 }
 POT.api.signWatcher = async function (option) { // 监听收集终端用户的签名
   if (my.currentPhase !== 'signing') {
@@ -124,12 +226,14 @@ POT.api.signWatcher = async function (option) { // 监听收集终端用户的�
   }
   else {
     mylog.info('终端用户（地址：' + wo.Crypto.pubkey2address(option.pubkey) + '）的签名 ' + option.signature + ' 没有通过本节点验证或竞争')
-  }
+	}
+	return 0
 }
 async function signForOwner() {
   // 作为节点，把自己签名直接交给自己。这是因为，全网刚起步时，很可能还没有终端用户，这时需要节点进行签名。
   let myAddress = wo.Crypto.secword2address(wo.Config.ownerSecword)
-  let myBalance = await wo.Store.getBalance(myAddress)
+	let myBalance = await wo.Store.getBalance(myAddress)
+	let heightNow = Date.time2height()
   if (myBalance > wo.Config.PACKER_THRESHOLD) {
     let message = { timestamp: new Date(), blockHash: (await wo.Chain.getTopBlock()).hash, height: heightNow }
     let signature = wo.Crypto.sign(message, wo.Crypto.secword2keypair(wo.Config.ownerSecword).seckey)
@@ -142,13 +246,17 @@ async function signForOwner() {
   }
   else {
     mylog.info('本节点主人（地址' + myAddress + '）的账户余额不足，无法参加本轮时间证明签名')
-  }
+	}
+	return 0
 }
 
 // 第二阶段：节点间竞选
 POT.electOnce = async function () {
-  my.currentPhase = 'electing';
-  if ((await wo.Chain.getTopBlock()).height + 1 === Date.time2height()) {
+	my.currentPhase = 'electing';
+	mylog.info('<====== 竞选阶段 ======>')
+	let canElect = (await wo.Chain.getTopBlock()).height + 1 === Date.time2height()
+	mylog.info(`可否竞选：${canElect}, mytop: [${(await wo.Chain.getTopBlock()).height}]  aim: ${Date.time2height()}`)
+  if (canElect) {
     mylog.info(new Date() + '：竞选阶段开始 for block=' + ((await wo.Chain.getTopBlock()).height + 1) + ' using block=' + (await wo.Chain.getTopBlock()).height)
     if (my.selfPot.signature) { // todo: 更好的是核对（签名针对的区块高度===当前竞选针对的区块高度） 
       my.bestPot.signature = my.selfPot.signature; // 把本节点收到的用户最佳签名，暂时记为全网最佳。
@@ -161,11 +269,8 @@ POT.electOnce = async function () {
     else {
       mylog.info('本节点没有收集到时间证明，本轮不参与竞选')
     }
-  }
-  else {
-    mylog.info('本节点的最高块高度为' + (await wo.Chain.getTopBlock()).height + ', 不匹配当前时刻出块的高度' + Date.time2height() + '，不参与本轮竞选')
-    return await calibrate()
-  }
+	}
+	return 0
 }
 POT.api.electWatcher = async function (option) { // 互相转发最优的签名块
   if(!option || !option.Block) return null
@@ -229,8 +334,11 @@ POT.api.shareWinner = async function () {
 
 // 第三阶段：获胜者出块，或接收获胜者打包广播的区块
 POT.mineOnce = async function () {
-  my.currentPhase = 'mining';
-  if (Date.time2height() === (await wo.Chain.getTopBlock()).height + 1) {
+	my.currentPhase = 'mining';
+	mylog.info('<====== 出块阶段 ======>')
+	let canMine = Date.time2height() === (await wo.Chain.getTopBlock()).height + 1
+	mylog.info(`可否出块: ${canMine}`)
+  if (canMine) {
     mylog.info(new Date() + '：出块阶段开始 for block=' + ((await wo.Chain.getTopBlock()).height + 1) + ' using block=' + (await wo.Chain.getTopBlock()).height)
     mylog.info('本节点的候选签名=' + my.selfPot.signature + '，来自地址地址 ' + wo.Crypto.pubkey2address(my.selfPot.pubkey))
     mylog.info('全网最终获胜签名=' + my.bestPot.signature + '，来自地址地址 ' + wo.Crypto.pubkey2address(my.bestPot.pubkey))
@@ -263,102 +371,6 @@ POT.api.mineWatcher = async function (option) { // 监听别人发来的区块
     mylog.info('本节点收到全网赢家的区块哈希为：' + option.Block.hash + '，全网赢家的地址为' + wo.Crypto.pubkey2address(option.Block.winnerPubkey) + '，打包节点的地址为 ' + wo.Crypto.pubkey2address(option.Block.packerPubkey))
   }
   return 0
-}
-
-//分叉处理
-POT.forkHandler = async function (option) {
-  if ((await wo.Chain.getTopBlock()).height <= Date.time2height() - 2)
-    return "高度未达到分叉标准"
-  let res = await wo.Peer.broadcast('/Consensus/getRBS', {Consensus: { target: option.Block.packerPubkey }})//取第一个元素
-  if (!res) {
-    mylog.warn("没拿到对方缓存表")
-    return null
-  }
-  // res = res[0]
-  let diff = POT.diffRecBlockStack(my.recBlockStack, res)
-  if (typeof diff.index === 'undefined' || diff.index === 0) {
-    mylog.warn('分叉长度超过可处理范围')
-    return null
-  }
-  if (res[diff.index].height === my.recBlockStack[diff.index].type && res[diff.index].height === "VirtBlock" && my.recBlockStack[diff.index].type !== "VirtBlock") {
-    mylog.warn("对方的虚拟块应当被合并")
-    return null
-  }
-  //区块合法性检验
-  let forkBlock = new wo.Block(my.recBlockStack[diff.index])
-  if (!wo.Crypto.verify(forkBlock.winnerMessage, forkBlock.winnerSignature, forkBlock.winnerPubkey)
-    || !forkBlock.verifySig()
-    || !forkBlock.verifyHash()
-  ) {
-    mylog.warn("收到非合法的区块,分叉合并取消")
-    return null
-  }
-  //检验通过
-  else if (res[index].totalAmount < my.recBlockStack[index].totalAmount || res[index].totalFee < my.recBlockStack[index].totalFee) {
-    mylog.warn("本节点区块交易量或手续费更多，保持本机区块数据，取消合并")
-    return null
-  }
-  //剩下的情况本机需要被合并   
-  else {
-    //说明自己分叉，开始处理分叉
-    mylog.warn(`本节点在高度${diff.height}分叉,开始处理分叉...`)
-    my.scheduleJobs[0].cancel()
-    my.scheduleJobs[1].cancel()
-    my.scheduleJobs[2].cancel()
-    let blockList = await wo.Block.getAll({ Block: { height: '>' + (diff.height - 1) }, config: { limit: 10, order: 'height ASC' } })
-    for (let block of blockList) {
-      if (block.actionHashList.length !== 0) {
-        //获取本块所有交易
-        let actionList = await wo.Action.getAll({ Action: { blockHash: block.hash }, config: { limit: block.actionHashList.length } })
-        for (let action of actionList) {
-          wo.Peer.broadcast('/Action/prepare', option) // 将自己区块内的交易广播出去
-        }
-      }
-      await block.dropMe()
-    }
-    my.recBlockStack.splice(diff.index) //删除recBlockStack里从分叉点开始以后的全部块记录
-    wo.Chain.pushTopBlock(my.recBlockStack[diff.index - 1]) //记录top区块
-    await wo.Chain.updateChainFromPeer()
-    await wo.Chain.verifyChainFromDb()
-    my.bestPot = {} // 全网最佳时间证明：{签名，时间申明，公钥}
-    my.selfPot = {} // 本节点最佳时间证明：{签名，时间申明，公钥}
-    my.signBlock = {}
-    my.scheduleJobs[0].reschedule({ second: 0 }, POT.signOnce)
-    my.scheduleJobs[1].reschedule({ second: 20 }, POT.electOnce)
-    my.scheduleJobs[2].reschedule({ second: 40 }, POT.mineOnce)
-    return 0
-  }
-
-}
-POT.diffRecBlockStack = function (mine, target) {
-  //target的类型也是列表
-  for (index in target) {
-    if (target[index].hash !== mine[index].hash
-      && target[index].height === mine[index].height
-      && target[index].lastBlockHash === mine[index].lastBlockHash
-      || target[index].winnerSignature !== mine[index].winnerSignature) {
-      mylog.warn(`差异高度${target[index].height}`)
-      return { index, height: target[index].height }
-    }
-  }
-  return null
-}
-POT.pushInRBS = function (obj) {
-  // MaxRBS = 10
-  if (my.recBlockStack.length < wo.Config.MaxRBS) {
-    my.recBlockStack.push(obj)
-  }
-  else {
-    my.recBlockStack.splice(0, 1)
-    my.recBlockStack.push(obj)
-  }
-}
-POT.api.getRBS = async function (target) {
-  // if(target.packerPubkey===wo.Config.packerPubkey){
-  //   mylog.info("收到分享缓存区块请求")
-  //   return my.recBlockStack
-  // }
-  return await wo.Store.getRBS()
 }
 
 POT.stopScheduleJob = function () {

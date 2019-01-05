@@ -1,6 +1,7 @@
-Date.time2height=function(time){ // 创世块时刻（必须是0秒000毫秒）0.000到59.999为0，下一分钟0.000~59.999为1，...... 所以这代表了 当前所在分钟将要出的块的高度。注意，反向也成立，创世时刻之前是-1，-2，...
-  time=time || new Date()
-  return Math.floor((time - wo.Config.GENESIS_EPOCH) / (wo.Config.BLOCK_PERIOD * 1000))
+'use strict'
+// 创世块时刻（必须是0秒000毫秒）0.000到59.999为0，下一分钟0.000~59.999为1，...... 所以这代表了 当前所在分钟将要出的块的高度。注意，反向也成立，创世时刻之前是-1，-2，...
+Date.time2height = function(){
+  return Math.floor((new Date() - wo.Config.GENESIS_EPOCH) / (wo.Config.BLOCK_PERIOD * 1000))
 }
 
 Date.time2epoche=function(option){
