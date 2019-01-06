@@ -271,7 +271,7 @@ function initServer() { // 配置并启动 Web 服务
 	server.use(Cors())
 	server.use(Compression())
 
-	server.use(Express.static(path.join(__dirname, '../node.console.web.site/dist'), {index:'index.html'})) // 可以指定到 node应用之外的目录上。windows里要把 \ 换成 /。
+	server.use(Express.static(path.join(__dirname, '../node.console.web/dist'), {index:'index.html'})) // 可以指定到 node应用之外的目录上。windows里要把 \ 换成 /。
 
 	/*** 路由中间件 ***/
 
