@@ -146,7 +146,7 @@ async function initSingle() {
   wo.ActTac = require('./modules/Action/ActTac.js')
   wo.Bancor = require('./modules/Token/Bancor.js')._init()
   wo.Block = await require('./modules/Block/index.js')(wo.Config.consensus)._init()
-  mylog.warn('Initializing chain............')
+  mylog.info('Initializing chain............')
   wo.Chain = await require('./modules/Chain/Chain.js')._init()
   wo.Consensus = await require('./modules/Consensus/index.js')(wo.Config.consensus)._init()
 
@@ -235,7 +235,7 @@ async function initWorker() {
   wo.EventBus = require('./modules/util/EventBus.js')(process)
   wo.Consensus = require('./modules/Consensus/index.js')('proxy', wo.Config.consensus)
 
-  mylog.warn('Initializing chain............')
+  mylog.info('Initializing chain............')
   wo.Chain = await require('./modules/Chain/Chain.js')._init()
   return 0
 }
@@ -355,7 +355,7 @@ function initServer() { // 配置并启动 Web 服务
 }
 
 (async function start() {
-  if (config().thread !== 'multiple'){
+  if (config().thread === 'single'){
 		mylog.info('单进程模式启动......')
     await initSingle()
     let webServer = initServer()
