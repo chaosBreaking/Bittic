@@ -21,10 +21,10 @@ module.exports = { // 全大写字母的，代表系统常量，不要在 userCo
   NET_PORT: { mainnet: 8888, testnet: 8888, devnet: 8888 },
   NET_SEEDSET: { // 系统默认的种子节点
     mainnet: ['http://mainnet.bittic.net:8888'],
-    testnet: [],
+    testnet: ['http://testnet.bittic.net:8888'],
     devnet: []
   },
-  seedSet: [], // 节点主人可在自定义配置中添加的种子
+  seedSet: [], // 节点主人可在自定义配置中添加的种子。还可设为 'noseed'，就不连接种子。
 
   VERSION: '0.0.1',
   BLOCK_PERIOD: 60, // 出块周期(s)
