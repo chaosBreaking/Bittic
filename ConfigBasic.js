@@ -21,20 +21,20 @@ module.exports = { // 全大写字母的，代表系统常量，不要在 userCo
   NET_PORT: { mainnet: 8888, testnet: 8888, devnet: 8888 },
   NET_SEEDSET: { // 系统默认的种子节点
     mainnet: ['http://mainnet.bittic.net:8888'],
-    testnet: [],
+    testnet: ['http://testnet.bittic.net:8888'],
     devnet: []
   },
-  seedSet: [], // 节点主人可在自定义配置中添加的种子
+  seedSet: [], // 节点主人可在自定义配置中添加的种子。还可设为 'noseed'，就不连接种子。
 
   VERSION: '0.0.1',
   BLOCK_PERIOD: 60, // 出块周期(s)
   BLOCK_MAX_SIZE: 1 * 1024 * 1024, // 每个区块的最大容量：1M字节
-  PEER_CHECKING_PERIOD: [37] , // 单位是秒钟，每分钟的第几秒ping一个邻居。注意，尽量不要和pot的关键时间点冲突。
+  PEER_CHECKING_PERIOD: [37], // 单位是秒钟，每分钟的第几秒ping一个邻居。注意，尽量不要和pot的关键时间点冲突。
   PEER_CHECKING_TIMEOUT: 10, // 单位是次数，多少次没有响应就认为邻居节点死了
   PEER_POOL_CAPACITY: 10, // 保持几个邻居节点
 
   GENESIS_HEIGHT: 0,
-  GENESIS_BLOCK : {
+  GENESIS_BLOCK: {
     mainnet: {
       timestamp: '2019-06-06T00:00:00.000Z',
       message: 'History is Future, Future is Now'
@@ -45,12 +45,12 @@ module.exports = { // 全大写字母的，代表系统常量，不要在 userCo
     },
     devnet: {
       timestamp: 'prevHour', // 为了方便开发，暂不使用固定的创世时间。prevHour, nextMin, now或留空或任意其他。 nextMin: 下一分钟（单机测试）， prevHour: 前一小时（多机测试），now或留空或任意其他：此刻。
-      message: 'some big things start out small'    
+      message: 'some big things start out small'
     }
   },
   COIN_INIT_AMOUNT: 6 * Math.pow(10, 9), // 原始发行60亿个币。应该命名为 baseAmount，因为这不是全部的，还会挖出新的来
   COIN_PRECISION: 6, // 每个币可细分到小数点后第几位
-  MaxRBS: 10, //区块缓存栈最大容量
+  MaxRBS: 10, // 区块缓存栈最大容量
 
   MIN_FEE_ActTransfer: 0,
   MIN_FEE_ActStorage: 0,
@@ -69,10 +69,10 @@ module.exports = { // 全大写字母的，代表系统常量，不要在 userCo
   MARK_RELEASED: 'MARK_RELEASED', // 解除了关系（care, know, join 等）
 
   GENESIS_ACCOUNT: { // 创世账户，用于创建height=0创世块
-    secword: "skill loyal dove price spirit illegal bulk rose tattoo congress few amount",
+    secword: 'skill loyal dove price spirit illegal bulk rose tattoo congress few amount'
     //    pubkey: '656315fb1a34dafbaba2421cb2a6e6685754a0e68dab28be9b90201b4220acd1',
     //    seckey: '5334cce097b645559de70d365292bb1ad045f22a1915df0e1790d1f1da6de617656315fb1a34dafbaba2421cb2a6e6685754a0e68dab28be9b90201b4220acd1',
-    //    address: 'Tq4YQAbMAmoNmUK1mBDi9rqPoeCofawbCa' 
+    //    address: 'Tq4YQAbMAmoNmUK1mBDi9rqPoeCofawbCa'
   },
   INITIAL_ACCOUNT: {
     mainnet: {
@@ -93,13 +93,13 @@ module.exports = { // 全大写字母的，代表系统常量，不要在 userCo
   },
   DEV_ACCOUNT: [
     { // 第0个账号=初始账号
-      secword: 'clever journey cave maze luxury juice trigger discover bamboo net shoot put',
+      secword: 'clever journey cave maze luxury juice trigger discover bamboo net shoot put'
       // pubkey: '0fee122794b94feadcc07a72e69110e1000b6515ea67b4dba90f20dc48f999f8',
       // seckey: 'df814a79def4fa6e5bff2a19f44a5811163600db35670dca0b9bacc0994db05f0fee122794b94feadcc07a72e69110e1000b6515ea67b4dba90f20dc48f999f8',
       // address: 'TxAEimQbqVRUoPncGLrrpmP82yhtoLmxJE'
     },
     {
-      secword: 'brand moment media marine enroll verb blanket toilet unit exercise choose nuclear',
+      secword: 'brand moment media marine enroll verb blanket toilet unit exercise choose nuclear'
       // pubkey: 'f21b1b5b4e533ad52ac5f55ba10da1d978e3cc54f3a28daa80475ccfd3b43f3c',
       // seckey: 'c34ccff7ddcbac11a1275ef5339a6df11f0beab5dbf7283f964bde1201576005f21b1b5b4e533ad52ac5f55ba10da1d978e3cc54f3a28daa80475ccfd3b43f3c',
       // address: 'Tm3C6oELhJsF5EZBPD1ppdfNjgd2RxMUmj'

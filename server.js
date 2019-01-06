@@ -48,8 +48,8 @@ function config() {
     .option('-o, --ownerSecword <secword>', 'Node owner\'s secword or random|dev1')
     .option('-P, --protocol <protocol>', 'Server protocol: http|https|httpall. Default to ' + Config.protocol)
     .option('-p, --port <port>', 'Server port number. Default to' + Config.port)
-    .option('-l, --link <link>', 'etwork Nconnection: http|udp')
-    .option('-s, --seedSet <seedSet>', 'Peer list in JSON, such as \'["http://ip_or_dn:port"]\'')
+    .option('-l, --link <link>', 'Network Nconnection: http|udp')
+    .option('-s, --seedSet <seedSet>', 'Seed list such as \'["http://ip_or_dn:port"]\' or "noseed" to disable seeding')
     .option('-t, --thread <thread>', 'Thread mode: single|cluster. Default to ' + Config.thread)
     .option('--sslCert <cert>', 'SSL certificate file')
     .option('--sslKey <key>', 'SSL private key file')
@@ -67,7 +67,7 @@ function config() {
   Config.protocol = commander.protocol || Config.protocol
   Config.port = parseInt(commander.port) || parseInt(Config.port) || (Config.protocol === 'http' ? 80 : Config.protocol === 'https' ? 443 : undefined) // 端口默认为http 80, https 443, 或80|443(httpall)
   Config.link = commander.link || Config.link
-  Config.seedSet = commander.seedSet 
+  Config.seedSet = commander.seedSet === 'noseed' ? [] : commander.seedSet
     ? deepmerge(JSON.parse(commander.seedSet), deepmerge(Config.seedSet, Config.NET_SEEDSET[Config.netType]))
     : deepmerge(Config.seedSet, Config.NET_SEEDSET[Config.netType])
   Config.sslCert = commander.sslCert || Config.sslCert
@@ -95,7 +95,7 @@ function config() {
     mylog.info(`  protocol=====${Config.protocol}`)
     mylog.info(`  host=====${Config.host}`)
     mylog.info(`  port=====${Config.port}`)
-    mylog.info(`  seedSet=====${Config.seedSet}`)
+    mylog.info(`  seedSet=====${JSON.stringify(Config.seedSet)}`)
     mylog.info(`  GENESIS_EPOCH=====${Config.GENESIS_EPOCH.toJSON()}`)
     mylog.info(`  INITIAL_ACCOUNT=====${Config.INITIAL_ACCOUNT.address}`)
     mylog.info(`  ownerSecword=====${Config.ownerSecword}`)
