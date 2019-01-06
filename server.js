@@ -132,25 +132,21 @@ async function initSingle() {
 
   mylog.info('Loading classes and Creating tables......')
   wo.Ling = require('fon.ling')
-  // wo.Session=await require('fon.ling/Session.js')._init() // 目前不使用。
 
+  wo.Store = await require('./modules/util/Store.js')('redis', { db: wo.Config.redisIndex })._init()
+  wo.Peer = await require('./modules/peer/PeerSimple.js')._init()
   wo.Account = await require('./modules/Token/Account.js')
   wo.Action = await require('./modules/Action/Action.js')._init()
-  wo.Tac = await require('./modules/Token/Tac.js')._init()
   wo.ActTransfer = require('./modules/Action/ActTransfer.js')
   wo.ActStorage = require('./modules/Action/ActStorage.js')
   wo.ActMultisig = require('./modules/Action/ActMultisig.js')
+  wo.Tac = await require('./modules/Token/Tac.js')._init()
   wo.ActTac = require('./modules/Action/ActTac.js')
   wo.Bancor = require('./modules/Token/Bancor.js')._init()
   wo.Block = await require('./modules/Block/index.js')(wo.Config.consensus)._init()
-  wo.Store = await require('./modules/util/Store.js')('redis', { db: wo.Config.redisIndex })._init()
-  wo.Peer = await require('./modules/peer/PeerSimple.js')._init()
-  wo.EventBus = require('./modules/util/EventBus.js')(process)
-  wo.Chain = await require('./modules/Chain/Chain.js')
-  wo.Consensus = await require('./modules/Consensus/index.js')(wo.Config.consensus)._init()
-
   mylog.warn('Initializing chain............')
   wo.Chain = await require('./modules/Chain/Chain.js')._init()
+  wo.Consensus = await require('./modules/Consensus/index.js')(wo.Config.consensus)._init()
 
   return wo
 }
@@ -357,7 +353,8 @@ function initServer() { // 配置并启动 Web 服务
 }
 
 (async function start() {
-  if (config().thread === 'single'){
+  if (config().thread !== 'multiple'){
+		mylog.info('单进程模式启动......')
     await initSingle()
     let webServer = initServer()
     wo.Socket = socket.listen(webServer)

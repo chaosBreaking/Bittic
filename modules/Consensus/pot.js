@@ -60,7 +60,7 @@ async function calibrate() {
 				}
 				else {
 					mylog.info('无法更新到最新一块，创建虚拟块')
-					await wo.Chain.createVirtBlock()
+					await createVirtBlock()
 				}
 			}
 			else {
@@ -72,12 +72,12 @@ async function calibrate() {
 			//缺少较多区块而且无法从外界同步，则创建虚拟块
 			mylog.info('无法从外界同步到区块，创建虚拟块...')
 			for (let height = topBlock.height + 1; height < Date.time2height(); height++) {
-				await wo.Chain.createVirtBlock()
+				await createVirtBlock()
 			}
 			if(getTimeSlot() !== 'signTime') {
 				//不是在签名期间的话，就直接创建到最新的高度
 				mylog.info('本轮错过出块，创建最新的虚拟块...')
-				await wo.Chain.createVirtBlock()
+				await createVirtBlock()
 				setTimeout(POT.signOnce, 60 - new Date().getSeconds())
 			}
 			else {
@@ -99,6 +99,13 @@ function getTimeSlot () {
 		return 'electTime'
 	else if(thisSec >= mineTime || thisSec >= (mineTime + wo.Config.BLOCK_PERIOD % wo.Config.BLOCK_PERIOD))
 		return 'mineTime'
+}
+async function createVirtBlock() {
+	let topBlock = await wo.Chain.getTopBlock()
+	let block = new wo.Block({ type: 'VirtBlock', timestamp: new Date(), height: topBlock.height + 1, hash: topBlock.hash, lastBlockHash: topBlock.hash })
+	await wo.Chain.appendBlock(block)
+	mylog.info('虚拟块创建成功 --> 高度' + block.height)
+	return block
 }
 POT._init = async function () {
 	/** 
@@ -134,7 +141,7 @@ POT._init = async function () {
 				}
 				else {
 					mylog.info('无法更新到最新一块，创建虚拟块')
-					await wo.Chain.createVirtBlock()
+					await createVirtBlock()
 				}
 			}
 			else {
@@ -146,12 +153,12 @@ POT._init = async function () {
 			//缺少较多区块而且无法从外界同步，则创建虚拟块
 			mylog.info('无法从外界同步到区块，创建虚拟块...')
 			for (let height = topBlock.height + 1; height < Date.time2height(); height++) {
-				await wo.Chain.createVirtBlock()
+				await createVirtBlock()
 			}
 			if(getTimeSlot() !== 'signTime') {
 				//不是在签名期间的话，就直接创建到最新的高度
 				mylog.info('本轮错过出块，创建最新的虚拟块...')
-				await wo.Chain.createVirtBlock()
+				await createVirtBlock()
 				setTimeout(POT.signOnce, 60 - new Date().getSeconds())
 			}
 			else {
