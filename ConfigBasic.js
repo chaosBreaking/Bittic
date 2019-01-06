@@ -44,7 +44,7 @@ module.exports = { // 全大写字母的，代表系统常量，不要在 userCo
       message: 'The Cabinet Office minister David Lidington today defended Philip Hammond’s decision to issue a new warning that a no-deal Brexit would significantly damage the economy.'    
     },
     devnet: {
-      timestamp: 'prevHour', // prevHour, nextMin, now或留空或任意其他。 nextMin: 下一分钟（单机测试）， prevHour: 前一小时（多机测试），now或留空或任意其他：此刻。为了方便开发，暂不使用固定的创世时间。
+      timestamp: 'prevHour', // 为了方便开发，暂不使用固定的创世时间。prevHour, nextMin, now或留空或任意其他。 nextMin: 下一分钟（单机测试）， prevHour: 前一小时（多机测试），now或留空或任意其他：此刻。
       message: 'some big things start out small'    
     }
   },
