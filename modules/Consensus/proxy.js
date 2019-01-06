@@ -3,7 +3,7 @@
  * 此代理将Worker(链及服务)进程收到的共识API调用转发到共识进程
  */
 module.exports = (consName) => {
-  if(consName === 'pot') {
+  if (consName === 'pot') {
     return potProxy
   }
 }

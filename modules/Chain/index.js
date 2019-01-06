@@ -2,7 +2,7 @@
  * Chain的代理对象，用于在非Chain进程调用Chain.js的API
  */
 module.exports = {
-  createVirtBlock : async () => {
+  createVirtBlock: async () => {
     let topBlock = await wo.Chain.getTopBlock()
     let block = new wo.Block({ type: 'VirtBlock', timestamp: new Date(), height: topBlock.height + 1, hash: topBlock.hash, lastBlockHash: topBlock.hash })
     await wo.EventBus.call('Chain', '', 'appendBlock', block)

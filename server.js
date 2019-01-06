@@ -3,9 +3,9 @@ const fs = require('fs')
 const path = require('path')
 const cluster = require('cluster')
 const socket = require('socket.io')
-global.mylog = require('fon.base/Logger.js')({root:'data.log', file:'tic.log'}) // 简写 console.log，为了少敲几个字母
+global.mylog = require('fon.base/Logger.js')({ root: 'data.log', file: 'tic.log' }) // 简写 console.log，为了少敲几个字母
 
-function config() {
+function config () {
   // 配置参数（按优先级从低到高）：
   // ConfigBasic: 系统常量（全大写） 以及 默认参数（小写开头驼峰式）
   // ConfigCustom: 用户或应用自定义参数。本文件不应纳入版本管理。
@@ -63,11 +63,11 @@ function config() {
   Config.dbName = commander.dbName || Config.dbName
   Config.host = commander.host || Config.host || require('fon.base/Network.js').getMyIp() // // 本节点的从外部可访问的 IP or Hostname，不能是 127.0.0.1 或 localhost
   Config.netType = commander.netType || Config.netType
-  Config.ownerSecword = commander.ownerSecword || Config.ownerSecword || (Config.netType==='devnet' ? Config.DEV_ACCOUNT[0].secword : undefined) // 如果没有设置secword并且在devnet，就用devnet的初始账号，使得不需要任何参数就能运行。
+  Config.ownerSecword = commander.ownerSecword || Config.ownerSecword || (Config.netType === 'devnet' ? Config.DEV_ACCOUNT[0].secword : undefined) // 如果没有设置secword并且在devnet，就用devnet的初始账号，使得不需要任何参数就能运行。
   Config.protocol = commander.protocol || Config.protocol
   Config.port = parseInt(commander.port) || parseInt(Config.port) || (Config.protocol === 'http' ? 80 : Config.protocol === 'https' ? 443 : undefined) // 端口默认为http 80, https 443, 或80|443(httpall)
   Config.link = commander.link || Config.link
-  Config.seedSet = commander.seedSet 
+  Config.seedSet = commander.seedSet
     ? deepmerge(JSON.parse(commander.seedSet), deepmerge(Config.seedSet, Config.NET_SEEDSET[Config.netType]))
     : deepmerge(Config.seedSet, Config.NET_SEEDSET[Config.netType])
   Config.sslCert = commander.sslCert || Config.sslCert
@@ -78,7 +78,7 @@ function config() {
   Config.epoch = commander.epoch || Config.GENESIS_BLOCK[Config.netType].timestamp
 
   try {
-    Config.dbName=`${Config.dbName}-${Config.consensus}-${Config.netType}.${Config.dbType}`
+    Config.dbName = `${Config.dbName}-${Config.consensus}-${Config.netType}.${Config.dbType}`
     Config.INITIAL_ACCOUNT = Config.INITIAL_ACCOUNT[Config.netType]
     Config.GENESIS_MESSAGE = Config.GENESIS_BLOCK[Config.netType].message
     Config.GENESIS_EPOCH = require('./modules/util/Date.js').time2epoch(Config.epoch)
@@ -99,7 +99,7 @@ function config() {
     mylog.info(`  GENESIS_EPOCH=====${Config.GENESIS_EPOCH.toJSON()}`)
     mylog.info(`  INITIAL_ACCOUNT=====${Config.INITIAL_ACCOUNT.address}`)
     mylog.info(`  ownerSecword=====${Config.ownerSecword}`)
-   
+
     return Config
   } catch (error) {
     mylog.error('Error: Invalid Config File or Config Commander!')
@@ -107,24 +107,24 @@ function config() {
   }
 }
 
-async function initSingle() {
+async function initSingle () {
   global.wo = {} // wo 代表 world或‘我’，是当前的命名空间，把各种类都放在这里，防止和其他库的冲突。
   wo.Config = config() // 依次载入系统默认配置、用户配置文件、命令行参数
   wo.Crypto = require('tic.crypto')
-  if (wo.Config.netType==='devnet' && wo.Config.ownerSecword==='dev1'){ // 允许开发者在命令行里 -o 'dev1' 来指定使用预设的开发者账号
+  if (wo.Config.netType === 'devnet' && wo.Config.ownerSecword === 'dev1') { // 允许开发者在命令行里 -o 'dev1' 来指定使用预设的开发者账号
     wo.Config.ownerSecword = wo.Config.DEV_ACCOUNT[1].secword
     mylog.info(`current node for devnet is instructed to use dev1 secword "${wo.Config.ownerSecword}"`)
   }
-  if (wo.Config.ownerSecword==='random'){
+  if (wo.Config.ownerSecword === 'random') {
     wo.Config.ownerSecword = wo.Crypto.randomSecword()
     mylog.info(`random secword is used: ${wo.Config.ownerSecword}`)
   }
-  if (wo.Config.netType!=='devnet' && wo.Config.ownerSecword===wo.Config.DEV_ACCOUNT[0].secword){
+  if (wo.Config.netType !== 'devnet' && wo.Config.ownerSecword === wo.Config.DEV_ACCOUNT[0].secword) {
     mylog.error(`Public devnet secword cannot be used for other networks. Please setup your own private secword.`)
     mylog.error('非开发网禁止使用已知的开发网初始账号')
     process.exit()
   }
-  if (!wo.Crypto.isSecword(wo.Config.ownerSecword)){
+  if (!wo.Crypto.isSecword(wo.Config.ownerSecword)) {
     mylog.error(`Invalid secword: "${wo.Config.ownerSecword}". Please setup a secword in config file or command line.`)
     process.exit()
   }
@@ -153,27 +153,27 @@ async function initSingle() {
   return wo
 }
 
-async function initMaster(worker) {
-  global.mylog = require('fon.base/Logger.js')({root:'data.log', file:'tic.master.log'}) // 简写 console.log，为了少敲几个字母
+async function initMaster (worker) {
+  global.mylog = require('fon.base/Logger.js')({ root: 'data.log', file: 'tic.master.log' }) // 简写 console.log，为了少敲几个字母
 
   global.wo = {} // wo 代表 world或‘我’，是当前的命名空间，把各种类都放在这里，防止和其他库的冲突。
-// 通过 JSON.parse(JSON.stringify(this.actionHashList)) 来取代 extend，彻底解除对wo.Tool依赖 wo.Tool = new (require('fon.base/Egg.js'))()
+  // 通过 JSON.parse(JSON.stringify(this.actionHashList)) 来取代 extend，彻底解除对wo.Tool依赖 wo.Tool = new (require('fon.base/Egg.js'))()
   wo.Config = config() // 依次载入系统默认配置、用户配置文件、命令行参数
   wo.Crypto = require('tic.crypto')
-  if (wo.Config.netType==='devnet' && wo.Config.ownerSecword==='dev1'){ // 允许开发者在命令行里 -o 'dev1' 来指定使用预设的开发者账号
+  if (wo.Config.netType === 'devnet' && wo.Config.ownerSecword === 'dev1') { // 允许开发者在命令行里 -o 'dev1' 来指定使用预设的开发者账号
     wo.Config.ownerSecword = wo.Config.DEV_ACCOUNT[1].secword
     mylog.info(`current node for devnet is instructed to use dev1 secword "${wo.Config.ownerSecword}"`)
   }
-  if (wo.Config.ownerSecword==='random'){
+  if (wo.Config.ownerSecword === 'random') {
     wo.Config.ownerSecword = wo.Crypto.randomSecword()
     mylog.info(`random secword is used: ${wo.Config.ownerSecword}`)
   }
-  if (wo.Config.netType!=='devnet' && wo.Config.ownerSecword===wo.Config.DEV_ACCOUNT[0].secword){
+  if (wo.Config.netType !== 'devnet' && wo.Config.ownerSecword === wo.Config.DEV_ACCOUNT[0].secword) {
     mylog.error(`Public devnet secword cannot be used for other networks. Please setup your own private secword.`)
     mylog.error('非开发网禁止使用已知的开发网初始账号')
     process.exit()
   }
-  if (!wo.Crypto.isSecword(wo.Config.ownerSecword)){
+  if (!wo.Crypto.isSecword(wo.Config.ownerSecword)) {
     mylog.error(`Invalid secword: "${wo.Config.ownerSecword}". Please setup a secword in config file or command line.`)
     process.exit()
   }
@@ -189,27 +189,27 @@ async function initMaster(worker) {
   wo.Consensus = await require('./modules/Consensus/index.js')(wo.Config.consensus)._init()
 }
 
-async function initWorker() {
-  global.mylog = require('fon.base/Logger.js')({root:'data.log', file:'tic.worker.log'}) // 简写 console.log，为了少敲几个字母
+async function initWorker () {
+  global.mylog = require('fon.base/Logger.js')({ root: 'data.log', file: 'tic.worker.log' }) // 简写 console.log，为了少敲几个字母
 
   global.wo = {} // wo 代表 world或‘我’，是当前的命名空间，把各种类都放在这里，防止和其他库的冲突。
-// 通过 JSON.parse(JSON.stringify(this.actionHashList)) 来取代 extend，彻底解除对wo.Tool依赖 wo.Tool = new (require('fon.base/Egg.js'))()
+  // 通过 JSON.parse(JSON.stringify(this.actionHashList)) 来取代 extend，彻底解除对wo.Tool依赖 wo.Tool = new (require('fon.base/Egg.js'))()
   wo.Config = config() // 依次载入系统默认配置、用户配置文件、命令行参数
   wo.Crypto = require('tic.crypto')
-  if (wo.Config.netType==='devnet' && wo.Config.ownerSecword==='dev1'){ // 允许开发者在命令行里 -o 'dev1' 来指定使用预设的开发者账号
+  if (wo.Config.netType === 'devnet' && wo.Config.ownerSecword === 'dev1') { // 允许开发者在命令行里 -o 'dev1' 来指定使用预设的开发者账号
     wo.Config.ownerSecword = wo.Config.DEV_ACCOUNT[1].secword
     mylog.info(`current node for devnet is instructed to use dev1 secword "${wo.Config.ownerSecword}"`)
   }
-  if (wo.Config.ownerSecword==='random'){
+  if (wo.Config.ownerSecword === 'random') {
     wo.Config.ownerSecword = wo.Crypto.randomSecword()
     mylog.info(`random secword is used: ${wo.Config.ownerSecword}`)
   }
-  if (wo.Config.netType!=='devnet' && wo.Config.ownerSecword===wo.Config.DEV_ACCOUNT[0].secword){
+  if (wo.Config.netType !== 'devnet' && wo.Config.ownerSecword === wo.Config.DEV_ACCOUNT[0].secword) {
     mylog.error(`Public devnet secword cannot be used for other networks. Please setup your own private secword.`)
     mylog.error('非开发网禁止使用已知的开发网初始账号')
     process.exit()
   }
-  if (!wo.Crypto.isSecword(wo.Config.ownerSecword)){
+  if (!wo.Crypto.isSecword(wo.Config.ownerSecword)) {
     mylog.error(`Invalid secword: "${wo.Config.ownerSecword}". Please setup a secword in config file or command line.`)
     process.exit()
   }
@@ -240,164 +240,161 @@ async function initWorker() {
   return 0
 }
 
-function initServer() { // 配置并启动 Web 服务
+function initServer () { // 配置并启动 Web 服务
+  mylog.info('★★★★★★★★ Starting Server......')
 
-	mylog.info('★★★★★★★★ Starting Server......')
+  const Express = require('express')
+  const Cors = require('cors')
+  const Morgan = require('morgan')
+  const MethodOverride = require('method-override')
+  const CookieParser = require('cookie-parser')
+  const BodyParser = require('body-parser')
+  const ErrorHandler = require('errorhandler')
+  const Compression = require('compression')
 
-	const Express = require('express')
-	const Cors = require('cors')
-	const Morgan = require('morgan')
-	const MethodOverride = require('method-override')
-	const CookieParser = require('cookie-parser')
-	const BodyParser = require('body-parser')
-	const ErrorHandler = require('errorhandler')
-	const Compression = require('compression')
+  const server = Express()
 
-	const server = Express()
+  /** * 通用中间件 ***/
 
-	/*** 通用中间件 ***/
+  server.use(Morgan(server.get('env') === 'development' ? 'dev' : 'combined')) // , {stream:require('fs').createWriteStream(path.join(__dirname+'/data.log', 'http.log'), {flags: 'a', defaultEncoding: 'utf8'})})) // format: combined, common, dev, short, tiny.	发现 defaultEncoding 并不起作用。
+  server.use(MethodOverride())
+  server.use(CookieParser())
+  server.use(BodyParser.json({
+    limit: '50mb',
+    extended: true
+  })) // 用于过滤 POST 参数
+  server.use(Cors())
+  server.use(Compression())
 
-	server.use(Morgan('development' === server.get('env') ? 'dev' : 'combined')) // , {stream:require('fs').createWriteStream(path.join(__dirname+'/data.log', 'http.log'), {flags: 'a', defaultEncoding: 'utf8'})})) // format: combined, common, dev, short, tiny.	发现 defaultEncoding 并不起作用。
-	server.use(MethodOverride())
-	server.use(CookieParser())
-	server.use(BodyParser.json({
-		limit: '50mb',
-		extended: true
-	})) // 用于过滤 POST 参数
-	server.use(Cors())
-	server.use(Compression())
+  server.use(Express.static(path.join(__dirname, '../node.console.web/dist'), { index: 'index.html' })) // 可以指定到 node应用之外的目录上。windows里要把 \ 换成 /。
 
-	server.use(Express.static(path.join(__dirname, '../node.console.web/dist'), {index:'index.html'})) // 可以指定到 node应用之外的目录上。windows里要把 \ 换成 /。
+  /** * 路由中间件 ***/
 
-	/*** 路由中间件 ***/
+  server.all('/:_api/:_who/:_act', async function (ask, reply) {
+    // http://address:port/api/Block/getBlockList
 
-	server.all('/:_api/:_who/:_act', async function (ask, reply) {
-		// http://address:port/api/Block/getBlockList
+    /* 把前端传来的json参数，重新解码成对象 */
+    var option = {}
+    for (let key in ask.query) { // GET 方法传来的参数
+      option[key] = wo.Ling.json2obj(ask.query[key])
+      mylog.info(key + ' : ' + option[key])
+    }
+    for (let key in ask.body) { // POST 方法传来的参数
+      option[key] = wo.Ling.json2obj(ask.body[key])
+    }
+    /// //////// authentication ///////////////////
+    option._req = ask
 
-		/* 把前端传来的json参数，重新解码成对象 */
-		var option = {}
-		for (let key in ask.query) { // GET 方法传来的参数
-			option[key] = wo.Ling.json2obj(ask.query[key])
-			mylog.info(key + ' : ' + option[key])
-		}
-		for (let key in ask.body) { // POST 方法传来的参数
-			option[key] = wo.Ling.json2obj(ask.body[key])
-		}
-		/////////// authentication ///////////////////
-		option._req = ask
+    reply.setHeader('charset', 'utf-8')
+    // reply.setHeader('Access-Control-Allow-Origin', '*') // 用了 Cors中间件，就不需要手工再设置了。
+    // reply.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE')
+    reply.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,Content-Type')
 
-		reply.setHeader('charset', 'utf-8')
-		//reply.setHeader('Access-Control-Allow-Origin', '*') // 用了 Cors中间件，就不需要手工再设置了。
-		//reply.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE')
-		reply.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,Content-Type')
+    let _who = ask.params._who
+    let _act = ask.params._act
+    let _api = ask.params._api
 
-		let _who = ask.params._who
-		let _act = ask.params._act
-		let _api = ask.params._api
+    try {
+      if (wo[_who] && wo[_who][_api] && wo[_who][_api].hasOwnProperty(_act) && typeof wo[_who][_api][_act] === 'function') {
+        var result = await wo[_who][_api][_act](option)
+        reply.json(result) // 似乎 json(...) 相当于 send(JSON.stringify(...))。如果json(undefined或nothing)会什么也不输出给前端，可能导致前端默默出错；json(null/NaN/Infinity)会输出null给前端（因为JSON.stringify(NaN/Infinity)返回"null"）。
+      } else {
+        reply.json(null)
+      }
+    } catch (exception) {
+      mylog.info(exception)
+      reply.json(null)
+    }
+  })
 
-		try {
-			if (wo[_who] && wo[_who][_api] && wo[_who][_api].hasOwnProperty(_act) && typeof wo[_who][_api][_act] === 'function') {
-				var result = await wo[_who][_api][_act](option)
-				reply.json(result) // 似乎 json(...) 相当于 send(JSON.stringify(...))。如果json(undefined或nothing)会什么也不输出给前端，可能导致前端默默出错；json(null/NaN/Infinity)会输出null给前端（因为JSON.stringify(NaN/Infinity)返回"null"）。
-			} else {
-				reply.json(null)
-			}
-		} catch (exception) {
-			mylog.info(exception)
-			reply.json(null)
-		}
+  server.all('*', function (ask, reply) { /* 错误的API调用进入这里。 */
+    reply.json(null)
+  })
 
-	})
+  // 错误处理中间件应当在路由加载之后才能加载
+  if (server.get('env') === 'development') {
+    server.use(ErrorHandler({
+      dumpExceptions: true,
+      showStack: true
+    }))
+  }
+  /** * 启动 Web 服务 ***/
+  let webServer
+  if (wo.Config.protocol === 'http') { // 如果在本地localhost做开发，就启用 http。注意，从https网页，不能调用http的socket.io。Chrome/Firefox都报错：Mixed Content: The page at 'https://localhost/yuncai/' was loaded over HTTPS, but requested an insecure XMLHttpRequest endpoint 'http://localhost:6327/socket.io/?EIO=3&transport=polling&t=LoRcACR'. This request has been blocked; the content must be served over HTTPS.
+    webServer = require('http').createServer(server)
+    webServer.listen(wo.Config.port, function (err) {
+      mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, wo.Config.port, server.settings.env)
+    })
+  } else if (wo.Config.protocol === 'https') { // 启用 https。从 http或https 网页访问 https的ticnode/socket 都可以，socket.io 内容也是一致的。
+    webServer = require('https').createServer({
+      key: fs.readFileSync(wo.Config.sslKey),
+      cert: fs.readFileSync(wo.Config.sslCert) // , ca: [ fs.readFileSync(wo.Config.sslCA) ] // only for self-signed certificate: https://nodejs.org/api/tls.html#tls_tls_createserver_options_secureconnectionlistener
+    }, server)
+    webServer.listen(wo.Config.port, function (err) {
+      mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, wo.Config.port, server.settings.env)
+    })
+  } else if (wo.Config.protocol === 'httpall') { // 同时启用 http 和 https
+    let portHttp = wo.Config.port ? wo.Config.port : 80 // 如果port参数已设置，使用它；否则默认为80
+    webServer = require('http').createServer(server)
+    webServer.listen(portHttp, function (err) {
+      mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, portHttp, server.settings.env)
+    })
 
-	server.all('*', function (ask, reply) { /* 错误的API调用进入这里。*/
-		reply.json(null)
-	})
-
-	// 错误处理中间件应当在路由加载之后才能加载
-	if ('development' === server.get('env')) {
-		server.use(ErrorHandler({
-			dumpExceptions: true,
-			showStack: true
-		}))
-	}
-	/*** 启动 Web 服务 ***/
-	let webServer
-	if ('http' === wo.Config.protocol) { // 如果在本地localhost做开发，就启用 http。注意，从https网页，不能调用http的socket.io。Chrome/Firefox都报错：Mixed Content: The page at 'https://localhost/yuncai/' was loaded over HTTPS, but requested an insecure XMLHttpRequest endpoint 'http://localhost:6327/socket.io/?EIO=3&transport=polling&t=LoRcACR'. This request has been blocked; the content must be served over HTTPS.
-		webServer = require('http').createServer(server)
-		webServer.listen(wo.Config.port, function (err) {
-			mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, wo.Config.port, server.settings.env)
-		})
-	} else if ('https' === wo.Config.protocol) { // 启用 https。从 http或https 网页访问 https的ticnode/socket 都可以，socket.io 内容也是一致的。
-		webServer = require('https').createServer({
-			key: fs.readFileSync(wo.Config.sslKey),
-			cert: fs.readFileSync(wo.Config.sslCert) // , ca: [ fs.readFileSync(wo.Config.sslCA) ] // only for self-signed certificate: https://nodejs.org/api/tls.html#tls_tls_createserver_options_secureconnectionlistener
-		}, server)
-		webServer.listen(wo.Config.port, function (err) {
-			mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, wo.Config.port, server.settings.env)
-		})
-	} else if ('httpall' === wo.Config.protocol) { // 同时启用 http 和 https
-		let portHttp = wo.Config.port ? wo.Config.port : 80 // 如果port参数已设置，使用它；否则默认为80
-		webServer = require('http').createServer(server)
-		webServer.listen(portHttp, function (err) {
-			mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, portHttp, server.settings.env)
-		})
-
-		let portHttps = (wo.Config.port && wo.Config.port !== 80) ? wo.Config.port + 443 : 443 // 如果port参数已设置，使用它+443；否则默认为443
-		let httpsServer = require('https').createServer({
-			key: fs.readFileSync(wo.Config.sslKey),
-			cert: fs.readFileSync(wo.Config.sslCert) // , ca: [ fs.readFileSync(wo.Config.sslCA) ] // only for self-signed certificate: https://nodejs.org/api/tls.html#tls_tls_createserver_options_secureconnectionlistener
-		}, server)
-		httpsServer.listen(portHttps, function (err) {
-			mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, portHttps, server.settings.env)
-		})
-	}
-	return webServer
+    let portHttps = (wo.Config.port && wo.Config.port !== 80) ? wo.Config.port + 443 : 443 // 如果port参数已设置，使用它+443；否则默认为443
+    let httpsServer = require('https').createServer({
+      key: fs.readFileSync(wo.Config.sslKey),
+      cert: fs.readFileSync(wo.Config.sslCert) // , ca: [ fs.readFileSync(wo.Config.sslCA) ] // only for self-signed certificate: https://nodejs.org/api/tls.html#tls_tls_createserver_options_secureconnectionlistener
+    }, server)
+    httpsServer.listen(portHttps, function (err) {
+      mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, portHttps, server.settings.env)
+    })
+  }
+  return webServer
 }
 
-(async function start() {
-  if (config().thread === 'single'){
-		mylog.info('单进程模式启动......')
+(async function start () {
+  if (config().thread === 'single') {
+    mylog.info('单进程模式启动......')
     await initSingle()
     let webServer = initServer()
     wo.Socket = socket.listen(webServer)
-    wo.Socket.sockets.on("open",()=>{
+    wo.Socket.sockets.on('open', () => {
       mylog.info('Socket started')
     })
-    wo.Socket.sockets.on('connection',(socket)=>{
+    wo.Socket.sockets.on('connection', (socket) => {
       mylog.info('new client connected')
       socket.send('hello')
     })
-    //启动区块链部署程序
+    // 启动区块链部署程序
     try {
       (require('./deployer/util.js').execAsync)('node ./deployer/listener.js')
     } catch (error) {
       mylog.warn(`区块链部署程序启动失败`)
     }
-  }else {
+  } else {
     if (cluster.isMaster) {
       let worker = cluster.fork()
       cluster.on('message', async (worker, message) => {
-        if(message.code == 200) {
+        if (message.code == 200) {
           mylog.warn(`[Master] 主程序初始化完毕，启动共识模块......`)
           await initMaster(worker)
           return 0
         }
       })
-    }
-    else {
-      /**BlockChain以及RPC服务进程 */
+    } else {
+      /** BlockChain以及RPC服务进程 */
       await initWorker()
       let webServer = initServer()
       wo.Socket = socket.listen(webServer)
-      wo.Socket.sockets.on("open",()=>{
+      wo.Socket.sockets.on('open', () => {
         mylog.info('Socket started')
       })
-      wo.Socket.sockets.on('connection',(socket)=>{
+      wo.Socket.sockets.on('connection', (socket) => {
         mylog.info('new client connected')
         socket.send('hello')
       })
-      wo.EventBus.send(200, "链进程初始化完毕")
-      //启动区块链部署程序
+      wo.EventBus.send(200, '链进程初始化完毕')
+      // 启动区块链部署程序
       try {
         (require('./deployer/util.js').execAsync)('node ./deployer/listener.js')
       } catch (error) {

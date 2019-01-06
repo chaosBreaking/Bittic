@@ -5,7 +5,7 @@ const RequestPromise = require('request-promise-native') // request-promise/-nat
 const store = require('../util/StoreApi.js')('redis')
 
 const DAD = module.exports = class Peer extends Ling {
-  constructor(prop) {
+  constructor (prop) {
     super(prop)
     this._class = this.constructor.name
     this.setProp(prop)
@@ -14,16 +14,16 @@ const DAD = module.exports = class Peer extends Ling {
 
 DAD.prototype._tablekey = 'ownerAddress'
 DAD.prototype._model = { // 数据模型，用来初始化每个对象的数据
-  ownerAddress:   { default: '' }, // 应当记录属于哪个用户，作为全网每个节点的唯一标志符
-  accessPoint:    { default: '' }, // 该节点的http连接地址。
-  host:           { default: '' }, // IP or hostname like http://remoteaddress.com or http://101.222.121.111
-  port:           { default: wo.Config.port }, //共识协议交流端口
-  status:         { default: 'unknown' }, // unknown是刚加入pool时未知状态。开始检查后，状态是 active, broken, dead
-  checking:       { default: 'idle' }, // idle 或 pending
-  lastRequest:    { default: '' }, // 上一次 ping 请求的时间
-  lastResponse:   { default: '' }, // 上一次 ping 回复的时间
-  lastReception:  { default: '' }, // 上一次 ping 收到回复的时间
-  brokenCount:    { default: 0 }
+  ownerAddress: { default: '' }, // 应当记录属于哪个用户，作为全网每个节点的唯一标志符
+  accessPoint: { default: '' }, // 该节点的http连接地址。
+  host: { default: '' }, // IP or hostname like http://remoteaddress.com or http://101.222.121.111
+  port: { default: wo.Config.port }, // 共识协议交流端口
+  status: { default: 'unknown' }, // unknown是刚加入pool时未知状态。开始检查后，状态是 active, broken, dead
+  checking: { default: 'idle' }, // idle 或 pending
+  lastRequest: { default: '' }, // 上一次 ping 请求的时间
+  lastResponse: { default: '' }, // 上一次 ping 回复的时间
+  lastReception: { default: '' }, // 上一次 ping 收到回复的时间
+  brokenCount: { default: 0 }
 }
 
 const my = {}
@@ -33,7 +33,7 @@ my.self = new DAD({
   accessPoint: wo.Config.protocol + '://' + wo.Config.host + ':' + wo.Config.port,
   protocol: wo.Config.protocol,
   host: wo.Config.host,
-  port: wo.Config.port,      //web服务端口
+  port: wo.Config.port // web服务端口
 })
 
 DAD._init = async function () {
@@ -49,8 +49,7 @@ DAD._init = async function () {
         json: true
       }).then(async function (peer) {
         mylog.info(`获得种子反馈：${JSON.stringify(peer)}`)
-        if (DAD.isValid(peer)) 
-          await DAD.addPeer(peer)
+        if (DAD.isValid(peer)) { await DAD.addPeer(peer) }
       }).catch(function (err) {
         mylog.warn(`无法连通种子节点：${peerUrl}，错误提示：${err.message}`)
       })
@@ -58,7 +57,7 @@ DAD._init = async function () {
     // 建立邻居节点库
     mylog.info('补充邻居节点')
     let peers = await this.getPeerList()
-    if(peers && peers.length > 0)
+    if (peers && peers.length > 0) {
       await Promise.all(peers.map((peer, index) => {
         return RequestPromise({
           method: 'post',
@@ -73,10 +72,11 @@ DAD._init = async function () {
           mylog.warn('获取邻居节点失败')
         })
       }))
-      // setInterval(DAD.updatePool, wo.Config.PEER_CHECKING_PERIOD) 
-      // 多久检查一个节点？假设每个节点有12个peer，5秒检查一个，1分钟可检查一圈。而且5秒足够ping响应。
+    }
+    // setInterval(DAD.updatePool, wo.Config.PEER_CHECKING_PERIOD)
+    // 多久检查一个节点？假设每个节点有12个peer，5秒检查一个，1分钟可检查一圈。而且5秒足够ping响应。
   }
-  my.scheduleJob[0] = Schedule.scheduleJob({second: wo.Config.PEER_CHECKING_PERIOD}, DAD.updatePool)
+  my.scheduleJob[0] = Schedule.scheduleJob({ second: wo.Config.PEER_CHECKING_PERIOD }, DAD.updatePool)
   return this
 }
 
@@ -87,13 +87,13 @@ DAD.updatePool = async function () { // 一次性检查节点池里所有节点�
     mylog.info(`Checking ${peer.accessPoint}......`)
     if (peer && peer.checking !== 'pending') { // 是当前还有效的peer。如果已经dead，就不再执行，即不放回 pool 了。
       peer.checking = 'pending' // 正在检查中，做个标记，以防又重复被检查
-      peer.lastRequest = new Date() // 发起ping的时刻 
+      peer.lastRequest = new Date() // 发起ping的时刻
       return await RequestPromise({
         method: 'post',
         uri: url.resolve(peer.accessPoint, '/api/Peer/ping'),
         body: { Peer: JSON.stringify(my.self) }, // 告诉对方，我是谁，以及发出ping的时间
         json: true
-      }).then(function(result){
+      }).then(function (result) {
         if (result) { // 对方peer还活着
           mylog.info(`节点 ${peer.accessPoint} 成功返回 ${JSON.stringify(result)}`)
           peer.status = 'active'
@@ -101,24 +101,22 @@ DAD.updatePool = async function () { // 一次性检查节点池里所有节点�
           peer.lastReception = new Date() // 收到对方ping的时刻
           peer.brokenCount = 0
           return peer
-        }
-        else { // 对方返回 null
+        } else { // 对方返回 null
           mylog.warn(`节点 ${peer.accessPoint} 返回 null，请检查异常`)
           return null
         }
       }).catch(function (err) {
         mylog.warn(`节点 ${peer.accessPoint} 无响应：${err.message}`)
         if (['active', 'unknown'].indexOf(peer.status) >= 0) {
-          mylog.info(peer.accessPoint,'无法ping通',peer.status,'设为断线状态')
+          mylog.info(peer.accessPoint, '无法ping通', peer.status, '设为断线状态')
           peer.status = 'broken' // 第一次ping不通，设为断线状态
           peer.brokenCount += 1
           mylog.warn(`节点 ${peer.accessPoint} 转入 broken 状态`)
-        }
-        else if (peer.status === 'broken') {
+        } else if (peer.status === 'broken') {
           if (peer.brokenCount < wo.Config.PEER_CHECKING_TIMEOUT) {
-            peer.brokenCount +=1
+            peer.brokenCount += 1
             mylog.warn(`节点 ${peer.accessPoint} 连续 ${peer.brokenCount} 次无响应`)
-          }else{
+          } else {
             mylog.error(`节点 ${peer.accessPoint} 已超过 ${wo.Config.PEER_CHECKING_TIMEOUT} 次无响应，删除出节点池`)
             DAD.dropPeer(peer.ownerAddress)
           }
@@ -137,7 +135,6 @@ DAD.updatePool = async function () { // 一次性检查节点池里所有节点�
       await DAD.addPeer(newPeerSet[wo.Crypto.randomNumber({ max: newPeerSet.length })]) // 随机挑选一个节点加入邻居池
     }
   }
-
 }
 
 DAD.broadcast = async function (api, message, peerSet) { // api='/类名/方法名'  向所有邻居发出广播，返回所有结果的数组。可通过 peerSet 参数指定广播对象。
@@ -151,8 +148,8 @@ DAD.broadcast = async function (api, message, peerSet) { // api='/类名/方法�
       json: true
     }).catch(function (err) {
       mylog.info('广播 ' + api + ' 到某个节点出错: ' + err.message)
-      return null  // 其中一个节点出错，必须要在其catch里返回null，否则造成整个Promise.all出错进入catch了。
-    }))).catch(() => console.log("广播失败"))
+      return null // 其中一个节点出错，必须要在其catch里返回null，否则造成整个Promise.all出错进入catch了。
+    }))).catch(() => console.log('广播失败'))
     return res
   }
 }
@@ -168,7 +165,7 @@ DAD.randomcast = async function (api, message, peerSet) { // 随机挑选一个�
         uri: url.resolve(peer.accessPoint, '/api' + api),
         body: message,
         json: true
-      }).catch(function (err) { 
+      }).catch(function (err) {
         mylog.info(`随机点播调用 ${peer.accessPoint}/api/${api}} 出错： ${err.message}`)
         return null
       })
@@ -186,14 +183,13 @@ DAD.randomcast = async function (api, message, peerSet) { // 随机挑选一个�
 DAD.isValid = function (peer) {
   if (
     !peer.port ||
-    !peer.accessPoint || 
+    !peer.accessPoint ||
     !peer.ownerAddress ||
     peer.ownerAddress == my.self.ownerAddress ||
-    // peer.accessPoint.includes('192.168') || 
-    peer.accessPoint.includes('localhost') || 
+    // peer.accessPoint.includes('192.168') ||
+    peer.accessPoint.includes('localhost') ||
     peer.accessPoint.includes('127.0')
-  )
-    return false
+  ) { return false }
   return true
 }
 
@@ -217,7 +213,7 @@ DAD.dropPeer = async function (ownerAddress) {
   return null
 }
 DAD.hasPeer = async function (ownerAddress) {
-  if (ownerAddress){
+  if (ownerAddress) {
     let peers = await store.hgetall('peers')
     if (peers && peers[ownerAddress]) {
       return true
@@ -270,7 +266,7 @@ DAD.getPeerList = DAD.api.getPeerList = async function (option) {
   let peerList = []
   let excludeAddress = (option && option.Peer && option.Peer.ownerAddress) ? option.Peer.ownerAddress : undefined
   for (let ownerAddress in peerDict) {
-    if ( ownerAddress !== excludeAddress ) {  // 如果是另一个节点发起调用，另一个节点可以附上自己的信息，那么返回值里不要包含另一个节点
+    if (ownerAddress !== excludeAddress) { // 如果是另一个节点发起调用，另一个节点可以附上自己的信息，那么返回值里不要包含另一个节点
       peerList.push(JSON.parse(peerDict[ownerAddress]))
     }
   }

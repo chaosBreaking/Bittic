@@ -4,35 +4,29 @@ const exec = require('child_process').exec
 const writeFileAsync = function (fileName, data) {
   return new Promise((resolve, reject) => {
     fs.writeFile(fileName, data, (err) => {
-      if(!err)
-      resolve("ok")
-      else
-      reject(err)
+      if (!err) { resolve('ok') } else { reject(err) }
     })
   })
 }
 const readFileAsync = function (fileName) {
   return new Promise((resolve, reject) => {
     fs.open(fileName, 'r', (err, data) => {
-      if(!err)
-        resolve("ok")
-      else
-        resolve(null)
+      if (!err) { resolve('ok') } else { resolve(null) }
     })
   })
 }
 const execAsync = function (command) {
   return new Promise((resolve, reject) => {
     exec(command, (err, stdout, stderr) => {
-      if(err) reject(err)
-      else resolve("ok")
+      if (err) reject(err)
+      else resolve('ok')
     })
   })
 }
-const getConfigData = function(data) {
+const getConfigData = function (data) {
   return `'use strict'
   module.exports = { // 全大写字母的，代表系统常量，不要在 userConfig 或命令行参数里覆盖。小写驼峰的，是用户可以覆盖的。
-    netType: ${ data.netType || 'mainnet'}, // 默认进入测试网
+    netType: ${data.netType || 'mainnet'}, // 默认进入测试网
     consensus: ${data.consensus || 'pot'}, // 共识机制。可选设为 ConsPot, ConsAlone。
     protocol: 'http', // http|https|httpall
     host: ${nodeInfo.HOST}, // 本节点的从外部可访问的 IP or Hostname，不能是 127.0.0.1 或 localhost
@@ -129,5 +123,5 @@ module.exports = {
   writeFileAsync,
   readFileAsync,
   getConfigData,
-  execAsync,
+  execAsync
 }
