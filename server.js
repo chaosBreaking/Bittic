@@ -42,7 +42,7 @@ function config() {
     .option('-c, --consensus <type>', 'Consensus type: Pot|Pow|Alone. Default to ' + Config.consensus)
     .option('--dbType <type>', 'Database type: mysql|sqlite. Default to ' + Config.dbType)
     .option('--dbName <name>', 'Database name')
-    .option('-e, --epoch <epoch>', 'Genesis epoch in ISO format string for mainnet/testnet, or prevHour|nextMin|now for devnet')
+    .option('-e, --epoch <epoch>', 'Genesis epoch in ISO format string or prevHour|nextMin|now')
     .option('-H, --host <host>', 'Host ip or domain name')
     .option('-n, --netType <net>', 'Network: devnet|testnet|mainnet. Default to ' + Config.netType)
     .option('-o, --ownerSecword <secword>', 'Node owner\'s secword or random|dev1')
@@ -75,15 +75,17 @@ function config() {
   Config.sslCA = commander.sslCA || Config.sslCA
   Config.thread = commander.thread || Config.thread
   Config.redisIndex = commander.redisIndex || Config.redisIndex
+  Config.epoch = commander.epoch || Config.GENESIS_BLOCK[Config.netType].timestamp
+
   try {
     Config.dbName=`${Config.dbName}-${Config.consensus}-${Config.netType}.${Config.dbType}`
     Config.INITIAL_ACCOUNT = Config.INITIAL_ACCOUNT[Config.netType]
     Config.GENESIS_MESSAGE = Config.GENESIS_BLOCK[Config.netType].message
-    Config.GENESIS_EPOCH = /^\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d\.\d\d\dZ$/.test(commander.epoch) 
-      ? new Date(commander.epoch) // 不论对什么网，优先采用命令行参数指定的纪元
-      : (Config.netType === 'devnet')
-        ? require('./modules/util/Date.js').time2epoche({ type: commander.epoch || Config.GENESIS_BLOCK[Config.netType].timestamp }) 
-        : new Date(Config.GENESIS_BLOCK[Config.netType].timestamp)
+    Config.GENESIS_EPOCH = require('./modules/util/Date.js').time2epoch(Config.epoch)
+    if (!Config.GENESIS_EPOCH) {
+      mylog.error(`Error: Genesis epoch is invalid! Please set a valid date string or nextMin|prevHour|now`)
+      process.exit()
+    }
 
     mylog.info('Configuration is ready')
     mylog.info(`  consensus=====${Config.consensus}`)
@@ -265,7 +267,7 @@ function initServer() { // 配置并启动 Web 服务
 	server.use(Cors())
 	server.use(Compression())
 
-	server.use(Express.static(path.join(__dirname, '../node.console.web.site/dist'), {index:'index.html'})) // 可以指定到 node应用之外的目录上。windows里要把 \ 换成 /。
+	server.use(Express.static(path.join(__dirname, '../node.console.web/dist'), {index:'index.html'})) // 可以指定到 node应用之外的目录上。windows里要把 \ 换成 /。
 
 	/*** 路由中间件 ***/
 
