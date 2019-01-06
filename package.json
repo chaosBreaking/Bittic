@@ -30,16 +30,16 @@
     "browserify": "^16.0.0",
     "cross-env": "^5.1.3",
     "eslint": "^5.11.1",
+    "standard": "^12.0.1",
     "supervisor": "^0.12.0",
     "watchify": "^3.10.0",
     "webpack": "^3.10.0"
   },
   "scripts": {
     "setup": "npm install",
-    "start": "cross-env NODE_ENV=development supervisor -i data.log,node_modules,data.sqlite --harmony server.js",
-    "inspect": "cross-env NODE_ENV=development supervisor -i data.log,node_modules,data.sqlite --inspect --harmony server.js",
-    "service": "cross-env NODE_ENV=production supervisor -i data.log,node_modules,data.sqlite --harmony server.js -P https > data.log/service.log",
-    "dev": "node init.js -n devnet"
+    "dev": "cross-env NODE_ENV=development supervisor -i data.log,node_modules,data.sqlite server.js",
+    "debug": "cross-env NODE_ENV=development supervisor -i data.log,node_modules,data.sqlite --inspect server.js",
+    "daemon": "cross-env NODE_ENV=production supervisor -i data.log,node_modules,data.sqlite server.js > data.log/service.log"
   },
   "author": ""
 }
