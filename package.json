@@ -40,7 +40,7 @@
     "setup": "npm install",
     "dev": "cross-env NODE_ENV=development supervisor -i data.log,node_modules,data.sqlite server.js",
     "debug": "cross-env NODE_ENV=development supervisor -i data.log,node_modules,data.sqlite --inspect server.js",
-    "daemon": "cross-env NODE_ENV=production supervisor -i data.log,node_modules,data.sqlite server.js > data.log/service.log"
+    "daemon": "cross-env NODE_ENV=production supervisor -i data.log,node_modules,data.sqlite server.js"
   },
   "author": ""
 }
