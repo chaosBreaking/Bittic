@@ -12,9 +12,9 @@
     "deepmerge": "^2.1.0",
     "errorhandler": "^1.5.0",
     "express": "^4.14.1",
-    "fon.base": "git+https://git.faronear.org/fon/fon.base#20181224",
-    "fon.data": "git+https://git.faronear.org/fon/fon.data#20181205",
-    "fon.ling": "git+https://git.faronear.org/fon/fon.ling#20181205",
+    "fon.base": "git+https://git.faronear.org/fon/fon.base#20190109_preview",
+    "fon.data": "git+https://git.faronear.org/fon/fon.data#20190109_preview",
+    "fon.ling": "git+https://git.faronear.org/fon/fon.ling#20190109_preview",
     "http-proxy": "^1.16.2",
     "ioredis": "^4.0.0",
     "method-override": "^2.3.7",
@@ -24,7 +24,7 @@
     "serve-favicon": "^2.4.1",
     "sntp": "^3.0.1",
     "socket.io": "^1.0.6",
-    "tic.crypto": "git+https://git.faronear.org/tic/tic.crypto#20181205"
+    "tic.crypto": "git+https://git.faronear.org/tic/tic.crypto#20190109_preview"
   },
   "devDependencies": {
     "browserify": "^16.0.0",
