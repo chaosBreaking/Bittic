@@ -1,4 +1,4 @@
-const Ling = wo.Ling
+const Ling = require('fon.ling')
 
 const DAD = module.exports = function Bancor (model) { // 构建类
   this._class = this.constructor.name

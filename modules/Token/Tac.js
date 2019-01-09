@@ -1,4 +1,4 @@
-const Ling = wo.Ling
+const Ling = require('fon.ling')
 
 class Tac extends Ling {
   constructor (prop) {

@@ -137,7 +137,7 @@ step3:发起人申请执行
     }
 }
 */
-MOM.validator = async function () {
+MOM.validate = async function () {
   if (this.json.act === 'createTransfer') // 创建挂起的多重签名事务
   {
     DAD.pendingPool[this.hash] = this

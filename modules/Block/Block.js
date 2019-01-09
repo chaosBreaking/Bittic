@@ -1,5 +1,5 @@
 'use strict'
-var Ling = wo.Ling
+var Ling = require('fon.ling')
 
 /** ****************** Public members of instance ********************/
 

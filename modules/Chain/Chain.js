@@ -98,7 +98,7 @@ Chain.updateChainFromPeer = async function () { // 向其他节点获取自己�
             let actionList = await wo.Peer.randomcast('/Block/getActionList', { Block: { hash: block.hash, height: block.height } })
             if (actionList) {
               for (let action of actionList) {
-                if (wo[action.type] && typeof wo[action.type].validator === 'function' && wo[action.type].validator(action)) {
+                if (wo[action.type] && typeof wo[action.type].validate === 'function' && wo[action.type].validate(action)) {
                   await wo[action.type].execute(action)
                   await wo[action.type].addOne(action)
                   // todo:需要计算merkelRoot并且验证于区块actionHashRoot的一致性 2.添加到数据库之前对交易(action)序列化
@@ -179,8 +179,11 @@ Chain.getTopBlock = Chain.api.getTopBlock = function () {
 /** ******************** Private in class *******************/
 
 const my = {
-  genesis: {},
-  topBlock: null, // 当前已出的最高块
-  lastBlock: null, // 当前已出的次高块
+  genesis: {},
+
+  topBlock: null, // 当前已出的最高块
+
+  lastBlock: null, // 当前已出的次高块
+
   addingLock: false
 }

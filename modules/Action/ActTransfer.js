@@ -9,7 +9,7 @@ DAD.__proto__ = Action
 const MOM = DAD.prototype
 MOM.__proto__ = Action.prototype
 
-DAD.validator = async function (action) {
+DAD.validate = async function (action) {
   // if (sender && sender.type !== 'multisig' && action.toAddress != action.actorAddress && sender.balance >= action.amount + action.fee){
   let sender = await wo.Store.getBalance(action.actorAddress)
   return action.actorAddress && action.toAddress && action.toAddress != action.actorAddress && action.amount && action.amount > 0 && sender >= action.amount + action.fee && action.fee >= wo.Config.MIN_FEE_ActTransfer
