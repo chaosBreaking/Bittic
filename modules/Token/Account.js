@@ -1,4 +1,4 @@
-var Ling = wo.Ling
+var Ling = require('fon.ling')
 
 /** ****************** Public of instance ********************/
 

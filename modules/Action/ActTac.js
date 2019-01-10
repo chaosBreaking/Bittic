@@ -38,7 +38,7 @@ class ActTac extends Action {
       writable: false
     })
   }
-  static async validator (action) {
+  static async validate (action) {
     return Methods.includes(action.data.method) && await actValidator(action)
   }
 

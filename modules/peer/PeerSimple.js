@@ -1,4 +1,4 @@
-const Ling = wo.Ling
+const Ling = require('fon.ling')
 const url = require('url')
 const Schedule = require('node-schedule')
 const RequestPromise = require('request-promise-native') // request-promise/-native。https://www.npmjs.com/package/request-promise. 还看到一个方法：Bluebird.promisifyAll(require("request"))

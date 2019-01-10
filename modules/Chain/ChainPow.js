@@ -1,4 +1,4 @@
-var Ling = wo.Ling
+var Ling = require('fon.ling')
 
 /** ****************** Public of instance ********************/
 
@@ -229,10 +229,14 @@ DAD.pushTopBlock = function (topBlock) { // 保留最高和次高的区块
 /** ******************** Private in class *******************/
 
 const my = {
-  genesis: {},
-  topBlock: null, // 当前已出的最高块
-  lastBlock: null, // 当前已出的次高块
-  addingLock: false,
+  genesis: {},
+
+  topBlock: null, // 当前已出的最高块
+
+  lastBlock: null, // 当前已出的次高块
+
+  addingLock: false,
+
   //  keypair:null // 启动时，从配置文件里读出节点主人的secword，计算出公私钥
   //  ,
   initialAccount: { // 在height=0时创世账户获得初始币
@@ -240,7 +244,8 @@ const my = {
     seckey: 'b868d41107363b20ee85e313f7494f534b29897f6a81cb62bad207a12b16397c5a5140259546c3b5179fe0ae179e2f87e0cd5dbe9cc1ecbaae2cde13708d8086',
     pubkey: '5a5140259546c3b5179fe0ae179e2f87e0cd5dbe9cc1ecbaae2cde13708d8086',
     address: 'Tkr8reV6FEySsgFPud29TGmBG4i2xW37Dw' // 'ACYKsUp5PLPcu53gHw37SzoFimhn1zMHQU'
-  },
+  },
+
   genesisAccount: { // 创建height=0创世块
     secword: 'skill loyal dove price spirit illegal bulk rose tattoo congress few amount',
     pubkey: 'f6dd47bd4f31fdfd0024df4f63d266b12f788c54b9cc11f8f068215e75be6037',

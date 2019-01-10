@@ -1,4 +1,5 @@
-var Ling = wo.Ling
+var Ling = require('fon.ling')
+var Ticrypto = require('tic.crypto')
 
 /** ****************** Public of instance ********************/
 
@@ -33,7 +34,7 @@ MOM._model = {
 
 MOM.packMe = function (keypair) { // 由前端调用，后台不创建
   this.actorPubkey = keypair.pubkey
-  this.actorAddress = wo.Crypto.pubkey2address(keypair.pubkey)
+  this.actorAddress = Ticrypto.pubkey2address(keypair.pubkey)
   this.timestamp = new Date()
 
   this.signMe(keypair.seckey)
@@ -43,12 +44,12 @@ MOM.packMe = function (keypair) { // 由前端调用，后台不创建
 
 MOM.signMe = function (seckey) { // 由前端调用，后台不该进行签名
   let json = this.getJson({ exclude: ['hash', 'blockHash', 'actorSignature'] }) // 是前端用户发起事务时签字，这时候还不知道进入哪个区块，所以不能计入blockHash
-  this.actorSignature = wo.Crypto.sign(json, seckey)
+  this.actorSignature = Ticrypto.sign(json, seckey)
   return this
 }
 
 MOM.hashMe = function () {
-  this.hash = wo.Crypto.hash(this.getJson({ exclude: ['hash', 'blockHash'] })) // block.hash 受到所包含的actionList影响，所以action不能受blockHash影响，否则循环了
+  this.hash = Ticrypto.hash(this.getJson({ exclude: ['hash', 'blockHash'] })) // block.hash 受到所包含的actionList影响，所以action不能受blockHash影响，否则循环了
   return this
 }
 
@@ -65,16 +66,16 @@ DAD.getJson = function (action, option = {}) {
 
 DAD.verifySig = function (action) {
   let json = DAD.getJson(action, { exclude: ['hash', 'blockHash', 'actorSignature'] })
-  let res = wo.Crypto.verify(json, action.actorSignature, action.actorPubkey)
+  let res = Ticrypto.verify(json, action.actorSignature, action.actorPubkey)
   return res
 }
 
 DAD.verifyAddress = function (action) {
-  return action.actorAddress === wo.Crypto.pubkey2address(action.actorPubkey)
+  return action.actorAddress === Ticrypto.pubkey2address(action.actorPubkey)
 }
 
 DAD.verifyHash = function (action) {
-  return action.hash === wo.Crypto.hash(DAD.getJson(action, { exclude: ['hash', 'blockHash'] }))
+  return action.hash === Ticrypto.hash(DAD.getJson(action, { exclude: ['hash', 'blockHash'] }))
 }
 
 DAD.execute = function () { // 子类应当覆盖本方法。把action的影响，汇总登记到其他表格（用于辅助的、索引的表格），方便快速索引、处理。每种事务类型都要重定义这个方法。
@@ -121,7 +122,7 @@ DAD.api.prepare = async function (option) {
         DAD.verifySig(option.Action) &&
         DAD.verifyHash(option.Action) &&
         !DAD.actionPool[option.Action.hash] &&
-        (await wo[option.Action.type].validator(option.Action))
+        (await wo[option.Action.type].validate(option.Action))
     ) {
       DAD.actionPool[option.Action.hash] = option.Action
       DAD.actionPoolInfo.totalAmount += option.Action.amount || 0
