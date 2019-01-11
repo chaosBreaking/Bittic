@@ -11,7 +11,7 @@ const myself = new Peer({
   ownerAddress: wo.Crypto.secword2address(wo.Config.ownerSecword),
   accessPoint: wo.Config.protocol + '://' + wo.Config.host + wo.Config.port,
   host: wo.Config.host,
-  port: wo.Config.port
+  port: 60842
 })
 const MAX_CALL_TIMEOUT = 200
 const MAX_RECALL_TIME = 2
@@ -33,7 +33,7 @@ class SocCluster extends event {
     this.socServer.on('disconnect', () => {
       mylog.info('user disconnected')
     })
-    p2pServer.listen(60606, () => {
+    p2pServer.listen(8086, () => {
       mylog.info('<====== P2P Swarm Listing on *:60606 ======>')
     })
   }
@@ -60,13 +60,14 @@ function getUrl (peer) {
  * 发送消息、广播、调用都必须要用身份认证，而且要防止垃圾信息和大量的转发
  */
 function checkMAC (message) {
-  try {
-    let { data, signature, pubkey } = message
-    return data && signature && pubkey
-    // return wo.Crypto.verifySig(data, signature, pubkey)
-  } catch (error) {
-    return false
-  }
+  // try {
+  //   let { data, signature, pubkey } = message
+  //   return data && signature && pubkey
+  //   // return wo.Crypto.verifySig(data, signature, pubkey)
+  // } catch (error) {
+  //   return false
+  // }
+  return true
 }
 
 SocCluster.prototype._init = async function () {
@@ -235,13 +236,27 @@ SocCluster.prototype.pushPeerBack = function (ownerAddress, socket) {
   this.peerBook.set(ownerAddress, socket)
   return ownerAddress
 }
-
+/**
+ * emitPeer和call的标准消息格式
+ * message =>
+ * {
+ *    header:{},
+ *    body:{
+ *      data, param
+ *    }
+ * }
+ */
 SocCluster.prototype.emitPeers = function (event, data, socket = '') {
   // 如果用句柄传入的socket.broadcast.emit('xxx',data) 则会过滤掉发信人进行广播
   // 如果直接用this.socket.emit('xxx',data)则会对包含发信人的所有人进行广播
   if (this.socServer && this.socServer.emit) { this.socServer.emit('emit', event, data) }
   this.peerBook.forEach((address, socket) => {
-    socket.emit('emit', event, data)
+    socket.emit('emit', {
+      header: {},
+      body: {
+        event, data
+      }
+    })
   })
 }
 SocCluster.prototype.call = async function (route, param, rec = MAX_RECALL_TIME) {
@@ -251,9 +266,9 @@ SocCluster.prototype.call = async function (route, param, rec = MAX_RECALL_TIME)
     if (!rec) { this.delPeer(ownerAddress) }
     return 0
   }
-  let mac = {}
+  let header = {}
   let callMission = new Promise((resolve, reject) => {
-    socket.emit('call', { mac, route, param }, (res) => {
+    socket.emit('call', { header, body: { route, param } }, (res) => {
       resolve(res)
     })
   })
@@ -290,18 +305,21 @@ SocCluster.prototype.addEventHandler = function (socket) {
   })
   socket.on('call', async (message = {}, echo) => {
     // RPC 只允许被调用类的api内定义的函数
-    if (!checkMAC(message.mac)) { return 0 }
-    let { route, param } = message
+    if (!checkMAC(message.header)) { return 0 }
+    let { route, param } = message.body
     if (route && typeof route === 'string' && echo && typeof echo === 'function') {
-      let [obj, fn] = route.split('/')
-      if (wo[obj] && wo[obj]['api'] && wo[obj]['api'][fn]) { return echo(await wo[obj]['api'][fn](param)) }
+      let [obj, fn] = route.startsWith('/') ? route.slice(1).split('/') : route.split('/')
+      if (wo[obj] && wo[obj]['api'] && wo[obj]['api'][fn] && typeof wo[obj]['api'][fn] === 'function') {
+        mylog.info('触发调用', route)
+        return echo(await wo[obj]['api'][fn](param))
+      }
     }
   })
   socket.on('emit', (message) => {
     // 其他节点通过触发Peer的emit事件,来节点触发的事件需要wo.Peer的监听器
     // 我连接到的节点，无法调用socket.broadcast.emit()
-    if (!checkMAC(message.mac)) { return 0 }
-    let { event, data } = message
+    if (!checkMAC(message.header)) { return 0 }
+    let { event, data } = message.body
     if (event) {
       this.emit(event, data)
       mylog.info('触发事件', event)
