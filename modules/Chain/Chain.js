@@ -88,14 +88,14 @@ Chain.updateChainFromPeer = async function () { // 向其他节点获取自己�
   mylog.info('开始向邻居节点同步区块')
   for (let count = 0; count < 3; count++) { // 确保更新到截至当前时刻的最高区块。
     mylog.info(`向全网广播同步请求-->开始第${count}轮同步`)
-    let blockList = await wo.Peer.randomcast('/Block/getBlockList', { Block: { height: '>' + my.topBlock.height }, config: { limit: 100, order: 'height ASC' } })
+    let blockList = await wo.Peer.call('/Block/getBlockList', { Block: { height: '>' + my.topBlock.height }, config: { limit: 100, order: 'height ASC' } })
     if (Array.isArray(blockList) && blockList.length > 0) {
       for (let block of blockList) {
         block = new wo.Block(block) // 通过 Peer 返回的是原始数据，要转换成对象。
         if (block.lastBlockHash === my.topBlock.hash && block.verifySig() && block.verifyHash()) {
           // update actions of this block
           if (Array.isArray(block.actionHashList) && block.actionHashList.length > 0 && block.type !== 'VirtBlock') {
-            let actionList = await wo.Peer.randomcast('/Block/getActionList', { Block: { hash: block.hash, height: block.height } })
+            let actionList = await wo.Peer.call('/Block/getActionList', { Block: { hash: block.hash, height: block.height } })
             if (actionList) {
               for (let action of actionList) {
                 if (wo[action.type] && typeof wo[action.type].validate === 'function' && wo[action.type].validate(action)) {
@@ -115,7 +115,7 @@ Chain.updateChainFromPeer = async function () { // 向其他节点获取自己�
           break
         }
       }
-      blockList = await wo.Peer.randomcast('/Block/getBlockList', { Block: { height: '>' + my.topBlock.height }, config: { limit: 100, order: 'height ASC' } })
+      blockList = await wo.Peer.call('/Block/getBlockList', { Block: { height: '>' + my.topBlock.height }, config: { limit: 100, order: 'height ASC' } })
     }
     mylog.info(`全网无最新区块-->停止第${count}轮同步`)
   }

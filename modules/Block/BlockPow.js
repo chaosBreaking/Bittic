@@ -124,7 +124,7 @@ MOM.verifyActionList = async function () {
   while (actionHashList.length > 0) {
     actionHash = actionHashList.pop()
     for (let count = 0; count < 10; count++) {
-      var missAction = await wo.Peer.randomcast('/Action/getAction', { Action: { hash: actionHash } })
+      var missAction = await wo.Peer.call('/Action/getAction', { Action: { hash: actionHash } })
       if (missAction) {
         await wo.Action.addOne({ Action: missAction })
       }

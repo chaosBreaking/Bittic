@@ -102,7 +102,7 @@ DAD.updateChainFromPeer = async function (blockList) { // 向其他节点获取�
         await block.addMe()
         /// / update actions of this block
         // if (Array.isArray(block.actionHashList) && block.actionHashList.length>0) {
-        //   var actionList = await wo.Peer.randomcast('/Block/getActionList', { Block:{ hash:block.hash, height:block.height } })
+        //   var actionList = await wo.Peer.call('/Block/getActionList', { Block:{ hash:block.hash, height:block.height } })
         //   for (let actionData of actionList) {
         //     var action=new wo[actionData.type](actionData)
         //     if (action.validate()) {
@@ -124,7 +124,7 @@ DAD.updateChainFromPeer = async function (blockList) { // 向其他节点获取�
 
   DAD.Updating = false
   // mylog('开始向邻居节点同步区块 2222222222')
-  // blockList=await wo.Peer.randomcast('/Block/getBlockList', { Block:{height:'>'+my.topBlock.height}, config:{limit:100, order:'height ASC'} })
+  // blockList=await wo.Peer.call('/Block/getBlockList', { Block:{height:'>'+my.topBlock.height}, config:{limit:100, order:'height ASC'} })
 
   // return my.topBlock
 }

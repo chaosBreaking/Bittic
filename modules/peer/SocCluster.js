@@ -270,6 +270,7 @@ SocCluster.prototype.broadcast = function (data, socket) {
   // 如果用句柄传入的socket.broadcast.emit('xxx',data) 则会过滤掉发信人进行广播
   // 如果直接用this.socket.emit('xxx',data)则会对包含发信人的所有人进行广播
   if (this.socServer && this.socServer.emit) { this.socServer.emit('broadcast', { ttl: MSG_TTL, data }) } // 广播给连接到我的
+  if (this.peerBook.size === 0) return 0
   this.peerBook.forEach((address, socket) => { // 广播给连接到我的
     socket.emit('broadcast', { ttl: MSG_TTL, data })
   })
