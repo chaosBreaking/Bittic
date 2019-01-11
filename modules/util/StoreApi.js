@@ -1,7 +1,28 @@
 'use strict'
 const redis = require('ioredis')
+const exec = require('child_process').exec
+const execAsync = function (command) {
+  return new Promise((resolve, reject) => {
+    exec(command, (err, stdout, stderr) => {
+      if (err) reject(err)
+      else resolve('ok')
+    })
+  })
+}
+async function PingRedis (newRedis) {
+  let mission = new Promise((resolve, reject) => {
+    newRedis.ping().then((res) => {
+      res === 'PONG' ? resolve(true) : resolve(false)
+    })
+  })
+  let delayMission = new Promise((resolve, reject) => setTimeout(() => {
+    resolve(false)
+  }, 500))
+  if (await Promise.race([mission, delayMission])) return true
+  else return false
+}
 
-class redisStore extends redis {
+class RedisStore extends redis {
   constructor (option) {
     super(option)
     this.dbType = 'redis'
@@ -29,10 +50,13 @@ class redisStore extends redis {
   }
 }
 
-function Store (dbType, option) {
+module.exports = function (dbType, option) {
   switch (dbType) {
     case 'redis':
-      return new redisStore(option)
+      let newRedis = new RedisStore(option)
+      PingRedis(newRedis).then((res) => {
+        if (!res) execAsync('redis-server').catch(() => { mylog.error('redis启动失败') })
+      })
+      return newRedis
   }
 }
-module.exports = Store

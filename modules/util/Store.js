@@ -38,12 +38,6 @@ Store.prototype.setCurrentPhase = function (phase) {
 Store.prototype.getCurrentPhase = function () {
   return this.worldState.currentPhase
 }
-Store.prototype.pushInRBS = async function (block) {
-  let stack = await this.storeAPI.getKey('recBlockStack')
-  stack.push(block)
-  stack.length > wo.Config.MaxRBS ? stack.shift() : null
-  await this.storeAPI.setKey('recBlockStack', stack)
-}
 Store.prototype.pushTopBlock = async function (block) {
   // getTopBlock 作用是 取高度，取hash 取整个块向外广播
   await this.storeAPI.setKey('topBlock', JSON.stringify({

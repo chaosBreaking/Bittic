@@ -3,7 +3,7 @@ const fs = require('fs')
 const path = require('path')
 const cluster = require('cluster')
 const socket = require('socket.io')
-global.mylog = require('fon.base/Logger.js')({ root: 'data.log', file: 'tic.log' }) // 简写 console.log，为了少敲几个字母
+global.mylog = require('fon.base/Logger.js')({ root: 'data.log', file: 'tic.log' })
 
 function config () {
   // 配置参数（按优先级从低到高）：
@@ -136,7 +136,7 @@ async function initSingle () {
   wo.Ling = require('fon.ling')
 
   wo.Store = await require('./modules/util/Store.js')('redis', { db: wo.Config.redisIndex })._init()
-  wo.Peer = await require('./modules/peer/PeerSimple.js')._init()
+  wo.Peer = await require('./modules/peer/index.js')('simple')._init()
   wo.Account = await require('./modules/Token/Account.js')
   wo.Action = await require('./modules/Action/Action.js')._init()
   wo.ActTransfer = require('./modules/Action/ActTransfer.js')
@@ -180,10 +180,10 @@ async function initMaster (worker) {
 
   wo.Ling = require('fon.ling')
 
-  wo.Block = require('./modules/Block/index.js')(wo.Config.consensus)
-  wo.Peer = await require('./modules/peer/PeerSimple.js')
-  wo.Store = await require('./modules/util/Store.js')('redis') // 必须指定数据库,另外不能_init(),否则会覆盖子进程已经设定好的内容
   wo.EventBus = require('./modules/util/EventBus.js')(worker).mount(worker)
+  wo.Peer = await require('./modules/peer/index.js')('simple')
+  wo.Store = await require('./modules/util/Store.js')('redis') // 必须指定数据库,另外不能_init(),否则会覆盖子进程已经设定好的内容
+  wo.Block = require('./modules/Block/index.js')(wo.Config.consensus)
   wo.Chain = require('./modules/Chain/index.js')
   mylog.info('初始化共识模块')
   wo.Consensus = await require('./modules/Consensus/index.js')(wo.Config.consensus)._init()
@@ -221,6 +221,9 @@ async function initWorker () {
   wo.Ling = require('fon.ling')
   // wo.Session=await require('fon.ling/Session.js')._init() // 目前不使用。
 
+  wo.EventBus = require('./modules/util/EventBus.js')(process)
+  wo.Store = await require('./modules/util/Store.js')('redis', { db: wo.Config.redisIndex })._init()
+  wo.Peer = await require('./modules/peer/index.js')('simple')._init()
   wo.Account = await require('./modules/Token/Account.js')
   wo.Action = await require('./modules/Action/Action.js')._init()
   wo.Tac = await require('./modules/Token/Tac.js')._init()
@@ -230,9 +233,6 @@ async function initWorker () {
   wo.ActTac = require('./modules/Action/ActTac.js')
   wo.Bancor = require('./modules/Token/Bancor.js')._init()
   wo.Block = await require('./modules/Block/index.js')(wo.Config.consensus)._init()
-  wo.Store = await require('./modules/util/Store.js')('redis', { db: wo.Config.redisIndex })._init()
-  wo.Peer = await require('./modules/peer/PeerSimple.js')._init()
-  wo.EventBus = require('./modules/util/EventBus.js')(process)
   wo.Consensus = require('./modules/Consensus/index.js')('proxy', wo.Config.consensus)
 
   mylog.info('Initializing chain............')
@@ -358,12 +358,17 @@ function initServer () { // 配置并启动 Web 服务
     await initSingle()
     let webServer = initServer()
     wo.Socket = socket.listen(webServer)
-    wo.Socket.sockets.on('open', () => {
-      mylog.info('Socket started')
-    })
     wo.Socket.sockets.on('connection', (socket) => {
-      mylog.info('new client connected')
-      socket.send('hello')
+			mylog.info('New Client Connected')
+      socket.on('call', async (data, echo) => {
+				if (data.who && data.act && echo && typeof echo === 'function') {
+					if(wo[data.who] && wo[data.who]['api'] && wo[data.who]['api'][data.act] && typeof wo[data.who]['api'][data.act] === 'function') {
+						let res = await wo[data.who]['api'][data.act](data.param)
+						return echo(res)
+					}
+					else echo({Error: 'Invalid API'})
+				}
+			})
     })
     // 启动区块链部署程序
     try {
