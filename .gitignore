@@ -13,3 +13,4 @@ ConfigSecret.js
 .idea
 *.db
 *.rdb
+todo*
