@@ -11,6 +11,7 @@ module.exports = {
   },
 	'extends': 'standard',
 	"globals": {
-		"wo": true,
+    "wo": true,
+    "mylog": false
 	}
 }

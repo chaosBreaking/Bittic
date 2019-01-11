@@ -6,6 +6,7 @@ const Socketio = require('socket.io')
 const io = require('socket.io-client')
 const Schedule = require('node-schedule')
 const store = require('../util/StoreApi.js')('redis', { db: wo.Config.redisIndex || 1 })
+const p2pServer = require('http').Server()
 const myself = new Peer({
   ownerAddress: wo.Crypto.secword2address(wo.Config.ownerSecword),
   accessPoint: wo.Config.protocol + '://' + wo.Config.host + wo.Config.port,
@@ -21,7 +22,20 @@ class SocCluster extends event {
     this.peerBook = new Map()
     this.ids2address = {}
     this.scheduleJob = []
-    this.socServer = ''
+    this.socServer = Socketio(p2pServer)
+    this.socServer.on('open', () => {
+      mylog.info('<====== Socket Started ======>')
+    })
+    this.socServer.on('connection', (socket) => {
+      mylog.info('New Client Connected')
+      this.addEventHandler(socket)
+    })
+    this.socServer.on('disconnect', () => {
+      mylog.info('user disconnected')
+    })
+    p2pServer.listen(60606, () => {
+      mylog.info('<====== P2P Swarm Listing on *:60606 ======>')
+    })
   }
   static getInstance (option) {
     if (!SocCluster.instance) {

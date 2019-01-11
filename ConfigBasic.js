@@ -5,6 +5,7 @@ module.exports = { // 全大写字母的，代表系统常量，不要在 userCo
   protocol: 'http', // http|https|httpall
   host: null, // 本节点的从外部可访问的 IP or Hostname，不能是 127.0.0.1 或 localhost
   port: 8888, // 本节点的 Web服务端口号
+  swarm: 'socket',
   // 如果使用 https 协议，必须填写以下内容，或在命令行参数中设置：
   sslKey: null, // ssl key file,
   sslCert: null, // ssl cert file,

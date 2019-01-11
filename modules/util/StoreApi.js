@@ -17,9 +17,8 @@ async function PingRedis (newRedis) {
   })
   let delayMission = new Promise((resolve, reject) => setTimeout(() => {
     resolve(false)
-  }, 500))
-  if (await Promise.race([mission, delayMission])) return true
-  else return false
+  }, 1000))
+  return await Promise.race([mission, delayMission])
 }
 
 class RedisStore extends redis {
@@ -55,7 +54,7 @@ module.exports = function (dbType, option) {
     case 'redis':
       let newRedis = new RedisStore(option)
       PingRedis(newRedis).then((res) => {
-        if (!res) execAsync('redis-server').catch(() => { mylog.error('redis启动失败') })
+        if (!res) execAsync('redis-server').catch(() => { mylog.error('无法连接到redis...') })
       })
       return newRedis
   }

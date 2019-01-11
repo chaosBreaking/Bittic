@@ -42,6 +42,7 @@ function config () {
     .option('-c, --consensus <type>', 'Consensus type: Pot|Pow|Alone. Default to ' + Config.consensus)
     .option('--dbType <type>', 'Database type: mysql|sqlite. Default to ' + Config.dbType)
     .option('--dbName <name>', 'Database name')
+    .option('--swarm <type>', 'p2p swarm protocol')
     .option('-e, --epoch <epoch>', 'Genesis epoch in ISO format string or prevHour|nextMin|now')
     .option('-H, --host <host>', 'Host ip or domain name')
     .option('-n, --netType <net>', 'Network: devnet|testnet|mainnet. Default to ' + Config.netType)
@@ -136,19 +137,19 @@ async function initSingle () {
   wo.Ling = require('fon.ling')
 
   wo.Store = await require('./modules/util/Store.js')('redis', { db: wo.Config.redisIndex })._init()
-  wo.Peer = await require('./modules/peer/index.js')('simple')._init()
-  wo.Account = await require('./modules/Token/Account.js')
-  wo.Action = await require('./modules/Action/Action.js')._init()
-  wo.ActTransfer = require('./modules/Action/ActTransfer.js')
-  wo.ActStorage = require('./modules/Action/ActStorage.js')
-  wo.ActMultisig = require('./modules/Action/ActMultisig.js')
-  wo.Tac = await require('./modules/Token/Tac.js')._init()
-  wo.ActTac = require('./modules/Action/ActTac.js')
-  wo.Bancor = require('./modules/Token/Bancor.js')._init()
-  wo.Block = await require('./modules/Block/index.js')(wo.Config.consensus)._init()
-  mylog.info('Initializing chain............')
-  wo.Chain = await require('./modules/Chain/Chain.js')._init()
-  wo.Consensus = await require('./modules/Consensus/index.js')(wo.Config.consensus)._init()
+  wo.Peer = await require('./modules/peer/index.js')(wo.Config.swarm)._init()
+  // wo.Account = await require('./modules/Token/Account.js')
+  // wo.Action = await require('./modules/Action/Action.js')._init()
+  // wo.ActTransfer = require('./modules/Action/ActTransfer.js')
+  // wo.ActStorage = require('./modules/Action/ActStorage.js')
+  // wo.ActMultisig = require('./modules/Action/ActMultisig.js')
+  // wo.Tac = await require('./modules/Token/Tac.js')._init()
+  // wo.ActTac = require('./modules/Action/ActTac.js')
+  // wo.Bancor = require('./modules/Token/Bancor.js')._init()
+  // wo.Block = await require('./modules/Block/index.js')(wo.Config.consensus)._init()
+  // mylog.info('Initializing chain............')
+  // wo.Chain = await require('./modules/Chain/Chain.js')._init()
+  // wo.Consensus = await require('./modules/Consensus/index.js')(wo.Config.consensus)._init()
 
   return wo
 }
@@ -181,7 +182,7 @@ async function initMaster (worker) {
   wo.Ling = require('fon.ling')
 
   wo.EventBus = require('./modules/util/EventBus.js')(worker).mount(worker)
-  wo.Peer = await require('./modules/peer/index.js')('simple')
+  wo.Peer = await require('./modules/peer/index.js')('proxy')
   wo.Store = await require('./modules/util/Store.js')('redis') // 必须指定数据库,另外不能_init(),否则会覆盖子进程已经设定好的内容
   wo.Block = require('./modules/Block/index.js')(wo.Config.consensus)
   wo.Chain = require('./modules/Chain/index.js')
@@ -256,7 +257,7 @@ function initServer () { // 配置并启动 Web 服务
 
   /** * 通用中间件 ***/
 
-  server.use(Morgan(server.get('env') === 'development' ? 'dev' : 'combined')) // , {stream:require('fs').createWriteStream(path.join(__dirname+'/data.log', 'http.log'), {flags: 'a', defaultEncoding: 'utf8'})})) // format: combined, common, dev, short, tiny.	发现 defaultEncoding 并不起作用。
+  server.use(Morgan(server.get('env') === 'development' ? 'dev' : 'combined')) // , {stream:require('fs').createWriteStream(path.join(__dirname+'/data.log', 'http.log'), {flags: 'a', defaultEncoding: 'utf8'})})) // format: combined, common, dev, short, tiny.
   server.use(MethodOverride())
   server.use(CookieParser())
   server.use(BodyParser.json({
@@ -322,7 +323,7 @@ function initServer () { // 配置并启动 Web 服务
   let webServer
   if (wo.Config.protocol === 'http') { // 如果在本地localhost做开发，就启用 http。注意，从https网页，不能调用http的socket.io。Chrome/Firefox都报错：Mixed Content: The page at 'https://localhost/yuncai/' was loaded over HTTPS, but requested an insecure XMLHttpRequest endpoint 'http://localhost:6327/socket.io/?EIO=3&transport=polling&t=LoRcACR'. This request has been blocked; the content must be served over HTTPS.
     webServer = require('http').createServer(server)
-    webServer.listen(wo.Config.port, function (err) {
+    webServer.listen(wo.Config.port, function () {
       mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, wo.Config.port, server.settings.env)
     })
   } else if (wo.Config.protocol === 'https') { // 启用 https。从 http或https 网页访问 https的ticnode/socket 都可以，socket.io 内容也是一致的。
@@ -330,13 +331,13 @@ function initServer () { // 配置并启动 Web 服务
       key: fs.readFileSync(wo.Config.sslKey),
       cert: fs.readFileSync(wo.Config.sslCert) // , ca: [ fs.readFileSync(wo.Config.sslCA) ] // only for self-signed certificate: https://nodejs.org/api/tls.html#tls_tls_createserver_options_secureconnectionlistener
     }, server)
-    webServer.listen(wo.Config.port, function (err) {
+    webServer.listen(wo.Config.port, function () {
       mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, wo.Config.port, server.settings.env)
     })
   } else if (wo.Config.protocol === 'httpall') { // 同时启用 http 和 https
     let portHttp = wo.Config.port ? wo.Config.port : 80 // 如果port参数已设置，使用它；否则默认为80
     webServer = require('http').createServer(server)
-    webServer.listen(portHttp, function (err) {
+    webServer.listen(portHttp, function () {
       mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, portHttp, server.settings.env)
     })
 
@@ -345,7 +346,7 @@ function initServer () { // 配置并启动 Web 服务
       key: fs.readFileSync(wo.Config.sslKey),
       cert: fs.readFileSync(wo.Config.sslCert) // , ca: [ fs.readFileSync(wo.Config.sslCA) ] // only for self-signed certificate: https://nodejs.org/api/tls.html#tls_tls_createserver_options_secureconnectionlistener
     }, server)
-    httpsServer.listen(portHttps, function (err) {
+    httpsServer.listen(portHttps, function () {
       mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, portHttps, server.settings.env)
     })
   }
@@ -359,16 +360,15 @@ function initServer () { // 配置并启动 Web 服务
     let webServer = initServer()
     wo.Socket = socket.listen(webServer)
     wo.Socket.sockets.on('connection', (socket) => {
-			mylog.info('New Client Connected')
+      mylog.info('New Client Connected')
       socket.on('call', async (data, echo) => {
-				if (data.who && data.act && echo && typeof echo === 'function') {
-					if(wo[data.who] && wo[data.who]['api'] && wo[data.who]['api'][data.act] && typeof wo[data.who]['api'][data.act] === 'function') {
-						let res = await wo[data.who]['api'][data.act](data.param)
-						return echo(res)
-					}
-					else echo({Error: 'Invalid API'})
-				}
-			})
+        if (data.who && data.act && echo && typeof echo === 'function') {
+          if (wo[data.who] && wo[data.who]['api'] && wo[data.who]['api'][data.act] && typeof wo[data.who]['api'][data.act] === 'function') {
+            let res = await wo[data.who]['api'][data.act](data.param)
+            return echo(res)
+          } else echo({ Error: 'Invalid API' })
+        }
+      })
     })
     // 启动区块链部署程序
     try {
@@ -380,7 +380,7 @@ function initServer () { // 配置并启动 Web 服务
     if (cluster.isMaster) {
       cluster.fork()
       cluster.on('message', async (worker, message) => {
-        if (message.code == 200) {
+        if (message.code === 200) {
           mylog.warn(`[Master] 主程序初始化完毕，启动共识模块......`)
           await initMaster(worker)
           return 0
@@ -391,12 +391,16 @@ function initServer () { // 配置并启动 Web 服务
       await initWorker()
       let webServer = initServer()
       wo.Socket = socket.listen(webServer)
-      wo.Socket.sockets.on('open', () => {
-        mylog.info('Socket started')
-      })
       wo.Socket.sockets.on('connection', (socket) => {
-        mylog.info('new client connected')
-        socket.send('hello')
+        mylog.info('New Client Connected')
+        socket.on('call', async (data, echo) => {
+          if (data.who && data.act && echo && typeof echo === 'function') {
+            if (wo[data.who] && wo[data.who]['api'] && wo[data.who]['api'][data.act] && typeof wo[data.who]['api'][data.act] === 'function') {
+              let res = await wo[data.who]['api'][data.act](data.param)
+              return echo(res)
+            } else echo({ Error: 'Invalid API' })
+          }
+        })
       })
       wo.EventBus.send(200, '链进程初始化完毕')
       // 启动区块链部署程序
