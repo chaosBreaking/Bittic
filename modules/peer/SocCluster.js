@@ -33,7 +33,7 @@ class SocCluster extends event {
     this.socServer.on('disconnect', () => {
       mylog.info('user disconnected')
     })
-    p2pServer.listen(8086, () => {
+    p2pServer.listen(60842, () => {
       mylog.info('<====== P2P Swarm Listing on *:60606 ======>')
     })
   }
