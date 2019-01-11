@@ -31,7 +31,3 @@
 基金：`Bihot Foundation, Singapore`<br>
 
 有任何问题、建议？欢迎加入社区，欢迎加入团队！
-
-
-入口：init.js
-RPC端口:8888
