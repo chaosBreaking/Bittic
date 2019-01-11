@@ -9,7 +9,7 @@ const store = require('../util/StoreApi.js')('redis', { db: wo.Config.redisIndex
 const p2pServer = require('http').Server()
 const myself = new Peer({
   ownerAddress: wo.Crypto.secword2address(wo.Config.ownerSecword),
-  accessPoint: wo.Config.protocol + '://' + wo.Config.host + wo.Config.port,
+  accessPoint: wo.Config.protocol + '://' + wo.Config.host + 60842,
   host: wo.Config.host,
   port: 60842
 })
@@ -74,12 +74,15 @@ SocCluster.prototype._init = async function () {
   // 建立种子节点库
   if (wo.Config.seedSet && Array.isArray(wo.Config.seedSet) && wo.Config.seedSet.length > 0) {
     mylog.info('初始化种子节点')
-    await Promise.all(wo.Config.seedSet.map((peer) => {
+    await Promise.all(wo.Config.seedSet.map(async (peer) => {
       if (this.peerBook.size >= wo.Config.PEER_POOL_CAPACITY) { return 0 }
       let connect = io(getUrl(peer))
       if (connect) {
-        connect.emit('Ping', myself, async (peerInfo) => {
-          this.addNewPeer(peerInfo, connect)
+        await new Promise((resolve, reject) => {
+          connect.emit('Ping', myself, async (peerInfo) => {
+            this.addNewPeer(peerInfo, connect)
+            resolve('ok')
+          })
         })
         connect.emit('sharePeers', (peers = []) => {
           this.sharePeersHandler(peers)
@@ -87,20 +90,6 @@ SocCluster.prototype._init = async function () {
       }
     }))
   }
-  // setInterval(async ()=>{
-  //   mylog.info(`当前拥有${this.peerBook.size}个节点`)
-  //   if(this.socServer) {
-  //     // this.emitPeers('Peer', 'Ping', '?')
-  //     let data = await this.call('Block/getBlock', {height: 1})
-  //     if(data)
-  //       mylog.info('成功取得数据', data)
-  //     else
-  //       mylog.info('断开......')
-
-  //     // .then((data) => {
-  //     // })
-  //   }
-  // }, 5000)
   // 1 * * * * * 表示每分钟的第1秒执行
   // */10 * * * * * 表示每10秒执行一次
   this.scheduleJob[0] = Schedule.scheduleJob(`*/30 * * * * *`, () => {
@@ -249,8 +238,16 @@ SocCluster.prototype.pushPeerBack = function (ownerAddress, socket) {
 SocCluster.prototype.emitPeers = function (event, data, socket = '') {
   // 如果用句柄传入的socket.broadcast.emit('xxx',data) 则会过滤掉发信人进行广播
   // 如果直接用this.socket.emit('xxx',data)则会对包含发信人的所有人进行广播
-  if (this.socServer && this.socServer.emit) { this.socServer.emit('emit', event, data) }
-  this.peerBook.forEach((address, socket) => {
+  if (this.socServer && this.socServer.emit) {
+    this.socServer.emit('emit', {
+      header: {},
+      body: {
+        event, data
+      }
+    })
+  }
+  if (this.peerBook.size === 0) return 0
+  this.peerBook.forEach((socket, address) => {
     socket.emit('emit', {
       header: {},
       body: {
@@ -286,7 +283,7 @@ SocCluster.prototype.broadcast = function (data, socket) {
   // 如果直接用this.socket.emit('xxx',data)则会对包含发信人的所有人进行广播
   if (this.socServer && this.socServer.emit) { this.socServer.emit('broadcast', { ttl: MSG_TTL, data }) } // 广播给连接到我的
   if (this.peerBook.size === 0) return 0
-  this.peerBook.forEach((address, socket) => { // 广播给连接到我的
+  this.peerBook.forEach((socket, address) => { // 广播给连接到我的
     socket.emit('broadcast', { ttl: MSG_TTL, data })
   })
 }
@@ -318,7 +315,7 @@ SocCluster.prototype.addEventHandler = function (socket) {
   socket.on('emit', (message) => {
     // 其他节点通过触发Peer的emit事件,来节点触发的事件需要wo.Peer的监听器
     // 我连接到的节点，无法调用socket.broadcast.emit()
-    if (!checkMAC(message.header)) { return 0 }
+    if (!message || !checkMAC(message.header) || !message.body) { return 0 }
     let { event, data } = message.body
     if (event) {
       this.emit(event, data)
