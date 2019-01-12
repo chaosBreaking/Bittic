@@ -127,13 +127,13 @@ DAD.api.prepare = async function (option) {
       DAD.actionPool[option.Action.hash] = option.Action
       DAD.actionPoolInfo.totalAmount += option.Action.amount || 0
       DAD.actionPoolInfo.totalFee += option.Action.fee || 0
-      wo.Peer.broadcast('/Action/prepare', option)
+      wo.Peer.broadcast(option)
       return option.Action
     }
   }
   return null // 非法的交易数据
 }
-
+wo.Peer.on('broadcast', DAD.api.prepare)
 /** ******************** Private in class *******************/
 
 DAD.actionPool = {} // 交易池，在执行getActionBatch时被清空

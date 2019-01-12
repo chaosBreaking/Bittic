@@ -278,13 +278,35 @@ SocCluster.prototype.call = async function (route, param, rec = MAX_RECALL_TIME)
   }
   return this.call(route, param, rec - 1)
 }
+/**
+ * 广播消息的格式
+ * message =>
+ * {
+ *    header: {
+ *      ttl: MSG_TTL
+ *    },
+ *    data: {}
+ * }
+ */
 SocCluster.prototype.broadcast = function (data, socket) {
   // 如果用句柄传入的socket.broadcast.emit('xxx',data) 则会过滤掉发信人进行广播
   // 如果直接用this.socket.emit('xxx',data)则会对包含发信人的所有人进行广播
-  if (this.socServer && this.socServer.emit) { this.socServer.emit('broadcast', { ttl: MSG_TTL, data }) } // 广播给连接到我的
+  if (this.socServer && this.socServer.emit) {
+    this.socServer.emit('broadcast', {
+      header: {
+        ttl: MSG_TTL
+      },
+      data
+    })
+  } // 广播给连接到我的
   if (this.peerBook.size === 0) return 0
   this.peerBook.forEach((socket, address) => { // 广播给连接到我的
-    socket.emit('broadcast', { ttl: MSG_TTL, data })
+    socket.emit('broadcast', {
+      header: {
+        ttl: MSG_TTL
+      },
+      data
+    })
   })
 }
 SocCluster.prototype.addEventHandler = function (socket) {
@@ -326,8 +348,8 @@ SocCluster.prototype.addEventHandler = function (socket) {
   })
   socket.on('broadcast', (message) => {
     // 广播消息(签名或交易等事务)
-    if (!message || message.ttl <= 0 || message.ttl > MSG_TTL) { return 0 }
-    this.emit('broadcast', message)
+    if (!message || message.ttl <= 0 || message.ttl > MSG_TTL || !message.data) { return 0 }
+    this.emit('broadcast', message.data)
     socket.broadcast.emit('broadcast', message) // 继续向发信人以外广播
     if (wo.EventBus) wo.EventBus.crosEmit('Peer', 'broadcast', message)
   })
