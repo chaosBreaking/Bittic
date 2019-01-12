@@ -238,7 +238,9 @@ SocCluster.prototype.pushPeerBack = function (ownerAddress, socket) {
 SocCluster.prototype.emitPeers = function (event, data, socket = '') {
   // 如果用句柄传入的socket.broadcast.emit('xxx',data) 则会过滤掉发信人进行广播
   // 如果直接用this.socket.emit('xxx',data)则会对包含发信人的所有人进行广播
-  data = JSON.stringify(data)
+  try {
+    data = JSON.stringify(data)
+  } catch (error) {}
   if (this.socServer && this.socServer.emit) {
     this.socServer.emit('emit', {
       header: {},
@@ -265,7 +267,9 @@ SocCluster.prototype.call = async function (route, param, rec = MAX_RECALL_TIME)
     return 0
   }
   let header = {}
-  param = JSON.stringify(param)
+  try {
+    param = JSON.stringify(param)
+  } catch (error) {}
   let callMission = new Promise((resolve, reject) => {
     socket.emit('call', { header, body: { route, param } }, (res) => {
       resolve(res)
@@ -293,7 +297,9 @@ SocCluster.prototype.call = async function (route, param, rec = MAX_RECALL_TIME)
 SocCluster.prototype.broadcast = function (data, socket) {
   // 如果用句柄传入的socket.broadcast.emit('xxx',data) 则会过滤掉发信人进行广播
   // 如果直接用this.socket.emit('xxx',data)则会对包含发信人的所有人进行广播
-  data = JSON.stringify(data)
+  try {
+    data = JSON.stringify(data)
+  } catch (error) {}
   if (this.socServer && this.socServer.emit) {
     this.socServer.emit('broadcast', {
       header: {

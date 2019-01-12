@@ -127,7 +127,7 @@ DAD.api.prepare = async function (option) {
       DAD.actionPool[option.Action.hash] = option.Action
       DAD.actionPoolInfo.totalAmount += option.Action.amount || 0
       DAD.actionPoolInfo.totalFee += option.Action.fee || 0
-      wo.Peer.broadcast(option)
+      wo.Peer.broadcast({ Action: option.Action })
       return option.Action
     }
   }

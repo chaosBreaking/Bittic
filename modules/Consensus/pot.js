@@ -83,6 +83,12 @@ async function calibrate () {
       }
     }
   }
+  if (getTimeSlot() === 'signTime') {
+    if (!my.selfPot.signature || !my.signBlock) {
+      mylog.info('处于签名期，正常开始一个出块周期,执行签名')
+      await POT.signOnce()
+    }
+  }
   return 0
 }
 function getTimeSlot () {
@@ -267,6 +273,7 @@ POT.electOnce = async function () {
 }
 POT.api.electWatcher = async function (option) { // 互相转发最优的签名块
   if (!option || !option.Block) return null
+  if (option.Block && typeof option.Block === 'string') option.Block = JSON.parse(option.Block)
   if (
     option.Block.winnerSignature !== my.bestPot.signature && // 不要重复接收同一个最佳块
     (!my.signBlock || option.Block.hash !== my.signBlock.hash) && // 收到的区块不是本节点目前已知的最优块
