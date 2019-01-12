@@ -14,14 +14,14 @@ require('../util/Date.js')
 const POT = {}
 async function calibrate () {
   /**
-	 * topHeight === heightNow - 1
-	 * 		time -> [0, electTime) ---> signOnce
-	 * 		time -> [electTime, electTime + period) ---> 自己不签名，也不收集签名，等待别人的块
-	 * 		time -> [mineTime, mineTime + period) ---> 广播请求最新区块，成功则加入，失败则创建虚拟块
-	*/
+  * topHeight === heightNow - 1
+  *   time -> [0, electTime) ---> signOnce
+  *   time -> [electTime, electTime + period) ---> 自己不签名，也不收集签名，等待别人的块
+  *   time -> [mineTime, mineTime + period) ---> 广播请求最新区块，成功则加入，失败则创建虚拟块
+  */
   let missLastBlock = my.signBlock &&
-		Date.time2height() === my.signBlock.height &&
-		(await wo.Chain.getTopBlock()).height === my.signBlock.height - 1
+    Date.time2height() === my.signBlock.height &&
+    (await wo.Chain.getTopBlock()).height === my.signBlock.height - 1
   if (missLastBlock) {
     // 上一块没有及时出现
     mylog.warn('上一块没有正常出现，开始广播进行同步......')
@@ -87,7 +87,13 @@ async function calibrate () {
 }
 function getTimeSlot () {
   let thisSec = new Date().getSeconds()
-  if (thisSec >= 0 && thisSec < electTime || thisSec < (electTime + wo.Config.BLOCK_PERIOD % wo.Config.BLOCK_PERIOD)) { return 'signTime' } else if ((thisSec >= electTime || thisSec >= (electTime + wo.Config.BLOCK_PERIOD % wo.Config.BLOCK_PERIOD)) && (thisSec < mineTime || thisSec < (mineTime + wo.Config.BLOCK_PERIOD % wo.Config.BLOCK_PERIOD))) { return 'electTime' } else if (thisSec >= mineTime || thisSec >= (mineTime + wo.Config.BLOCK_PERIOD % wo.Config.BLOCK_PERIOD)) { return 'mineTime' }
+  if ((thisSec >= 0 && thisSec < electTime) || thisSec < (electTime + wo.Config.BLOCK_PERIOD % wo.Config.BLOCK_PERIOD)) {
+    return 'signTime'
+  } else if ((thisSec >= electTime || thisSec >= (electTime + wo.Config.BLOCK_PERIOD % wo.Config.BLOCK_PERIOD)) && (thisSec < mineTime || thisSec < (mineTime + wo.Config.BLOCK_PERIOD % wo.Config.BLOCK_PERIOD))) {
+    return 'electTime'
+  } else if (thisSec >= mineTime || thisSec >= (mineTime + wo.Config.BLOCK_PERIOD % wo.Config.BLOCK_PERIOD)) {
+    return 'mineTime'
+  }
 }
 async function createVirtBlock () {
   let topBlock = await wo.Chain.getTopBlock()
@@ -98,11 +104,11 @@ async function createVirtBlock () {
 }
 POT._init = async function () {
   /**
-	* topHeight === heightNow - 1
-	 * 		time -> [0, electTime) ---> signOnce
-	 * 		time -> [electTime, electTime + period) ---> 自己不签名，也不收集签名，等待别人的块
-	 * 		time -> [mineTime, mineTime + period) ---> 广播请求最新区块，成功则加入，失败则创建虚拟块
-	*/
+  * topHeight === heightNow - 1
+  *   time -> [0, electTime) ---> signOnce
+  *   time -> [electTime, electTime + period) ---> 自己不签名，也不收集签名，等待别人的块
+  *   time -> [mineTime, mineTime + period) ---> 广播请求最新区块，成功则加入，失败则创建虚拟块
+  */
   let canStartNow = (Date.time2height() === (await wo.Chain.getTopBlock()).height + 1) && getTimeSlot() === 'signTime'
   if (canStartNow) {
     if (!my.selfPot.signature) {
@@ -252,7 +258,7 @@ POT.electOnce = async function () {
       my.bestPot.pubkey = my.selfPot.pubkey
       my.signBlock = new wo.Block({ winnerMessage: my.selfPot.message, winnerSignature: my.selfPot.signature, winnerPubkey: my.selfPot.pubkey, type: 'SignBlock' }) // 把候选签名打包进本节点的虚拟块
       my.signBlock.packMe({}, await wo.Chain.getTopBlock(), wo.Crypto.secword2keypair(wo.Config.ownerSecword))
-      await wo.Peer.emitPeers('/Consensus/electWatcher', { Consensus: { Block: JSON.stringify(my.signBlock) } })
+      await wo.Peer.emitPeers('electWatcher', { Consensus: { Block: JSON.stringify(my.signBlock) } })
     } else {
       mylog.info('本节点没有收集到时间证明，本轮不参与竞选')
     }
@@ -283,7 +289,7 @@ POT.api.electWatcher = async function (option) { // 互相转发最优的签名�
       my.bestPot.pubkey = option.Block.winnerPubkey
       my.bestPot.message = option.Block.winnerMessage
       my.signBlock = option.Block // 保存新收到的签名块
-      wo.Peer.emitPeers('/Consensus/electWatcher', { Consensus: { Block: JSON.stringify(option.Block) } }) // 就进行广播
+      wo.Peer.emitPeers('electWatcher', { Consensus: { Block: JSON.stringify(option.Block) } }) // 就进行广播
     } else if (userBalance < wo.Config.SIGNER_THRESHOLD ||
       packerBalance < wo.Config.PACKER_THRESHOLD) {
       mylog.info('收到的预签名空块的用户' + wo.Crypto.pubkey2address(option.Block.winnerPubkey) + '或节点' + wo.Crypto.pubkey2address(option.Block.packerPubkey) + '的余额不足' + option.Block.winnerSignature)
@@ -297,8 +303,8 @@ POT.api.electWatcher = async function (option) { // 互相转发最优的签名�
     mylog.info('来自节点：' + wo.Crypto.pubkey2address(option.Block.packerPubkey))
     mylog.info('收到的预签名空块的上一区块哈希: ' + option.Block.lastBlockHash)
     mylog.info('本节点上一区块HASH: ' + (await wo.Chain.getTopBlock()).hash)
-  } else // 通常，假如本节点具有全网赢家，我发给别人后，别人会再发给我，就会走到这里来。
-  {
+  } else {
+    // 通常，假如本节点具有全网赢家，我发给别人后，别人会再发给我，就会走到这里来。
     mylog.info('收到的签名块无效：' + JSON.stringify(option.Block.hash))
     if (option.Block.packerPubkey === wo.Crypto.secword2keypair(wo.Config.ownerSecword).pubkey) { mylog.info('是本节点打包的') }
     if (my.packerPool.hasOwnProperty(option.Block.packerPubkey)) { mylog.info('该节点已经提交过区块') }
@@ -329,7 +335,7 @@ POT.mineOnce = async function () {
         winnerPubkey: my.selfPot.pubkey
       })
       mylog.info('本节点出块哈希为： ', newBlock.hash)
-      wo.Peer.emitPeers('/Consensus/mineWatcher', { Consensus: { Block: newBlock } })
+      wo.Peer.emitPeers('mineWatcher', { Consensus: { Block: newBlock } })
       return 0
     }
     mylog.info('本节点没有赢')
@@ -346,7 +352,7 @@ POT.api.mineWatcher = async function (option) { // 监听别人发来的区块
   ) {
     // 注意不要接受我自己作为获胜者创建的块，以及不要重复接受已同步的区块
     wo.Chain.appendBlock(option.Block)
-    wo.Peer.emitPeers('/Consensus/mineWatcher', { Consensus: { Block: option.Block } })
+    wo.Peer.emitPeers('mineWatcher', { Consensus: { Block: option.Block } })
     mylog.info('本节点收到全网赢家的区块哈希为：' + option.Block.hash + '，全网赢家的地址为' + wo.Crypto.pubkey2address(option.Block.winnerPubkey) + '，打包节点的地址为 ' + wo.Crypto.pubkey2address(option.Block.packerPubkey))
   }
   return 0

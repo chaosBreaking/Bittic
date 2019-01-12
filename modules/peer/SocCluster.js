@@ -317,7 +317,7 @@ SocCluster.prototype.addEventHandler = function (socket) {
     // 我连接到的节点，无法调用socket.broadcast.emit()
     if (!message || !checkMAC(message.header) || !message.body) { return 0 }
     let { event, data } = message.body
-    if (event) {
+    if (event && typeof event === 'string') {
       this.emit(event, data)
       mylog.info('触发事件', event)
       this.socServer.emit(event, data) // 继续向发信人以外广播
