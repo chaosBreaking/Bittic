@@ -3,6 +3,7 @@ const url = require('url')
 const Schedule = require('node-schedule')
 const RequestPromise = require('request-promise-native') // request-promise/-native。https://www.npmjs.com/package/request-promise. 还看到一个方法：Bluebird.promisifyAll(require("request"))
 const store = require('../util/StoreApi.js')('redis')
+const netTool = require('fon.base/Network.js')
 
 const DAD = module.exports = class Peer extends Ling {
   constructor (prop) {
@@ -186,9 +187,8 @@ DAD.isValid = function (peer) {
     !peer.accessPoint ||
     !peer.ownerAddress ||
     peer.ownerAddress == my.self.ownerAddress ||
-    // peer.accessPoint.includes('192.168') ||
-    peer.accessPoint.includes('localhost') ||
-    peer.accessPoint.includes('127.0')
+    netTool.isPrivateIp(peer.accessPoint) ||
+    peer.accessPoint.includes('localhost')
   ) { return false }
   return true
 }
