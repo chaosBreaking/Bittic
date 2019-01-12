@@ -150,7 +150,7 @@ MOM.verifyActionList = async function () {
     for (let count = 0; count < 4; count++) {
       var missAction = await wo.Peer.call('/Action/getAction', { Action: { hash: actionHash } })
       if (missAction) {
-        if (wo[missAction.type].validater(missAction)) {
+        if (wo[missAction.type].validate(missAction)) {
           await wo[missAction.type].execute(missAction) // 执行该Action
           await wo[missAction.type].addOne({ [missAction.type]: missAction }) // 加入Action表
         }

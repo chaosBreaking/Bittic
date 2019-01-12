@@ -368,10 +368,12 @@ SocCluster.prototype.addEventHandler = function (socket) {
     if (!message || message.ttl <= 0 || message.ttl > MSG_TTL || !message.data) { return 0 }
     try {
       message.data = JSON.parse(message.data)
+      if (socket.broadcast && socket.broadcast.emit) {
+        socket.broadcast.emit('broadcast', message) // 继续向发信人以外广播
+      }
     } finally {
       this.emit('broadcast', message.data)
       if (wo.EventBus) wo.EventBus.crosEmit('Peer', 'broadcast', message.data)
-      socket.broadcast.emit('broadcast', message) // 继续向发信人以外广播
     }
   })
   socket.on('disconnect', () => {

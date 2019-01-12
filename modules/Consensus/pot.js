@@ -329,12 +329,12 @@ POT.mineOnce = async function () {
   my.currentPhase = 'mining'
   mylog.info('<====== 出块阶段 ======>')
   let canMine = Date.time2height() === (await wo.Chain.getTopBlock()).height + 1
-  mylog.info(`可否出块: ${canMine}`)
+  mylog.info(`是否在正常出块阶段: ${canMine}`)
   if (canMine) {
     mylog.info(new Date() + '：出块阶段开始 for block=' + ((await wo.Chain.getTopBlock()).height + 1) + ' using block=' + (await wo.Chain.getTopBlock()).height)
     mylog.info('本节点的候选签名=' + my.selfPot.signature + '，来自地址地址 ' + wo.Crypto.pubkey2address(my.selfPot.pubkey))
     mylog.info('全网最终获胜签名=' + my.bestPot.signature + '，来自地址地址 ' + wo.Crypto.pubkey2address(my.bestPot.pubkey))
-    if (my.selfPot.signature && my.bestPot.signature === my.selfPot.signature) { // 全网最终获胜者是我自己，于是打包并广播。注意防止 bestPot===selfPot===undefined，这是跳过竞选阶段直接从前两阶段开始会发生的。
+    if (my.selfPot.signature && my.selfPot.pubkey && my.selfPot.signature === my.bestPot.signature && my.selfPot.pubkey === my.bestPot.pubkey) { // 全网最终获胜者是我自己，于是打包并广播。注意防止 bestPot===selfPot===undefined，这是跳过竞选阶段直接从前两阶段开始会发生的。
       mylog.info('本节点获胜，开始出块...')
       let newBlock = await wo.Chain.createBlock({
         winnerMessage: my.selfPot.message,
