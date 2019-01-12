@@ -150,6 +150,8 @@ async function initSingle () {
   wo.Chain = await require('./modules/Chain/Chain.js')._init()
   wo.Consensus = await require('./modules/Consensus/index.js')(wo.Config.consensus)._init()
 
+  wo.Socket = require('socket.io')()
+
   return wo
 }
 
@@ -237,6 +239,9 @@ async function initWorker () {
 
   mylog.info('Initializing chain............')
   wo.Chain = await require('./modules/Chain/Chain.js')._init()
+
+  wo.Socket = require('socket.io')()
+
   return 0
 }
 
@@ -325,6 +330,7 @@ function initServer () { // 配置并启动 Web 服务
     webServer.listen(wo.Config.port, function (err) {
       mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, wo.Config.port, server.settings.env)
     })
+    wo.Socket.listen(webServer)
   } else if (wo.Config.protocol === 'https') { // 启用 https。从 http或https 网页访问 https的ticnode/socket 都可以，socket.io 内容也是一致的。
     webServer = require('https').createServer({
       key: fs.readFileSync(wo.Config.sslKey),
@@ -333,12 +339,14 @@ function initServer () { // 配置并启动 Web 服务
     webServer.listen(wo.Config.port, function (err) {
       mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, wo.Config.port, server.settings.env)
     })
+    wo.Socket.listen(webServer)
   } else if (wo.Config.protocol === 'httpall') { // 同时启用 http 和 https
     let portHttp = wo.Config.port ? wo.Config.port : 80 // 如果port参数已设置，使用它；否则默认为80
     webServer = require('http').createServer(server)
     webServer.listen(portHttp, function (err) {
       mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, portHttp, server.settings.env)
     })
+    wo.Socket.listen(webServer)
 
     let portHttps = (wo.Config.port && wo.Config.port !== 80) ? wo.Config.port + 443 : 443 // 如果port参数已设置，使用它+443；否则默认为443
     let httpsServer = require('https').createServer({
@@ -348,16 +356,25 @@ function initServer () { // 配置并启动 Web 服务
     httpsServer.listen(portHttps, function (err) {
       mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, portHttps, server.settings.env)
     })
+    wo.Socket.listen(httpsServer)
   }
-  return webServer
+  
+  wo.Socket.sockets.on('open', () => {
+    mylog.info('Socket started')
+  })
+  wo.Socket.sockets.on('connection', (socket) => {
+    mylog.info('new client connected')
+    socket.send('hello')
+  })
+
+  return webServer // todo: 对 httpall 方式，这样只返回了 httpServer。目前够用了，但如果需要，就要改进。
 }
 
 (async function start () {
   if (config().thread === 'single') {
     mylog.info('单进程模式启动......')
     await initSingle()
-    let webServer = initServer()
-    wo.Socket = socket.listen(webServer)
+    initServer()
     wo.Socket.sockets.on('open', () => {
       mylog.info('Socket started')
     })
@@ -384,15 +401,7 @@ function initServer () { // 配置并启动 Web 服务
     } else {
       /** BlockChain以及RPC服务进程 */
       await initWorker()
-      let webServer = initServer()
-      wo.Socket = socket.listen(webServer)
-      wo.Socket.sockets.on('open', () => {
-        mylog.info('Socket started')
-      })
-      wo.Socket.sockets.on('connection', (socket) => {
-        mylog.info('new client connected')
-        socket.send('hello')
-      })
+      initServer()
       wo.EventBus.send(200, '链进程初始化完毕')
       // 启动区块链部署程序
       try {
