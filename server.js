@@ -344,7 +344,7 @@ function initServer () { // 配置并启动 Web 服务
     let portHttp = wo.Config.port ? wo.Config.port : 80 // 如果port参数已设置，使用它；否则默认为80
     webServer = require('http').createServer(server)
     webServer.listen(portHttp, function (err) {
-      mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, portHttp, server.settings.env)
+      mylog.info('Server listening on %s::http://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, portHttp, server.settings.env)
     })
     wo.Socket.listen(webServer)
 
@@ -354,7 +354,7 @@ function initServer () { // 配置并启动 Web 服务
       cert: fs.readFileSync(wo.Config.sslCert) // , ca: [ fs.readFileSync(wo.Config.sslCA) ] // only for self-signed certificate: https://nodejs.org/api/tls.html#tls_tls_createserver_options_secureconnectionlistener
     }, server)
     httpsServer.listen(portHttps, function (err) {
-      mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, portHttps, server.settings.env)
+      mylog.info('Server listening on %s::https//%s:%d for %s environment', wo.Config.protocol, wo.Config.host, portHttps, server.settings.env)
     })
     wo.Socket.listen(httpsServer)
   }
