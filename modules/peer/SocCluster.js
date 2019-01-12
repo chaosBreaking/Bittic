@@ -238,6 +238,7 @@ SocCluster.prototype.pushPeerBack = function (ownerAddress, socket) {
 SocCluster.prototype.emitPeers = function (event, data, socket = '') {
   // 如果用句柄传入的socket.broadcast.emit('xxx',data) 则会过滤掉发信人进行广播
   // 如果直接用this.socket.emit('xxx',data)则会对包含发信人的所有人进行广播
+  data = JSON.stringify(data)
   if (this.socServer && this.socServer.emit) {
     this.socServer.emit('emit', {
       header: {},
@@ -264,6 +265,7 @@ SocCluster.prototype.call = async function (route, param, rec = MAX_RECALL_TIME)
     return 0
   }
   let header = {}
+  param = JSON.stringify(param)
   let callMission = new Promise((resolve, reject) => {
     socket.emit('call', { header, body: { route, param } }, (res) => {
       resolve(res)
@@ -291,6 +293,7 @@ SocCluster.prototype.call = async function (route, param, rec = MAX_RECALL_TIME)
 SocCluster.prototype.broadcast = function (data, socket) {
   // 如果用句柄传入的socket.broadcast.emit('xxx',data) 则会过滤掉发信人进行广播
   // 如果直接用this.socket.emit('xxx',data)则会对包含发信人的所有人进行广播
+  data = JSON.stringify(data)
   if (this.socServer && this.socServer.emit) {
     this.socServer.emit('broadcast', {
       header: {
@@ -327,10 +330,14 @@ SocCluster.prototype.addEventHandler = function (socket) {
     if (!checkMAC(message.header)) { return 0 }
     let { route, param } = message.body
     if (route && typeof route === 'string' && echo && typeof echo === 'function') {
-      let [obj, fn] = route.startsWith('/') ? route.slice(1).split('/') : route.split('/')
-      if (wo[obj] && wo[obj]['api'] && wo[obj]['api'][fn] && typeof wo[obj]['api'][fn] === 'function') {
-        mylog.info('触发调用', route)
-        return echo(await wo[obj]['api'][fn](param))
+      try {
+        let [obj, fn] = route.startsWith('/') ? route.slice(1).split('/') : route.split('/')
+        if (wo[obj] && wo[obj]['api'] && wo[obj]['api'][fn] && typeof wo[obj]['api'][fn] === 'function') {
+          mylog.info('触发调用', route)
+          return echo(await wo[obj]['api'][fn](JSON.parse(param)))
+        }
+      } catch (error) {
+        return echo(null)
       }
     }
   })
@@ -340,18 +347,26 @@ SocCluster.prototype.addEventHandler = function (socket) {
     if (!message || !checkMAC(message.header) || !message.body) { return 0 }
     let { event, data } = message.body
     if (event && typeof event === 'string') {
-      this.emit(event, data)
-      mylog.info('触发事件', event)
-      this.socServer.emit(event, data) // 继续向发信人以外广播
-      if (wo.EventBus) wo.EventBus.crosEmit('Peer', event, data)
+      try {
+        data = JSON.parse(data)
+      } finally {
+        this.emit(event, data)
+        if (wo.EventBus) wo.EventBus.crosEmit('Peer', event, data)
+        mylog.info('触发事件', event)
+        this.socServer.emit(event, data) // 继续向发信人以外广播,前面已经反序列化了数据，此处要再次序列化。。。有没有更好的办法？
+      }
     }
   })
   socket.on('broadcast', (message) => {
     // 广播消息(签名或交易等事务)
     if (!message || message.ttl <= 0 || message.ttl > MSG_TTL || !message.data) { return 0 }
-    this.emit('broadcast', message.data)
-    socket.broadcast.emit('broadcast', message) // 继续向发信人以外广播
-    if (wo.EventBus) wo.EventBus.crosEmit('Peer', 'broadcast', message)
+    try {
+      message.data = JSON.parse(message.data)
+    } finally {
+      this.emit('broadcast', message.data)
+      if (wo.EventBus) wo.EventBus.crosEmit('Peer', 'broadcast', message.data)
+      socket.broadcast.emit('broadcast', message) // 继续向发信人以外广播
+    }
   })
   socket.on('disconnect', () => {
     if (socket.id) {

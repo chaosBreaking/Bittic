@@ -175,7 +175,7 @@ POT.signOnce = async function () {
   mylog.info('Aim to ', heightNow, 'mytop ', (await wo.Chain.getTopBlock()).height)
   if (my.selfPot.signature) my.selfPot = {}
   if ((await wo.Chain.getTopBlock()).height < heightNow - 1) {
-    mylog.error('本机状态异常,无法签名')
+    mylog.warn('本机状态异常,无法签名')
     await calibrate()
     return 0
   }
