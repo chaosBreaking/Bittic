@@ -13,7 +13,7 @@ module.exports = { // 全大写字母的，代表系统常量，不要在 userCo
   thread: 'single', // single|cluster: 单进程或多进程
 
   dbType: 'sqlite',
-  dbName: 'data.sqlite/tic.sqlite',
+  dbName: 'data.sqlite/tic',
   redisIndex: 0,
 
   NET_TYPE: ['mainnet', 'testnet', 'devnet'],
