@@ -7,34 +7,37 @@ const io = require('socket.io-client')
 const Schedule = require('node-schedule')
 const store = require('../util/StoreApi.js')('redis', { db: wo.Config.redisIndex || 1 })
 const p2pServer = require('http').Server()
+const P2P_PORT = 60842
 const myself = new Peer({
   ownerAddress: wo.Crypto.secword2address(wo.Config.ownerSecword),
-  accessPoint: wo.Config.protocol + '://' + wo.Config.host + 60842,
+  accessPoint: `${wo.Config.protocol}://${wo.Config.host}:${P2P_PORT}`,
   host: wo.Config.host,
-  port: 60842
+  port: P2P_PORT
 })
+const PEER_CHECKING_TIMEOUT = wo.Config.PEER_CHECKING_TIMEOUT
 const MAX_CALL_TIMEOUT = 200
 const MAX_RECALL_TIME = 2
+const MAX_PEER = 50
 const MSG_TTL = 3
+
 class SocCluster extends event {
   constructor (prop) {
     super(prop)
     this.peerBook = new Map()
-    this.ids2address = {}
     this.scheduleJob = []
     this.socServer = Socketio(p2pServer)
     this.socServer.on('open', () => {
       mylog.info('<====== Socket Started ======>')
     })
     this.socServer.on('connection', (socket) => {
-      mylog.info('New Client Connected')
+      mylog.info('新节点连接到socket')
       this.addEventHandler(socket)
     })
     this.socServer.on('disconnect', () => {
-      mylog.info('user disconnected')
+      mylog.info('节点断开连接')
     })
-    p2pServer.listen(60842, () => {
-      mylog.info('<====== P2P Swarm Listing on *:60606 ======>')
+    p2pServer.listen(P2P_PORT, () => {
+      mylog.info(`<====== P2P Swarm Listing on *:${P2P_PORT} ======>`)
     })
   }
   static getInstance (option) {
@@ -92,28 +95,20 @@ SocCluster.prototype._init = async function () {
   }
   // 1 * * * * * 表示每分钟的第1秒执行
   // */10 * * * * * 表示每10秒执行一次
-  this.scheduleJob[0] = Schedule.scheduleJob(`*/30 * * * * *`, () => {
-    mylog.info(`当前拥有${this.peerBook.size}个节点`)
+  this.scheduleJob[0] = Schedule.scheduleJob(`*/10 * * * * *`, () => {
+    mylog.info(`当前连接到${this.peerBook.size}个节点`)
+    // this.updatePeerPool()
   })
   return this
-}
-SocCluster.prototype.mountSocket = function (webServer) {
-  this.socServer = Socketio(webServer).on('open', () => {
-    mylog.info('<====== Socket Started ======>')
-  })
-  this.socServer.on('connection', (socket) => {
-    mylog.info('New Client Connected')
-    this.addEventHandler(socket)
-  })
 }
 
 SocCluster.prototype.checkValid = function (peer) {
   return Peer.checkValid(peer) && peer.ownerAddress !== myself.ownerAddress
 }
 SocCluster.prototype.addNewPeer = function (peerInfo, connect) {
-  if (!this.checkValid(peerInfo) || !connect) return 0
+  if (!this.checkValid(peerInfo) || !connect || this.peerBook.size > MAX_PEER) return 0
   mylog.info('收到节点echo：', peerInfo.ownerAddress)
-  if (connect.ids) this.ids2address[connect.ids] = peerInfo.ownerAddress
+  if (connect.ids) connect.ids = peerInfo.ownerAddress
   connect.id = peerInfo.ownerAddress
   this.peerBook.set(peerInfo.ownerAddress, connect)
   this.addEventHandler(connect)
@@ -144,9 +139,19 @@ SocCluster.prototype.dbStorePeerList = async function (peerData) {
   }
 }
 SocCluster.prototype.updatePeerPool = async function () {
-  this.peerBook.forEach((socket, address) => {
-    
-  })
+  if (this.peerBook.size < MAX_PEER) {
+    this.peerBook.forEach((socket, address) => {
+      if (socket.disconnected) {
+        socket.close()
+        this.peerBook.delete(address)
+        this.delPeer(address)
+        return 0
+      }
+      socket.emit('sharePeers', (peers = []) => {
+        this.sharePeersHandler(peers)
+      })
+    })
+  }
 }
 /**
  *
@@ -178,7 +183,7 @@ SocCluster.prototype.delPeer = async function (ownerAddress) {
  */
 SocCluster.prototype.pingHandler = async function (peerInfo, connect) {
   if (peerInfo && this.checkValid(peerInfo)) {
-    let isNewPeer = !(await this.getPeersFromDB())[peerInfo.ownerAddress]
+    let isNewPeer = !this.peerBook.get(peerInfo.ownerAddress)
     if (isNewPeer) { // 是新邻居发来的ping？把新邻居加入节点池
       await this.addNewPeer(peerInfo, connect)
       mylog.info(`加入新节点 -- ${peerInfo.ownerAddress}-${peerInfo.accessPoint}:${peerInfo.port}`)
@@ -322,12 +327,21 @@ SocCluster.prototype.broadcast = function (data, socket) {
     })
   })
 }
+/**
+ * 只有连接到我的socket服务器的socket句柄才有socket.broadcast和socket.broadcast.emit方法
+ * 而且this.socServer.emit()是向所有连接到我的广播
+ */
 SocCluster.prototype.addEventHandler = function (socket) {
   // 给新的节点挂载事件监听器
   socket.on('Ping', (nodeInfo, echo) => {
     if (nodeInfo && echo && typeof echo === 'function') {
       this.pingHandler(nodeInfo, socket)
       return echo(myself)
+    }
+  })
+  socket.on('heartBeat', (message, echo) => {
+    if (message && echo && typeof echo === 'function') {
+      echo(myself)
     }
   })
   socket.on('sharePeers', async (echo) => {
@@ -381,11 +395,22 @@ SocCluster.prototype.addEventHandler = function (socket) {
     }
   })
   socket.on('disconnect', () => {
-    if (socket.id) {
-      this.peerBook.delete(socket.id)
+    if (!this.peerBook.get(socket.id || socket.ids)) return socket.close()
+    isFinite(socket.brokeCount) ? socket.brokeCount += 1 : socket.brokeCount = 1
+    mylog.warn(`到${socket.id || socket.ids}的连接断开${socket.brokeCount}次`)
+    if (socket.brokeCount < PEER_CHECKING_TIMEOUT) return 0
+    if (socket.id && this.peerBook.delete(socket.id)) {
       this.delPeer(socket.id)
+    } else if (socket.ids && this.peerBook.delete(socket.ids)) {
+      this.delPeer(socket.ids)
     }
+    socket.close()
+    mylog.warn(`节点${socket.id || socket.ids}断线次数过多，关闭连接`)
   })
+}
+
+SocCluster.prototype.api = {
+  peerStat: () => this.peerBook
 }
 
 module.exports = function (type = '') {
