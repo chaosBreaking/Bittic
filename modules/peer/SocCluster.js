@@ -117,9 +117,9 @@ SocCluster.prototype.addNewPeer = function (peerInfo, connect) {
   connect.id = peerInfo.ownerAddress
   this.peerBook.set(peerInfo.ownerAddress, connect)
   this.addEventHandler(connect)
-  this.storePeer(peerInfo)
+  this.dbStorePeer(peerInfo)
 }
-SocCluster.prototype.storePeer = async function (peer) {
+SocCluster.prototype.dbStorePeer = async function (peer) {
   if (this.checkValid(peer)) {
     peer = Object.getPrototypeOf(peer) === 'Peer' ? peer : new Peer(peer)
     await store.hset('peers', peer.ownerAddress, JSON.stringify(peer))
@@ -127,15 +127,15 @@ SocCluster.prototype.storePeer = async function (peer) {
   }
   return null
 }
-SocCluster.prototype.storePeerList = async function (peerData) {
+SocCluster.prototype.dbStorePeerList = async function (peerData) {
   if (!Array.isArray(peerData)) {
     var peer = new Peer(peerData)
-    await this.storePeer(peer)
+    await this.dbStorePeer(peer)
     return peer
   } else {
     for (let peer of peerData) {
       try {
-        await this.storePeer(typeof peer === 'string' ? JSON.parse(peer) : peer)
+        await this.dbStorePeer(typeof peer === 'string' ? JSON.parse(peer) : peer)
       } catch (error) {
         return error
       }
@@ -143,7 +143,11 @@ SocCluster.prototype.storePeerList = async function (peerData) {
     }
   }
 }
-
+SocCluster.prototype.updatePeerPool = async function () {
+  this.peerBook.forEach((socket, address) => {
+    
+  })
+}
 /**
  *
  * @desc 获取所有节点或给定地址的某个节点
