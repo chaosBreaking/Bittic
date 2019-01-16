@@ -44,7 +44,11 @@
     "setup": "npm install",
     "dev": "cross-env NODE_ENV=development supervisor -i data.log,node_modules,data.sqlite server.js",
     "debug": "cross-env NODE_ENV=development supervisor -i data.log,node_modules,data.sqlite --inspect server.js",
-    "daemon": "cross-env NODE_ENV=production supervisor -i data.log,node_modules,data.sqlite server.js"
+    "daemon:sup": "cross-env NODE_ENV=production supervisor -i data.log,node_modules,data.sqlite server.js -n testnet",
+    "daemon": "cross-env NODE_ENV=production pm2 start server.js -n node.server",
+    "daemon:devnet": "npm run daemon",
+    "daemon:testnet": "cross-env NODE_ENV=production pm2 start server.js -n node.server -- -n testnet",
+    "daemon:wallet": "cross-env NODE_ENV=production pm2 start server.js -n node.server -- -n testnet -P https"
   },
   "author": ""
 }
