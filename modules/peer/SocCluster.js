@@ -97,7 +97,7 @@ SocCluster.prototype._init = async function () {
   // */10 * * * * * 表示每10秒执行一次
   this.scheduleJob[0] = Schedule.scheduleJob(`*/10 * * * * *`, () => {
     mylog.info(`当前连接到${this.peerBook.size}个节点`)
-    // this.updatePeerPool()
+    this.updatePeerPool()
   })
   return this
 }
@@ -247,9 +247,7 @@ SocCluster.prototype.pushPeerBack = function (ownerAddress, socket) {
 SocCluster.prototype.emitPeers = function (event, data, socket = '') {
   // 如果用句柄传入的socket.broadcast.emit('xxx',data) 则会过滤掉发信人进行广播
   // 如果直接用this.socket.emit('xxx',data)则会对包含发信人的所有人进行广播
-  try {
-    data = JSON.stringify(data)
-  } catch (error) {}
+  data = JSON.stringify(data)
   if (this.socServer && this.socServer.emit) {
     this.socServer.emit('emit', {
       header: {},
@@ -384,15 +382,12 @@ SocCluster.prototype.addEventHandler = function (socket) {
   socket.on('broadcast', (message) => {
     // 广播消息(签名或交易等事务)
     if (!message || message.ttl <= 0 || message.ttl > MSG_TTL || !message.data) { return 0 }
-    try {
-      message.data = JSON.parse(message.data)
-      if (socket.broadcast && socket.broadcast.emit) {
-        socket.broadcast.emit('broadcast', message) // 继续向发信人以外广播
-      }
-    } finally {
-      this.emit('broadcast', message.data)
-      if (wo.EventBus) wo.EventBus.crosEmit('Peer', 'broadcast', message.data)
+    this.emit('broadcast', message.data)
+    if (socket.broadcast && socket.broadcast.emit) {
+      socket.broadcast.emit('broadcast', message) // 继续向发信人以外广播
     }
+    this.socServer.emit('broadcast', message)
+    if (wo.EventBus) wo.EventBus.crosEmit('Peer', 'broadcast', message.data)
   })
   socket.on('disconnect', () => {
     if (!this.peerBook.get(socket.id || socket.ids)) return socket.close()
