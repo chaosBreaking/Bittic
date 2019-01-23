@@ -17,7 +17,7 @@ async function PingRedis (newRedis) {
   })
   let delayMission = new Promise((resolve, reject) => setTimeout(() => {
     resolve(false)
-  }, 1000))
+  }, 600))
   return await Promise.race([mission, delayMission])
 }
 

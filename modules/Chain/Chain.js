@@ -31,15 +31,6 @@ Chain.createGenesis = async function () {
   my.genesis = new wo.Block(wo.Config.GENESIS_BLOCK[wo.Config.netType])
   my.genesis.packMe({}, null, wo.Crypto.secword2keypair(wo.Config.GENESIS_ACCOUNT.secword))
   await Chain.pushTopBlock(my.genesis)
-  await wo.Store.increase(wo.Config.INITIAL_ACCOUNT.address, wo.Config.COIN_INIT_AMOUNT)
-  // 在开发链上，自动给当前用户预存一笔，使其能够挖矿
-  // 给两个账户加钱，防止两机测试时互不相认
-  if (wo.Config.netType === 'devnet') {
-    for (let acc of wo.Config.DEV_ACCOUNT) {
-      await wo.Store.increase(wo.Crypto.secword2address(acc.secword), 100000)
-      mylog.info(`devnet adds 100000 coin to "${wo.Crypto.secword2address(acc.secword)} of "${acc.secword}"`)
-    }
-  }
   mylog.info('Genesis is created and verified: ' + my.genesis.verifySig())
   return my.genesis
 }

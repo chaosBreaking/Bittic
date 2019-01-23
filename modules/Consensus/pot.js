@@ -108,6 +108,25 @@ async function createVirtBlock () {
   mylog.info('虚拟块创建成功 --> 高度' + block.height)
   return block
 }
+
+async function preCoinOffering () {
+  // 在开发链上，自动给当前用户预存一笔，使其能够挖矿
+  // 给两个账户加钱，防止两机测试时互不相认
+  await wo.Store.increase(wo.Config.INITIAL_ACCOUNT.address, wo.Config.COIN_INIT_AMOUNT)
+  if (wo.Config.netType === 'devnet') {
+    for (let acc of wo.Config.DEV_ACCOUNT) {
+      await wo.Store.increase(wo.Crypto.secword2address(acc.secword), 100000)
+      mylog.info(`devnet adds 100000 coin to "${wo.Crypto.secword2address(acc.secword)} of "${acc.secword}"`)
+    }
+  }
+  if (wo.Config.netType === 'testnet') {
+    for (let acc of wo.Config.TEST_ACCOUNT) {
+      await wo.Store.increase(wo.Crypto.secword2address(acc.secword), 100000)
+      mylog.info(`testnet adds 100000 coin to "${wo.Crypto.secword2address(acc.secword)} of "${acc.secword}"`)
+    }
+  }
+}
+
 POT._init = async function () {
   /**
   * topHeight === heightNow - 1
@@ -115,6 +134,7 @@ POT._init = async function () {
   *   time -> [electTime, electTime + period) ---> 自己不签名，也不收集签名，等待别人的块
   *   time -> [mineTime, mineTime + period) ---> 广播请求最新区块，成功则加入，失败则创建虚拟块
   */
+  await preCoinOffering()  
   let canStartNow = (Date.time2height() === (await wo.Chain.getTopBlock()).height + 1) && getTimeSlot() === 'signTime'
   if (canStartNow) {
     if (!my.selfPot.signature) {

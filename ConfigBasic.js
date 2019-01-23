@@ -41,7 +41,7 @@ module.exports = { // 全大写字母的，代表系统常量，不要在 userCo
       message: 'History is Future, Future is Now'
     },
     testnet: {
-      timestamp: '2019-01-06T10:00:00.000Z',
+      timestamp: '2019-01-23T04:00:00.000Z',
       message: 'The Cabinet Office minister David Lidington today defended Philip Hammond’s decision to issue a new warning that a no-deal Brexit would significantly damage the economy.'
     },
     devnet: {
@@ -92,6 +92,20 @@ module.exports = { // 全大写字母的，代表系统常量，不要在 userCo
       address: 'TxAEimQbqVRUoPncGLrrpmP82yhtoLmxJE'
     }
   },
+  TEST_ACCOUNT: [
+    { // 第0个账号=初始账号
+      secword: 'neutral digital gather squirrel loud shoe sand rib black couple convince merge'
+      // pubkey: '2633b0766f83565c0e85454634dffbae32b4058cd508905f12ebf0f955df150a',
+      // seckey: '53bea4c6d77aee9c9bd9951b88f3a55f7d2fe9abdc14f31734d96cfaa7b1c4102633b0766f83565c0e85454634dffbae32b4058cd508905f12ebf0f955df150a',
+      // address: 'TrKJB5Tg46DPKyQc9zbaNMQ1gQaubt7NWQ'
+    },
+    {
+      secword: 'brand moment media marine enroll verb blanket toilet unit exercise choose nuclear'
+      // pubkey: 'f21b1b5b4e533ad52ac5f55ba10da1d978e3cc54f3a28daa80475ccfd3b43f3c',
+      // seckey: 'c34ccff7ddcbac11a1275ef5339a6df11f0beab5dbf7283f964bde1201576005f21b1b5b4e533ad52ac5f55ba10da1d978e3cc54f3a28daa80475ccfd3b43f3c',
+      // address: 'Tm3C6oELhJsF5EZBPD1ppdfNjgd2RxMUmj'
+    }
+  ],
   DEV_ACCOUNT: [
     { // 第0个账号=初始账号
       secword: 'clever journey cave maze luxury juice trigger discover bamboo net shoot put'
