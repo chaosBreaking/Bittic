@@ -150,7 +150,7 @@ SocCluster.prototype.updatePeerPool = async function () {
   if (this.peerBook.size < MAX_PEER) {
     this.peerBook.forEach((socket, address) => {
       if (socket.disconnected) {
-        socket.close()
+        if (socket.close && typeof socket.close === 'function') socket.close()
         this.peerBook.delete(address)
         this.delPeer(address)
         return 0
