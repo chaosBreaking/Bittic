@@ -359,13 +359,14 @@ SocCluster.prototype.addEventHandler = function (socket) {
   socket.on('call', async (message = {}, echo) => {
     // RPC 只允许被调用类的api内定义的函数
     if (!checkMAC(message.header)) { return 0 }
+    mylog.info('calling...')
     let { route, param } = message.body
     if (route && typeof route === 'string' && echo && typeof echo === 'function') {
       try {
         let [obj, fn] = route.startsWith('/') ? route.slice(1).split('/') : route.split('/')
         if (wo[obj] && wo[obj]['api'] && wo[obj]['api'][fn] && typeof wo[obj]['api'][fn] === 'function') {
           mylog.info('触发调用', route)
-          return echo(await wo[obj]['api'][fn](JSON.parse(param)))
+          return echo(await wo[obj]['api'][fn](param))
         }
       } catch (error) {
         return echo(null)
@@ -390,6 +391,7 @@ SocCluster.prototype.addEventHandler = function (socket) {
   })
   socket.on('broadcast', (message) => {
     // 广播消息(签名或交易等事务)
+    // 广播消息的data可能是字符串，也可能是对象
     if (!message || message.ttl <= 0 || message.ttl > MSG_TTL || !message.data) { return 0 }
     this.emit('broadcast', message.data)
     if (socket.broadcast && socket.broadcast.emit) {
