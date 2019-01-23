@@ -95,7 +95,7 @@ SocCluster.prototype._init = async function () {
     }))
     let timeout = new Promise((resolve, reject) => {
       setTimeout(() => {
-        mylog.warn('初始化节点超时......单机运行')
+        // mylog.warn('初始化节点超时......单机运行')
         resolve(0)
       }, INIT_TIMEOUT)
     })
@@ -116,7 +116,6 @@ SocCluster.prototype.checkValid = function (peer) {
 SocCluster.prototype.addNewPeer = function (peerInfo, connect) {
   if (!this.checkValid(peerInfo) || !connect || this.peerBook.size > MAX_PEER) return 0
   mylog.info('收到节点echo：', peerInfo.ownerAddress)
-  if (connect.ids) connect.ids = peerInfo.ownerAddress
   connect.id = peerInfo.ownerAddress
   this.peerBook.set(peerInfo.ownerAddress, connect)
   this.addEventHandler(connect)
@@ -148,6 +147,7 @@ SocCluster.prototype.dbStorePeerList = async function (peerData) {
 }
 SocCluster.prototype.updatePeerPool = async function () {
   if (this.peerBook.size < MAX_PEER) {
+    // 从我练到的节点更新节点
     this.peerBook.forEach((socket, address) => {
       if (socket.disconnected) {
         if (socket.close && typeof socket.close === 'function') socket.close()
@@ -159,6 +159,7 @@ SocCluster.prototype.updatePeerPool = async function () {
         this.sharePeersHandler(peers)
       })
     })
+    // 从连接到我的节点更新节点
     this.socServer.emit('sharePeers', myself)
   }
 }
@@ -252,11 +253,15 @@ SocCluster.prototype.pushPeerBack = function (ownerAddress, socket) {
  *      data, param
  *    }
  * }
+ * emitPeers时一般将body里的data序列化，监听器收到后应该解析
+ * 而call时，不必将param序列化，也不必解析
  */
 SocCluster.prototype.emitPeers = function (event, data, socket = '') {
   // 如果用句柄传入的socket.broadcast.emit('xxx',data) 则会过滤掉发信人进行广播
   // 如果直接用this.socket.emit('xxx',data)则会对包含发信人的所有人进行广播
-  data = JSON.stringify(data)
+  try {
+    data = JSON.stringify(data)
+  } catch (error) {}
   if (this.socServer && this.socServer.emit) {
     this.socServer.emit('emit', {
       header: {},
@@ -282,9 +287,12 @@ SocCluster.prototype.call = async function (route, param, rec = MAX_RECALL_TIME)
     if (!rec) { this.delPeer(ownerAddress) }
     return null
   }
-  let header = {}
+  let message = {
+    header: {},
+    body: { route, param }
+  }
   let callMission = new Promise((resolve, reject) => {
-    socket.emit('call', { header, body: { route, param } }, (res) => {
+    socket.emit('call', message, (res) => {
       resolve(res)
     })
   })
@@ -349,12 +357,15 @@ SocCluster.prototype.addEventHandler = function (socket) {
     }
   })
   socket.on('sharePeers', async (peerInfo, echo) => {
+    // 如果是连接到我的，先返回我的节点列表，之后再其添加到我的节点列表里
+    if (echo && typeof echo === 'function') {
+      echo(await this.getPeersFromDB())
+    }
     if (peerInfo && typeof peerInfo === 'object') {
       this.addNewPeer(peerInfo)
     }
-    if (echo && typeof echo === 'function') {
-      return echo(await this.getPeersFromDB())
-    }
+    // 如果是我连接到的节点发来的，那么返回我的节点列表
+    if (socket.ids) socket.emit('sharePeers', await this.getPeersFromDB())
   })
   socket.on('call', async (message = {}, echo) => {
     // RPC 只允许被调用类的api内定义的函数
