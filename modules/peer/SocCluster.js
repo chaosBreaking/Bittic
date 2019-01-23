@@ -14,6 +14,7 @@ const myself = new Peer({
   host: wo.Config.host,
   port: P2P_PORT
 })
+const INIT_TIMEOUT = 5000
 const PEER_CHECKING_TIMEOUT = wo.Config.PEER_CHECKING_TIMEOUT
 const MAX_CALL_TIMEOUT = 200
 const MAX_RECALL_TIME = 2
@@ -77,7 +78,7 @@ SocCluster.prototype._init = async function () {
   // 建立种子节点库
   if (wo.Config.seedSet && Array.isArray(wo.Config.seedSet) && wo.Config.seedSet.length > 0) {
     mylog.info('初始化种子节点')
-    await Promise.all(wo.Config.seedSet.map(async (peer) => {
+    let initPeers = Promise.all(wo.Config.seedSet.map(async (peer) => {
       if (this.peerBook.size >= wo.Config.PEER_POOL_CAPACITY) { return 0 }
       let connect = io(getUrl(peer))
       if (connect) {
@@ -87,11 +88,18 @@ SocCluster.prototype._init = async function () {
             resolve('ok')
           })
         })
-        connect.emit('sharePeers', (peers = []) => {
+        connect.emit('sharePeers', myself, (peers = []) => {
           this.sharePeersHandler(peers)
         })
       }
     }))
+    let timeout = new Promise((resolve, reject) => {
+      setTimeout(() => {
+        mylog.warn('初始化节点超时......单机运行')
+        resolve(0)
+      }, INIT_TIMEOUT)
+    })
+    await Promise.race([initPeers, timeout])
   }
   // 1 * * * * * 表示每分钟的第1秒执行
   // */10 * * * * * 表示每10秒执行一次
@@ -147,10 +155,11 @@ SocCluster.prototype.updatePeerPool = async function () {
         this.delPeer(address)
         return 0
       }
-      socket.emit('sharePeers', (peers = []) => {
+      socket.emit('sharePeers', myself, (peers = []) => {
         this.sharePeersHandler(peers)
       })
     })
+    this.socServer.emit('sharePeers', myself)
   }
 }
 /**
@@ -342,7 +351,10 @@ SocCluster.prototype.addEventHandler = function (socket) {
       echo(myself)
     }
   })
-  socket.on('sharePeers', async (echo) => {
+  socket.on('sharePeers', async (peerInfo, echo) => {
+    if (peerInfo && typeof peerInfo === 'object') {
+      this.addNewPeer(peerInfo)
+    }
     if (echo && typeof echo === 'function') {
       return echo(await this.getPeersFromDB())
     }
