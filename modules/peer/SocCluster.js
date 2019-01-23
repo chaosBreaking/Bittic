@@ -16,7 +16,7 @@ const myself = new Peer({
 })
 const INIT_TIMEOUT = 5000
 const PEER_CHECKING_TIMEOUT = wo.Config.PEER_CHECKING_TIMEOUT
-const MAX_CALL_TIMEOUT = 200
+const MAX_CALL_TIMEOUT = 1000
 const MAX_RECALL_TIME = 2
 const MAX_PEER = 50
 const MSG_TTL = 3
@@ -54,9 +54,9 @@ function getUrl (peer) {
   if (typeof peer === 'string') {
     if (peer.includes('http://') || peer.includes('ws://')) {
       // 'http://host:port' or 'http://host'
-      if (peer.split(':')[2]) { return peer } else { return peer + wo.Config.port }
+      if (peer.split(':')[2]) { return peer } else { return peer + ':' + P2P_PORT }
     } else {
-      if (peer.split(':')[1]) { return 'http://' + peer } else { return 'http://' + peer + wo.Config.port }
+      if (peer.split(':')[1]) { return 'http://' + peer } else { return 'http://' + peer + ':' + P2P_PORT }
     }
   }
 }
@@ -277,25 +277,22 @@ SocCluster.prototype.emitPeers = function (event, data, socket = '') {
 }
 SocCluster.prototype.call = async function (route, param, rec = MAX_RECALL_TIME) {
   let { ownerAddress, socket } = this.getPeer()
-  if (!ownerAddress || !socket) return 0
+  if (!ownerAddress || !socket) return null
   if (!socket || !socket.emit || !rec) {
     if (!rec) { this.delPeer(ownerAddress) }
-    return 0
+    return null
   }
   let header = {}
-  try {
-    param = JSON.stringify(param)
-  } catch (error) {}
   let callMission = new Promise((resolve, reject) => {
     socket.emit('call', { header, body: { route, param } }, (res) => {
       resolve(res)
     })
   })
   let timeoutMission = new Promise((resolve, reject) => {
-    setTimeout(() => { resolve(null) }, MAX_CALL_TIMEOUT)
+    setTimeout(() => { resolve('timeout') }, MAX_CALL_TIMEOUT)
   })
   let data = await Promise.race([callMission, timeoutMission])
-  if (data) {
+  if (data !== 'timeout') {
     return data
   }
   return this.call(route, param, rec - 1)
@@ -402,7 +399,10 @@ SocCluster.prototype.addEventHandler = function (socket) {
     if (wo.EventBus) wo.EventBus.crosEmit('Peer', 'broadcast', message.data)
   })
   socket.on('disconnect', () => {
-    if (!this.peerBook.get(socket.id || socket.ids)) return socket.close()
+    if (!this.peerBook.get(socket.id || socket.ids)) {
+      if (socket.close && typeof socket.close === 'function') return socket.close()
+      else return 0
+    }
     isFinite(socket.brokeCount) ? socket.brokeCount += 1 : socket.brokeCount = 1
     mylog.warn(`到${socket.id || socket.ids}的连接断开${socket.brokeCount}次`)
     if (socket.brokeCount < PEER_CHECKING_TIMEOUT) return 0
@@ -411,7 +411,7 @@ SocCluster.prototype.addEventHandler = function (socket) {
     } else if (socket.ids && this.peerBook.delete(socket.ids)) {
       this.delPeer(socket.ids)
     }
-    socket.close()
+    if (socket.close && typeof socket.close === 'function') return socket.close()
     mylog.warn(`节点${socket.id || socket.ids}断线次数过多，关闭连接`)
   })
 }

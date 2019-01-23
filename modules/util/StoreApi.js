@@ -54,7 +54,7 @@ module.exports = function (dbType, option) {
     case 'redis':
       let newRedis = new RedisStore(option)
       PingRedis(newRedis).then((res) => {
-        if (!res) execAsync('redis-server').catch(() => { mylog.error('无法连接到redis...') })
+        if (!res) execAsync('redis-server').catch(() => { mylog.warn('正在连接redis...') })
       })
       return newRedis
   }

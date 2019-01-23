@@ -134,7 +134,7 @@ POT._init = async function () {
   *   time -> [electTime, electTime + period) ---> 自己不签名，也不收集签名，等待别人的块
   *   time -> [mineTime, mineTime + period) ---> 广播请求最新区块，成功则加入，失败则创建虚拟块
   */
-  await preCoinOffering()  
+  await preCoinOffering()
   let canStartNow = (Date.time2height() === (await wo.Chain.getTopBlock()).height + 1) && getTimeSlot() === 'signTime'
   if (canStartNow) {
     if (!my.selfPot.signature) {
