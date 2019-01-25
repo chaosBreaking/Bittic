@@ -20,9 +20,6 @@ DAD._init = async function () {
   setInterval(async function () {
     await wo.Chain.createBlock()
 
-    mylog.info('  balance(initialAccount)=' +
-       await wo.Account.getBalance({ Account: { address: wo.Config.INITIAL_ACCOUNT.address } }))
-
     // mylog.info('  balance(ownerAccount)='
     //   + await wo.Account.getBalance({Account:{address:wo.Crypto.secword2address(wo.Config.ownerSecword)}}))
 

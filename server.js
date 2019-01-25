@@ -13,6 +13,7 @@ function config () {
   // 命令行参数
   const commander = require('commander')
   const deepmerge = require('deepmerge')
+  const Crypto = require('tic.crypto')
 
   var Config = {}
 
@@ -44,16 +45,16 @@ function config () {
     .option('--dbName <name>', 'Database name')
     .option('--swarm <type>', 'p2p swarm protocol')
     .option('-e, --epoch <epoch>', 'Genesis epoch in ISO format string or prevHour|nextMin|now')
-    .option('-H, --host <host>', 'Host ip or domain name')
+    .option('-H, --host <host>', 'Host ip or domain name. Default to ' + Config.host)
     .option('-n, --netType <net>', 'Network: devnet|testnet|mainnet. Default to ' + Config.netType)
     .option('-o, --ownerSecword <secword>', 'Node owner\'s secword or random|dev1')
     .option('-P, --protocol <protocol>', 'Server protocol: http|https|httpall. Default to ' + Config.protocol)
-    .option('-p, --port <port>', 'Server port number. Default to' + Config.port)
+    .option('-p, --port <port>', 'Server port number. Default to ' + Config.port?Config.port:'80|443 for http|https')
     .option('-l, --link <link>', 'Network Nconnection: http|udp')
     .option('-s, --seedSet <seedSet>', 'Seed list such as \'["http://ip_or_dn:port"]\' or "noseed" to disable seeding')
     .option('-t, --thread <thread>', 'Thread mode: single|cluster. Default to ' + Config.thread)
-    .option('--sslCert <cert>', 'SSL certificate file')
-    .option('--sslKey <key>', 'SSL private key file')
+    .option('--sslCert <cert>', 'SSL certificate file. Default to ' + Config.sslCert)
+    .option('--sslKey <key>', 'SSL private key file. Default to ' + Config.sslKey)
     .option('--sslCA <ca>', 'SSL ca bundle file')
     .option('-r, --redisIndex <index>', 'redis db index')
     .parse(process.argv)
@@ -64,7 +65,7 @@ function config () {
   Config.dbName = commander.dbName || Config.dbName
   Config.host = commander.host || Config.host || require('fon.base/Network.js').getMyIp() // // 本节点的从外部可访问的 IP or Hostname，不能是 127.0.0.1 或 localhost
   Config.netType = commander.netType || Config.netType
-  Config.ownerSecword = commander.ownerSecword || Config.ownerSecword || (Config.netType === 'devnet' ? Config.DEV_ACCOUNT[0].secword : undefined) // 如果没有设置secword并且在devnet，就用devnet的初始账号，使得不需要任何参数就能运行。
+  Config.ownerSecword = commander.ownerSecword || Config.ownerSecword
   Config.protocol = commander.protocol || Config.protocol
   Config.port = parseInt(commander.port) || parseInt(Config.port) || (Config.protocol === 'http' ? 80 : Config.protocol === 'https' ? 443 : undefined) // 端口默认为http 80, https 443, 或80|443(httpall)
   Config.link = commander.link || Config.link
@@ -77,58 +78,62 @@ function config () {
   Config.thread = commander.thread || Config.thread
   Config.redisIndex = commander.redisIndex || Config.redisIndex
   Config.epoch = commander.epoch || Config.GENESIS_BLOCK[Config.netType].timestamp
-
-  try {
-    Config.dbName = `${Config.dbName}-${Config.consensus}-${Config.netType}.${Config.dbType}`
-    Config.INITIAL_ACCOUNT = Config.INITIAL_ACCOUNT[Config.netType]
-    Config.GENESIS_MESSAGE = Config.GENESIS_BLOCK[Config.netType].message
-    Config.GENESIS_EPOCH = require('./modules/util/Date.js').time2epoch(Config.epoch)
-    if (!Config.GENESIS_EPOCH) {
-      mylog.error(`Error: Genesis epoch is invalid! Please set a valid date string or nextMin|prevHour|now`)
-      process.exit()
-    }
-
-    mylog.info('Configuration is ready')
-    mylog.info(`  consensus=====${Config.consensus}`)
-    mylog.info(`  netType=====${Config.netType}`)
-    mylog.info(`  dbType=====${Config.dbType}`)
-    mylog.info(`  dbName=====${Config.dbName}`)
-    mylog.info(`  protocol=====${Config.protocol}`)
-    mylog.info(`  host=====${Config.host}`)
-    mylog.info(`  port=====${Config.port}`)
-    mylog.info(`  seedSet=====${JSON.stringify(Config.seedSet)}`)
-    mylog.info(`  GENESIS_EPOCH=====${Config.GENESIS_EPOCH.toJSON()}`)
-    mylog.info(`  INITIAL_ACCOUNT=====${Config.INITIAL_ACCOUNT.address}`)
-    mylog.info(`  ownerSecword=====${Config.ownerSecword}`)
-
-    return Config
-  } catch (error) {
-    mylog.error('Error: Invalid Config File or Config Commander!')
+  
+  Config.dbName = `${Config.dbName}-${Config.consensus}-${Config.netType}.${Config.dbType}`
+  Config.INITIAL_ACCOUNT = Config.INITIAL_ACCOUNT[Config.netType]
+  Config.GENESIS_MESSAGE = Config.GENESIS_BLOCK[Config.netType].message
+  Config.GENESIS_EPOCH = require('./modules/util/Date.js').time2epoch(Config.epoch)
+  if (!Config.GENESIS_EPOCH) {
+    mylog.error(`Error: Genesis epoch is invalid! Please set a valid date string or nextMin|prevHour|now`)
     process.exit()
   }
+
+  // 配置 ownerSecword
+  if (Config.netType === 'devnet') { 
+    if (/^dev\d+$/.test(Config.ownerSecword) && Config.INITIAL_ACCOUNT[Config.ownerSecword.slice(3)]) {
+      // 允许开发者在命令行里 -o 'dev1' 来指定使用预设的开发者账号
+      Config.ownerSecword = Config.INITIAL_ACCOUNT[Config.ownerSecword.slice(3)].secword
+      mylog.info(`current node for devnet is instructed to use secword "${Config.ownerSecword}"`)
+    }else if (!Config.ownerSecword) {
+      // 如果没有设置secword并且在devnet，就用devnet的初始账号，使得不需要任何参数就能运行。
+      Config.ownerSecword = Config.INITIAL_ACCOUNT[0].secword
+      mylog.info(`current node for devnet is using default dev0 secword "${Config.ownerSecword}"`)
+    }
+  }
+  if (Config.ownerSecword === 'random') {
+    Config.ownerSecword = Crypto.randomSecword()
+    mylog.info(`random secword is used: ${Config.ownerSecword}`)
+  }
+  if (Config.netType !== 'devnet' && Config.ownerSecword === Config.INITIAL_ACCOUNT[0].secword) {
+    mylog.error(`Public devnet secword cannot be used for other networks. Please setup your own private secword.`)
+    mylog.error('非开发网禁止使用已知的开发网初始账号')
+    process.exit()
+  }
+  if (!Crypto.isSecword(Config.ownerSecword)) {
+    mylog.error(`Invalid secword: "${Config.ownerSecword}". Please setup a secword in config file or command line.`)
+    process.exit()
+  }
+
+  mylog.info('Configuration is ready')
+  mylog.info(`  consensus=====${Config.consensus}`)
+  mylog.info(`  netType=====${Config.netType}`)
+  mylog.info(`  dbType=====${Config.dbType}`)
+  mylog.info(`  dbName=====${Config.dbName}`)
+  mylog.info(`  protocol=====${Config.protocol}`)
+  mylog.info(`  host=====${Config.host}`)
+  mylog.info(`  port=====${Config.port}`)
+  mylog.info(`  seedSet=====${JSON.stringify(Config.seedSet)}`)
+  mylog.info(`  GENESIS_EPOCH=====${Config.GENESIS_EPOCH.toJSON()}`)
+  mylog.info(`  INITIAL_ACCOUNT=====${JSON.stringify(Config.INITIAL_ACCOUNT)}`)
+  mylog.info(`  ownerSecword=====${Config.ownerSecword}`)
+
+  return Config
 }
 
 async function initSingle () {
   global.wo = {} // wo 代表 world或‘我’，是当前的命名空间，把各种类都放在这里，防止和其他库的冲突。
   wo.Config = config() // 依次载入系统默认配置、用户配置文件、命令行参数
   wo.Crypto = require('tic.crypto')
-  if (wo.Config.netType === 'devnet' && wo.Config.ownerSecword === 'dev1') { // 允许开发者在命令行里 -o 'dev1' 来指定使用预设的开发者账号
-    wo.Config.ownerSecword = wo.Config.DEV_ACCOUNT[1].secword
-    mylog.info(`current node for devnet is instructed to use dev1 secword "${wo.Config.ownerSecword}"`)
-  }
-  if (wo.Config.ownerSecword === 'random') {
-    wo.Config.ownerSecword = wo.Crypto.randomSecword()
-    mylog.info(`random secword is used: ${wo.Config.ownerSecword}`)
-  }
-  if (wo.Config.netType !== 'devnet' && wo.Config.ownerSecword === wo.Config.DEV_ACCOUNT[0].secword) {
-    mylog.error(`Public devnet secword cannot be used for other networks. Please setup your own private secword.`)
-    mylog.error('非开发网禁止使用已知的开发网初始账号')
-    process.exit()
-  }
-  if (!wo.Crypto.isSecword(wo.Config.ownerSecword)) {
-    mylog.error(`Invalid secword: "${wo.Config.ownerSecword}". Please setup a secword in config file or command line.`)
-    process.exit()
-  }
 
   mylog.info('Initializing database......')
   wo.Data = await require('fon.data')(wo.Config.dbType)._init(wo.Config.dbName)
@@ -151,6 +156,8 @@ async function initSingle () {
   wo.Chain = await require('./modules/Chain/Chain.js')._init()
   wo.Consensus = await require('./modules/Consensus/index.js')(wo.Config.consensus)._init()
 
+  wo.Socket = require('socket.io')()
+
   return wo
 }
 
@@ -161,23 +168,6 @@ async function initMaster (worker) {
   // 通过 JSON.parse(JSON.stringify(this.actionHashList)) 来取代 extend，彻底解除对wo.Tool依赖 wo.Tool = new (require('fon.base/Egg.js'))()
   wo.Config = config() // 依次载入系统默认配置、用户配置文件、命令行参数
   wo.Crypto = require('tic.crypto')
-  if (wo.Config.netType === 'devnet' && wo.Config.ownerSecword === 'dev1') { // 允许开发者在命令行里 -o 'dev1' 来指定使用预设的开发者账号
-    wo.Config.ownerSecword = wo.Config.DEV_ACCOUNT[1].secword
-    mylog.info(`current node for devnet is instructed to use dev1 secword "${wo.Config.ownerSecword}"`)
-  }
-  if (wo.Config.ownerSecword === 'random') {
-    wo.Config.ownerSecword = wo.Crypto.randomSecword()
-    mylog.info(`random secword is used: ${wo.Config.ownerSecword}`)
-  }
-  if (wo.Config.netType !== 'devnet' && wo.Config.ownerSecword === wo.Config.DEV_ACCOUNT[0].secword) {
-    mylog.error(`Public devnet secword cannot be used for other networks. Please setup your own private secword.`)
-    mylog.error('非开发网禁止使用已知的开发网初始账号')
-    process.exit()
-  }
-  if (!wo.Crypto.isSecword(wo.Config.ownerSecword)) {
-    mylog.error(`Invalid secword: "${wo.Config.ownerSecword}". Please setup a secword in config file or command line.`)
-    process.exit()
-  }
 
   wo.Ling = require('fon.ling')
 
@@ -197,23 +187,6 @@ async function initWorker () {
   // 通过 JSON.parse(JSON.stringify(this.actionHashList)) 来取代 extend，彻底解除对wo.Tool依赖 wo.Tool = new (require('fon.base/Egg.js'))()
   wo.Config = config() // 依次载入系统默认配置、用户配置文件、命令行参数
   wo.Crypto = require('tic.crypto')
-  if (wo.Config.netType === 'devnet' && wo.Config.ownerSecword === 'dev1') { // 允许开发者在命令行里 -o 'dev1' 来指定使用预设的开发者账号
-    wo.Config.ownerSecword = wo.Config.DEV_ACCOUNT[1].secword
-    mylog.info(`current node for devnet is instructed to use dev1 secword "${wo.Config.ownerSecword}"`)
-  }
-  if (wo.Config.ownerSecword === 'random') {
-    wo.Config.ownerSecword = wo.Crypto.randomSecword()
-    mylog.info(`random secword is used: ${wo.Config.ownerSecword}`)
-  }
-  if (wo.Config.netType !== 'devnet' && wo.Config.ownerSecword === wo.Config.DEV_ACCOUNT[0].secword) {
-    mylog.error(`Public devnet secword cannot be used for other networks. Please setup your own private secword.`)
-    mylog.error('非开发网禁止使用已知的开发网初始账号')
-    process.exit()
-  }
-  if (!wo.Crypto.isSecword(wo.Config.ownerSecword)) {
-    mylog.error(`Invalid secword: "${wo.Config.ownerSecword}". Please setup a secword in config file or command line.`)
-    process.exit()
-  }
 
   mylog.info('Initializing database......')
   wo.Data = await require('fon.data')(wo.Config.dbType)._init(wo.Config.dbName)
@@ -238,6 +211,9 @@ async function initWorker () {
 
   mylog.info('Initializing chain............')
   wo.Chain = await require('./modules/Chain/Chain.js')._init()
+
+  wo.Socket = require('socket.io')()
+
   return 0
 }
 
@@ -326,6 +302,7 @@ function initServer () { // 配置并启动 Web 服务
     webServer.listen(wo.Config.port, function () {
       mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, wo.Config.port, server.settings.env)
     })
+    wo.Socket.listen(webServer)
   } else if (wo.Config.protocol === 'https') { // 启用 https。从 http或https 网页访问 https的ticnode/socket 都可以，socket.io 内容也是一致的。
     webServer = require('https').createServer({
       key: fs.readFileSync(wo.Config.sslKey),
@@ -334,12 +311,14 @@ function initServer () { // 配置并启动 Web 服务
     webServer.listen(wo.Config.port, function () {
       mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, wo.Config.port, server.settings.env)
     })
+    wo.Socket.listen(webServer)
   } else if (wo.Config.protocol === 'httpall') { // 同时启用 http 和 https
     let portHttp = wo.Config.port ? wo.Config.port : 80 // 如果port参数已设置，使用它；否则默认为80
     webServer = require('http').createServer(server)
     webServer.listen(portHttp, function () {
       mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, portHttp, server.settings.env)
     })
+    wo.Socket.listen(webServer)
 
     let portHttps = (wo.Config.port && wo.Config.port !== 80) ? wo.Config.port + 443 : 443 // 如果port参数已设置，使用它+443；否则默认为443
     let httpsServer = require('https').createServer({
@@ -349,8 +328,18 @@ function initServer () { // 配置并启动 Web 服务
     httpsServer.listen(portHttps, function () {
       mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, portHttps, server.settings.env)
     })
+    wo.Socket.listen(httpsServer)
   }
-  return webServer
+  
+  wo.Socket.sockets.on('open', () => {
+    mylog.info('Socket started')
+  })
+  wo.Socket.sockets.on('connection', (socket) => {
+    mylog.info('new client connected')
+    socket.send('hello')
+  })
+
+  return webServer // todo: 对 httpall 方式，这样只返回了 httpServer。目前够用了，但如果需要，就要改进。
 }
 
 (async function start () {

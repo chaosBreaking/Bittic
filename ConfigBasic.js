@@ -14,7 +14,7 @@ module.exports = { // 全大写字母的，代表系统常量，不要在 userCo
   thread: 'single', // single|cluster: 单进程或多进程
 
   dbType: 'sqlite',
-  dbName: 'data.sqlite/tic.sqlite',
+  dbName: 'data.sqlite/tic',
   redisIndex: 0,
 
   NET_TYPE: ['mainnet', 'testnet', 'devnet'],
@@ -76,49 +76,37 @@ module.exports = { // 全大写字母的，代表系统常量，不要在 userCo
     //    address: 'Tq4YQAbMAmoNmUK1mBDi9rqPoeCofawbCa'
   },
   INITIAL_ACCOUNT: {
-    mainnet: {
-      address: 'TpNH7NQoYLYjCDiAJddQX1LP4BrzAQ2Vw7'
-    },
-    testnet: {
-      //    secword: 'window air repeat sense bring smoke legend shed accuse loan spy fringe'
-      //    pubkey: 'd1ed688dccd996c11cba2749d3a916977b0c5977a1d40d1b5ad83606e3303150',
-      //    seckey: '3d42f647287f315e91236be24ed2e13654e0471c9c82b0bf43b96146020b6863d1ed688dccd996c11cba2749d3a916977b0c5977a1d40d1b5ad83606e3303150',
-      address: 'Ttm24Wb877P6EHbNKzswoK6yvnTQqFYaqo'
-    },
-    devnet: {
-      //    secword: 'clever journey cave maze luxury juice trigger discover bamboo net shoot put',
-      //    pubkey: '0fee122794b94feadcc07a72e69110e1000b6515ea67b4dba90f20dc48f999f8',
-      //    seckey: 'df814a79def4fa6e5bff2a19f44a5811163600db35670dca0b9bacc0994db05f0fee122794b94feadcc07a72e69110e1000b6515ea67b4dba90f20dc48f999f8',
-      address: 'TxAEimQbqVRUoPncGLrrpmP82yhtoLmxJE'
-    }
-  },
-  TEST_ACCOUNT: [
-    { // 第0个账号=初始账号
-      secword: 'neutral digital gather squirrel loud shoe sand rib black couple convince merge'
-      // pubkey: '2633b0766f83565c0e85454634dffbae32b4058cd508905f12ebf0f955df150a',
-      // seckey: '53bea4c6d77aee9c9bd9951b88f3a55f7d2fe9abdc14f31734d96cfaa7b1c4102633b0766f83565c0e85454634dffbae32b4058cd508905f12ebf0f955df150a',
-      // address: 'TrKJB5Tg46DPKyQc9zbaNMQ1gQaubt7NWQ'
-    },
-    {
-      secword: 'brand moment media marine enroll verb blanket toilet unit exercise choose nuclear'
-      // pubkey: 'f21b1b5b4e533ad52ac5f55ba10da1d978e3cc54f3a28daa80475ccfd3b43f3c',
-      // seckey: 'c34ccff7ddcbac11a1275ef5339a6df11f0beab5dbf7283f964bde1201576005f21b1b5b4e533ad52ac5f55ba10da1d978e3cc54f3a28daa80475ccfd3b43f3c',
-      // address: 'Tm3C6oELhJsF5EZBPD1ppdfNjgd2RxMUmj'
-    }
-  ],
-  DEV_ACCOUNT: [
-    { // 第0个账号=初始账号
-      secword: 'clever journey cave maze luxury juice trigger discover bamboo net shoot put'
-      // pubkey: '0fee122794b94feadcc07a72e69110e1000b6515ea67b4dba90f20dc48f999f8',
-      // seckey: 'df814a79def4fa6e5bff2a19f44a5811163600db35670dca0b9bacc0994db05f0fee122794b94feadcc07a72e69110e1000b6515ea67b4dba90f20dc48f999f8',
-      // address: 'TxAEimQbqVRUoPncGLrrpmP82yhtoLmxJE'
-    },
-    {
-      secword: 'brand moment media marine enroll verb blanket toilet unit exercise choose nuclear'
-      // pubkey: 'f21b1b5b4e533ad52ac5f55ba10da1d978e3cc54f3a28daa80475ccfd3b43f3c',
-      // seckey: 'c34ccff7ddcbac11a1275ef5339a6df11f0beab5dbf7283f964bde1201576005f21b1b5b4e533ad52ac5f55ba10da1d978e3cc54f3a28daa80475ccfd3b43f3c',
-      // address: 'Tm3C6oELhJsF5EZBPD1ppdfNjgd2RxMUmj'
-    }
-  ]
+    mainnet: [
+      {
+        address: 'TpNH7NQoYLYjCDiAJddQX1LP4BrzAQ2Vw7',
+        amount: 6 * Math.pow(10, 9),
+      },
+    ],
+    testnet: [
+      {
+        //    secword: 'window air repeat sense bring smoke legend shed accuse loan spy fringe'
+        //    pubkey: 'd1ed688dccd996c11cba2749d3a916977b0c5977a1d40d1b5ad83606e3303150',
+        //    seckey: '3d42f647287f315e91236be24ed2e13654e0471c9c82b0bf43b96146020b6863d1ed688dccd996c11cba2749d3a916977b0c5977a1d40d1b5ad83606e3303150',
+        address: 'Ttm24Wb877P6EHbNKzswoK6yvnTQqFYaqo',
+        amount: 6 * Math.pow(10, 9),
+      },
+    ],
+    devnet: [
+      {
+        secword: 'clever journey cave maze luxury juice trigger discover bamboo net shoot put',
+        //    pubkey: '0fee122794b94feadcc07a72e69110e1000b6515ea67b4dba90f20dc48f999f8',
+        //    seckey: 'df814a79def4fa6e5bff2a19f44a5811163600db35670dca0b9bacc0994db05f0fee122794b94feadcc07a72e69110e1000b6515ea67b4dba90f20dc48f999f8',
+        address: 'TxAEimQbqVRUoPncGLrrpmP82yhtoLmxJE',
+        amount: 5 * Math.pow(10, 9),
+      },
+      {
+        secword: 'brand moment media marine enroll verb blanket toilet unit exercise choose nuclear',
+        // pubkey: 'f21b1b5b4e533ad52ac5f55ba10da1d978e3cc54f3a28daa80475ccfd3b43f3c',
+        // seckey: 'c34ccff7ddcbac11a1275ef5339a6df11f0beab5dbf7283f964bde1201576005f21b1b5b4e533ad52ac5f55ba10da1d978e3cc54f3a28daa80475ccfd3b43f3c',
+        // address: 'Tm3C6oELhJsF5EZBPD1ppdfNjgd2RxMUmj',
+        amount: 1 * Math.pow(10, 9),
+      },
+    ]
+  }
 
 }

@@ -32,6 +32,13 @@ Chain.createGenesis = async function () {
   my.genesis.packMe({}, null, wo.Crypto.secword2keypair(wo.Config.GENESIS_ACCOUNT.secword))
   await Chain.pushTopBlock(my.genesis)
   mylog.info('Genesis is created and verified: ' + my.genesis.verifySig())
+
+  // 给每个初始账户预设一笔钱
+  for (let acc of wo.Config.INITIAL_ACCOUNT) {
+    await wo.Store.increase(acc.address, acc.amount)
+    mylog.info(`Init ${acc.amount} TIC to ${acc.address}`)
+  }
+
   return my.genesis
 }
 
