@@ -110,20 +110,11 @@ async function createVirtBlock () {
 }
 
 async function preCoinOffering () {
-  // 在开发链上，自动给当前用户预存一笔，使其能够挖矿
-  // 给两个账户加钱，防止两机测试时互不相认
-  await wo.Store.increase(wo.Config.INITIAL_ACCOUNT.address, wo.Config.COIN_INIT_AMOUNT)
-  if (wo.Config.netType === 'devnet') {
-    for (let acc of wo.Config.DEV_ACCOUNT) {
-      await wo.Store.increase(wo.Crypto.secword2address(acc.secword), 100000)
-      mylog.info(`devnet adds 100000 coin to "${wo.Crypto.secword2address(acc.secword)} of "${acc.secword}"`)
-    }
-  }
-  if (wo.Config.netType === 'testnet') {
-    for (let acc of wo.Config.TEST_ACCOUNT) {
-      await wo.Store.increase(wo.Crypto.secword2address(acc.secword), 100000)
-      mylog.info(`testnet adds 100000 coin to "${wo.Crypto.secword2address(acc.secword)} of "${acc.secword}"`)
-    }
+
+  // 给每个初始账户预设一笔钱
+  for (let acc of wo.Config.INITIAL_ACCOUNT) {
+    await wo.Store.increase(acc.address, acc.amount)
+    mylog.info(`Init ${acc.amount} TIC to ${acc.address}`)
   }
 }
 

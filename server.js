@@ -12,8 +12,8 @@ function config () {
   // ConfigSecret: 机密参数，例如哈希盐，webtoken密钥，等等。本文件绝对不能纳入版本管理。
   // 命令行参数
   const commander = require('commander')
-  const deepmerge = require('deepmerge')
-  const Crypto = require('tic.crypto')
+	const deepmerge = require('deepmerge')
+	const Crypto = require('tic.crypto')
 
   var Config = {}
 
@@ -78,16 +78,17 @@ function config () {
   Config.thread = commander.thread || Config.thread
   Config.redisIndex = commander.redisIndex || Config.redisIndex
   Config.epoch = commander.epoch || Config.GENESIS_BLOCK[Config.netType].timestamp
-  
-  Config.dbName = `${Config.dbName}-${Config.consensus}-${Config.netType}.${Config.dbType}`
-  Config.INITIAL_ACCOUNT = Config.INITIAL_ACCOUNT[Config.netType]
-  Config.GENESIS_MESSAGE = Config.GENESIS_BLOCK[Config.netType].message
-  Config.GENESIS_EPOCH = require('./modules/util/Date.js').time2epoch(Config.epoch)
-  if (!Config.GENESIS_EPOCH) {
-    mylog.error(`Error: Genesis epoch is invalid! Please set a valid date string or nextMin|prevHour|now`)
-    process.exit()
-  }
 
+  try {
+    Config.dbName = `${Config.dbName}-${Config.consensus}-${Config.netType}.${Config.dbType}`
+    Config.INITIAL_ACCOUNT = Config.INITIAL_ACCOUNT[Config.netType]
+    Config.GENESIS_MESSAGE = Config.GENESIS_BLOCK[Config.netType].message
+    Config.GENESIS_EPOCH = require('./modules/util/Date.js').time2epoch(Config.epoch)
+    if (!Config.GENESIS_EPOCH) {
+      mylog.error(`Error: Genesis epoch is invalid! Please set a valid date string or nextMin|prevHour|now`)
+      process.exit()
+		}
+		
   // 配置 ownerSecword
   if (Config.netType === 'devnet') { 
     if (/^dev\d+$/.test(Config.ownerSecword) && Config.INITIAL_ACCOUNT[Config.ownerSecword.slice(3)]) {
@@ -114,20 +115,24 @@ function config () {
     process.exit()
   }
 
-  mylog.info('Configuration is ready')
-  mylog.info(`  consensus=====${Config.consensus}`)
-  mylog.info(`  netType=====${Config.netType}`)
-  mylog.info(`  dbType=====${Config.dbType}`)
-  mylog.info(`  dbName=====${Config.dbName}`)
-  mylog.info(`  protocol=====${Config.protocol}`)
-  mylog.info(`  host=====${Config.host}`)
-  mylog.info(`  port=====${Config.port}`)
-  mylog.info(`  seedSet=====${JSON.stringify(Config.seedSet)}`)
-  mylog.info(`  GENESIS_EPOCH=====${Config.GENESIS_EPOCH.toJSON()}`)
-  mylog.info(`  INITIAL_ACCOUNT=====${JSON.stringify(Config.INITIAL_ACCOUNT)}`)
-  mylog.info(`  ownerSecword=====${Config.ownerSecword}`)
+    mylog.info('Configuration is ready')
+    mylog.info(`  consensus=====${Config.consensus}`)
+    mylog.info(`  netType=====${Config.netType}`)
+    mylog.info(`  dbType=====${Config.dbType}`)
+    mylog.info(`  dbName=====${Config.dbName}`)
+    mylog.info(`  protocol=====${Config.protocol}`)
+    mylog.info(`  host=====${Config.host}`)
+    mylog.info(`  port=====${Config.port}`)
+    mylog.info(`  seedSet=====${JSON.stringify(Config.seedSet)}`)
+    mylog.info(`  GENESIS_EPOCH=====${Config.GENESIS_EPOCH.toJSON()}`)
+		mylog.info(`  INITIAL_ACCOUNT=====${JSON.stringify(Config.INITIAL_ACCOUNT)}`)
+    mylog.info(`  ownerSecword=====${Config.ownerSecword}`)
 
-  return Config
+    return Config
+  } catch (error) {
+    mylog.error('Error: Invalid Config File or Config Commander!')
+    process.exit()
+  }
 }
 
 async function initSingle () {
@@ -155,8 +160,6 @@ async function initSingle () {
   mylog.info('Initializing chain............')
   wo.Chain = await require('./modules/Chain/Chain.js')._init()
   wo.Consensus = await require('./modules/Consensus/index.js')(wo.Config.consensus)._init()
-
-  wo.Socket = require('socket.io')()
 
   return wo
 }
@@ -211,9 +214,6 @@ async function initWorker () {
 
   mylog.info('Initializing chain............')
   wo.Chain = await require('./modules/Chain/Chain.js')._init()
-
-  wo.Socket = require('socket.io')()
-
   return 0
 }
 
@@ -302,7 +302,6 @@ function initServer () { // 配置并启动 Web 服务
     webServer.listen(wo.Config.port, function () {
       mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, wo.Config.port, server.settings.env)
     })
-    wo.Socket.listen(webServer)
   } else if (wo.Config.protocol === 'https') { // 启用 https。从 http或https 网页访问 https的ticnode/socket 都可以，socket.io 内容也是一致的。
     webServer = require('https').createServer({
       key: fs.readFileSync(wo.Config.sslKey),
@@ -311,14 +310,12 @@ function initServer () { // 配置并启动 Web 服务
     webServer.listen(wo.Config.port, function () {
       mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, wo.Config.port, server.settings.env)
     })
-    wo.Socket.listen(webServer)
   } else if (wo.Config.protocol === 'httpall') { // 同时启用 http 和 https
     let portHttp = wo.Config.port ? wo.Config.port : 80 // 如果port参数已设置，使用它；否则默认为80
     webServer = require('http').createServer(server)
     webServer.listen(portHttp, function () {
       mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, portHttp, server.settings.env)
     })
-    wo.Socket.listen(webServer)
 
     let portHttps = (wo.Config.port && wo.Config.port !== 80) ? wo.Config.port + 443 : 443 // 如果port参数已设置，使用它+443；否则默认为443
     let httpsServer = require('https').createServer({
@@ -328,37 +325,29 @@ function initServer () { // 配置并启动 Web 服务
     httpsServer.listen(portHttps, function () {
       mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, portHttps, server.settings.env)
     })
-    wo.Socket.listen(httpsServer)
-  }
-  
-  wo.Socket.sockets.on('open', () => {
-    mylog.info('Socket started')
-  })
-  wo.Socket.sockets.on('connection', (socket) => {
-    mylog.info('new client connected')
-    socket.send('hello')
-  })
+	}
 
-  return webServer // todo: 对 httpall 方式，这样只返回了 httpServer。目前够用了，但如果需要，就要改进。
+	wo.Socket = socket.listen(webServer)
+	wo.Socket.sockets.on('connection', (socket) => {
+		mylog.info('New Client Connected')
+		socket.on('call', async (data, echo) => {
+			if (data.who && data.act && echo && typeof echo === 'function') {
+				if (wo[data.who] && wo[data.who]['api'] && wo[data.who]['api'][data.act] && typeof wo[data.who]['api'][data.act] === 'function') {
+					let res = await wo[data.who]['api'][data.act](data.param)
+					return echo(res)
+				} else echo({ Error: 'Invalid API' })
+			}
+		})
+	})
+  return webServer
 }
 
 (async function start () {
   if (config().thread === 'single') {
+		// 单进程模式启动
     mylog.info('单进程模式启动......')
     await initSingle()
-    let webServer = initServer()
-    wo.Socket = socket.listen(webServer)
-    wo.Socket.sockets.on('connection', (socket) => {
-      mylog.info('New Client Connected')
-      socket.on('call', async (data, echo) => {
-        if (data.who && data.act && echo && typeof echo === 'function') {
-          if (wo[data.who] && wo[data.who]['api'] && wo[data.who]['api'][data.act] && typeof wo[data.who]['api'][data.act] === 'function') {
-            let res = await wo[data.who]['api'][data.act](data.param)
-            return echo(res)
-          } else echo({ Error: 'Invalid API' })
-        }
-      })
-    })
+    initServer()
     // 启动区块链部署程序
     try {
       (require('./deployer/util.js').execAsync)('node ./deployer/listener.js')
@@ -366,6 +355,7 @@ function initServer () { // 配置并启动 Web 服务
       mylog.warn(`区块链部署程序启动失败`)
     }
   } else {
+		// cluster模式启动
     if (cluster.isMaster) {
       cluster.fork()
       cluster.on('message', async (worker, message) => {
@@ -378,19 +368,7 @@ function initServer () { // 配置并启动 Web 服务
     } else {
       /** BlockChain以及RPC服务进程 */
       await initWorker()
-      let webServer = initServer()
-      wo.Socket = socket.listen(webServer)
-      wo.Socket.sockets.on('connection', (socket) => {
-        mylog.info('New Client Connected')
-        socket.on('call', async (data, echo) => {
-          if (data.who && data.act && echo && typeof echo === 'function') {
-            if (wo[data.who] && wo[data.who]['api'] && wo[data.who]['api'][data.act] && typeof wo[data.who]['api'][data.act] === 'function') {
-              let res = await wo[data.who]['api'][data.act](data.param)
-              return echo(res)
-            } else echo({ Error: 'Invalid API' })
-          }
-        })
-      })
+      initServer()
       wo.EventBus.send(200, '链进程初始化完毕')
       // 启动区块链部署程序
       try {
