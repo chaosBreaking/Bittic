@@ -77,25 +77,23 @@ function checkMAC (message) {
 SocCluster.prototype._init = async function () {
   // 建立种子节点库
   if (wo.Config.seedSet && Array.isArray(wo.Config.seedSet) && wo.Config.seedSet.length > 0) {
-    mylog.info('初始化种子节点')
+    mylog.info('初始化种子节点...')
     let initPeers = Promise.all(wo.Config.seedSet.map(async (peer) => {
-      if (this.peerBook.size >= wo.Config.PEER_POOL_CAPACITY) { return 0 }
       let connect = io(getUrl(peer))
       if (connect) {
         await new Promise((resolve, reject) => {
-          connect.emit('Ping', myself, async (peerInfo) => {
+          connect.emit('Ping', myself, async (peerInfo, newPeers) => {
             this.addNewPeer(peerInfo, connect)
+            this.sharePeersHandler(newPeers)
             resolve('ok')
           })
         })
-        connect.emit('sharePeers', myself, (peers = []) => {
-          this.sharePeersHandler(peers)
-        })
       }
+      return 0
     }))
     let timeout = new Promise((resolve, reject) => {
       setTimeout(() => {
-        // mylog.warn('初始化节点超时......单机运行')
+        mylog.warn('初始化节点超时......')
         resolve(0)
       }, INIT_TIMEOUT)
     })
@@ -113,38 +111,29 @@ SocCluster.prototype._init = async function () {
 SocCluster.prototype.checkValid = function (peer) {
   return Peer.checkValid(peer) && peer.ownerAddress !== myself.ownerAddress
 }
+/**
+ *
+ * @desc 1.将新的socket句柄加入peerBook; 2.挂载事件监听器; 3.将节点信息存入redis中
+ * @param {object} peerInfo
+ * @param {socket} connect
+ * @returns {boolean}
+ */
 SocCluster.prototype.addNewPeer = function (peerInfo, connect) {
-  if (!this.checkValid(peerInfo) || !connect || this.peerBook.size > MAX_PEER) return 0
+  if (!this.checkValid(peerInfo) || !connect || this.peerBook.size > MAX_PEER) return false
   mylog.info('收到节点echo：', peerInfo.ownerAddress)
   connect.id = peerInfo.ownerAddress
   this.peerBook.set(peerInfo.ownerAddress, connect)
   this.addEventHandler(connect)
   this.dbStorePeer(peerInfo)
+  return true
 }
+
 SocCluster.prototype.dbStorePeer = async function (peer) {
-  if (this.checkValid(peer)) {
-    peer = Object.getPrototypeOf(peer) === 'Peer' ? peer : new Peer(peer)
-    await store.hset('peers', peer.ownerAddress, JSON.stringify(peer))
-    return peer
-  }
-  return null
+  peer = Object.getPrototypeOf(peer) === 'Peer' ? peer : new Peer(peer)
+  await store.hset('peers', peer.ownerAddress, JSON.stringify(peer))
+  return peer
 }
-SocCluster.prototype.dbStorePeerList = async function (peerData) {
-  if (!Array.isArray(peerData)) {
-    var peer = new Peer(peerData)
-    await this.dbStorePeer(peer)
-    return peer
-  } else {
-    for (let peer of peerData) {
-      try {
-        await this.dbStorePeer(typeof peer === 'string' ? JSON.parse(peer) : peer)
-      } catch (error) {
-        return error
-      }
-      return peerData
-    }
-  }
-}
+
 SocCluster.prototype.updatePeerPool = async function () {
   if (this.peerBook.size < MAX_PEER) {
     // 从我练到的节点更新节点
@@ -165,21 +154,19 @@ SocCluster.prototype.updatePeerPool = async function () {
 }
 /**
  *
- * @desc 获取所有节点或给定地址的某个节点
+ * @desc 获取Redis中存储的所有节点或给定地址的某个节点
  * @param {string} ownerAddress
- * @returns
+ * @returns {object}
  */
 SocCluster.prototype.getPeersFromDB = async function (ownerAddress) {
+  // 返回的数据是节点对象，key是ownerAddress, value是字符串化的节点信息Object；接收方应该对value进行解析
   if (ownerAddress) { return JSON.parse((await store.hget('peers', ownerAddress))) }
   let peers = await store.hgetall('peers')
-  let keys = Object.keys(peers)
-  for (let peer of keys) {
-    peers[peer] = JSON.parse(peers[peer])
-  }
   return peers
 }
 SocCluster.prototype.delPeer = async function (ownerAddress) {
   if (ownerAddress) {
+    this.peerBook.delete(ownerAddress)
     await store.hdel('peers', ownerAddress)
     return true
   }
@@ -204,11 +191,14 @@ SocCluster.prototype.pingHandler = async function (peerInfo, connect) {
   return null
 }
 SocCluster.prototype.sharePeersHandler = async function (peers = []) {
-  if (!Array.isArray(peers) || peers.length === 0) return 0
-  mylog.info('收到共享节点')
+  if (typeof peers !== 'object' || !Array.isArray(peers)) return 0
+  if (typeof peers === 'object') { peers = Object.values(peers) }
+  if (peers.length === 0) return 0
+  mylog.info('收到共享的节点信息...')
   peers = [...peers]
   for (let peer of peers) {
-    if (this.peerBook.size >= wo.Config.PEER_POOL_CAPACITY) { break }
+    peer = JSON.parse(peer)
+    if (this.peerBook.size >= wo.Config.PEER_POOL_CAPACITY) { return 0 }
     if (!this.checkValid(peer)) { continue }
     let connect = io(getUrl(peer))
     if (connect) {
@@ -217,12 +207,16 @@ SocCluster.prototype.sharePeersHandler = async function (peers = []) {
       })
     }
   }
+  return 0
 }
-SocCluster.prototype.sharePeer = async function () { // 响应邻居请求，返回更多节点。option.Peer是邻居节点。
+SocCluster.prototype.sharePeers = async function () { // 响应邻居请求，返回更多节点。option.Peer是邻居节点。
   let res = Object.values(await this.getPeersFromDB() || {}) // todo: 检查 option.Peer.ownerAddress 不要把邻居节点返回给这个邻居自己。
   return res
 }
-SocCluster.prototype.getPeer = function (ownerAddress) {
+/**
+ * @description 返回一个节点会话连接
+ */
+SocCluster.prototype.getPeerConn = function (ownerAddress) {
   if (this.peerBook.size === 0) return { ownerAddress: null, socket: null }
   if (!ownerAddress) {
     let [ownerAddress, socket] = Array.from(this.peerBook)[Math.floor(Math.random(this.peerBook.size - 1))]
@@ -281,7 +275,7 @@ SocCluster.prototype.emitPeers = function (event, data, socket = '') {
   })
 }
 SocCluster.prototype.call = async function (route, param, rec = MAX_RECALL_TIME) {
-  let { ownerAddress, socket } = this.getPeer()
+  let { ownerAddress, socket } = this.getPeerConn()
   if (!ownerAddress || !socket) return null
   if (!socket || !socket.emit || !rec) {
     if (!rec) { this.delPeer(ownerAddress) }
@@ -345,10 +339,11 @@ SocCluster.prototype.broadcast = function (data, socket) {
  */
 SocCluster.prototype.addEventHandler = function (socket) {
   // 给新的节点挂载事件监听器
-  socket.on('Ping', (nodeInfo, echo) => {
+  socket.on('Ping', async (nodeInfo, echo) => {
     if (nodeInfo && echo && typeof echo === 'function') {
       this.pingHandler(nodeInfo, socket)
-      return echo(myself)
+      let myPeers = await this.getPeersFromDB() || {}
+      return echo(myself, myPeers)
     }
   })
   socket.on('heartBeat', (message, echo) => {
@@ -359,13 +354,16 @@ SocCluster.prototype.addEventHandler = function (socket) {
   socket.on('sharePeers', async (peerInfo, echo) => {
     // 如果是连接到我的，先返回我的节点列表，之后再其添加到我的节点列表里
     if (echo && typeof echo === 'function') {
-      echo(await this.getPeersFromDB())
+      echo(await this.getPeersFromDB() || {})
     }
     if (peerInfo && typeof peerInfo === 'object') {
       this.addNewPeer(peerInfo)
     }
     // 如果是我连接到的节点发来的，那么返回我的节点列表
-    if (socket.ids) socket.emit('sharePeers', await this.getPeersFromDB())
+    if (socket.ids) socket.emit('returnPeers', await this.getPeersFromDB())
+  })
+  socket.on('returnPeers', (peers) => {
+    this.sharePeersHandler(peers)
   })
   socket.on('call', async (message = {}, echo) => {
     // RPC 只允许被调用类的api内定义的函数
@@ -419,11 +417,7 @@ SocCluster.prototype.addEventHandler = function (socket) {
     isFinite(socket.brokeCount) ? socket.brokeCount += 1 : socket.brokeCount = 1
     mylog.warn(`到${socket.id || socket.ids}的连接断开${socket.brokeCount}次`)
     if (socket.brokeCount < PEER_CHECKING_TIMEOUT) return 0
-    if (socket.id && this.peerBook.delete(socket.id)) {
-      this.delPeer(socket.id)
-    } else if (socket.ids && this.peerBook.delete(socket.ids)) {
-      this.delPeer(socket.ids)
-    }
+    this.delPeer(socket.id)
     if (socket.close && typeof socket.close === 'function') return socket.close()
     mylog.warn(`节点${socket.id || socket.ids}断线次数过多，关闭连接`)
   })

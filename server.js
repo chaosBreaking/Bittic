@@ -12,8 +12,8 @@ function config () {
   // ConfigSecret: 机密参数，例如哈希盐，webtoken密钥，等等。本文件绝对不能纳入版本管理。
   // 命令行参数
   const commander = require('commander')
-	const deepmerge = require('deepmerge')
-	const Crypto = require('tic.crypto')
+  const deepmerge = require('deepmerge')
+  const Crypto = require('tic.crypto')
 
   var Config = {}
 
@@ -49,7 +49,7 @@ function config () {
     .option('-n, --netType <net>', 'Network: devnet|testnet|mainnet. Default to ' + Config.netType)
     .option('-o, --ownerSecword <secword>', 'Node owner\'s secword or random|dev1')
     .option('-P, --protocol <protocol>', 'Server protocol: http|https|httpall. Default to ' + Config.protocol)
-    .option('-p, --port <port>', 'Server port number. Default to ' + Config.port?Config.port:'80|443 for http|https')
+    .option('-p, --port <port>', 'Server port number. Default to ' + Config.port ? Config.port : '80|443 for http|https')
     .option('-l, --link <link>', 'Network Nconnection: http|udp')
     .option('-s, --seedSet <seedSet>', 'Seed list such as \'["http://ip_or_dn:port"]\' or "noseed" to disable seeding')
     .option('-t, --thread <thread>', 'Thread mode: single|cluster. Default to ' + Config.thread)
@@ -87,33 +87,32 @@ function config () {
     if (!Config.GENESIS_EPOCH) {
       mylog.error(`Error: Genesis epoch is invalid! Please set a valid date string or nextMin|prevHour|now`)
       process.exit()
-		}
-		
-  // 配置 ownerSecword
-  if (Config.netType === 'devnet') { 
-    if (/^dev\d+$/.test(Config.ownerSecword) && Config.INITIAL_ACCOUNT[Config.ownerSecword.slice(3)]) {
-      // 允许开发者在命令行里 -o 'dev1' 来指定使用预设的开发者账号
-      Config.ownerSecword = Config.INITIAL_ACCOUNT[Config.ownerSecword.slice(3)].secword
-      mylog.info(`current node for devnet is instructed to use secword "${Config.ownerSecword}"`)
-    }else if (!Config.ownerSecword) {
-      // 如果没有设置secword并且在devnet，就用devnet的初始账号，使得不需要任何参数就能运行。
-      Config.ownerSecword = Config.INITIAL_ACCOUNT[0].secword
-      mylog.info(`current node for devnet is using default dev0 secword "${Config.ownerSecword}"`)
     }
-  }
-  if (Config.ownerSecword === 'random') {
-    Config.ownerSecword = Crypto.randomSecword()
-    mylog.info(`random secword is used: ${Config.ownerSecword}`)
-  }
-  if (Config.netType !== 'devnet' && Config.ownerSecword === Config.INITIAL_ACCOUNT[0].secword) {
-    mylog.error(`Public devnet secword cannot be used for other networks. Please setup your own private secword.`)
-    mylog.error('非开发网禁止使用已知的开发网初始账号')
-    process.exit()
-  }
-  if (!Crypto.isSecword(Config.ownerSecword)) {
-    mylog.error(`Invalid secword: "${Config.ownerSecword}". Please setup a secword in config file or command line.`)
-    process.exit()
-  }
+    // 配置 ownerSecword
+    if (Config.netType === 'devnet') {
+      if (/^dev\d+$/.test(Config.ownerSecword) && Config.INITIAL_ACCOUNT[Config.ownerSecword.slice(3)]) {
+      // 允许开发者在命令行里 -o 'dev1' 来指定使用预设的开发者账号
+        Config.ownerSecword = Config.INITIAL_ACCOUNT[Config.ownerSecword.slice(3)].secword
+        mylog.info(`current node for devnet is instructed to use secword "${Config.ownerSecword}"`)
+      } else if (!Config.ownerSecword) {
+      // 如果没有设置secword并且在devnet，就用devnet的初始账号，使得不需要任何参数就能运行。
+        Config.ownerSecword = Config.INITIAL_ACCOUNT[0].secword
+        mylog.info(`current node for devnet is using default dev0 secword "${Config.ownerSecword}"`)
+      }
+    }
+    if (Config.ownerSecword === 'random') {
+      Config.ownerSecword = Crypto.randomSecword()
+      mylog.info(`random secword is used: ${Config.ownerSecword}`)
+    }
+    if (Config.netType !== 'devnet' && Config.ownerSecword === Config.INITIAL_ACCOUNT[0].secword) {
+      mylog.error(`Public devnet secword cannot be used for other networks. Please setup your own private secword.`)
+      mylog.error('非开发网禁止使用已知的开发网初始账号')
+      process.exit()
+    }
+    if (!Crypto.isSecword(Config.ownerSecword)) {
+      mylog.error(`Invalid secword: "${Config.ownerSecword}". Please setup a secword in config file or command line.`)
+      process.exit()
+    }
 
     mylog.info('Configuration is ready')
     mylog.info(`  consensus=====${Config.consensus}`)
@@ -125,7 +124,7 @@ function config () {
     mylog.info(`  port=====${Config.port}`)
     mylog.info(`  seedSet=====${JSON.stringify(Config.seedSet)}`)
     mylog.info(`  GENESIS_EPOCH=====${Config.GENESIS_EPOCH.toJSON()}`)
-		mylog.info(`  INITIAL_ACCOUNT=====${JSON.stringify(Config.INITIAL_ACCOUNT)}`)
+    mylog.info(`  INITIAL_ACCOUNT=====${JSON.stringify(Config.INITIAL_ACCOUNT)}`)
     mylog.info(`  ownerSecword=====${Config.ownerSecword}`)
 
     return Config
@@ -325,26 +324,26 @@ function initServer () { // 配置并启动 Web 服务
     httpsServer.listen(portHttps, function () {
       mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, portHttps, server.settings.env)
     })
-	}
+  }
 
-	wo.Socket = socket.listen(webServer)
-	wo.Socket.sockets.on('connection', (socket) => {
-		mylog.info('New Client Connected')
-		socket.on('call', async (data, echo) => {
-			if (data.who && data.act && echo && typeof echo === 'function') {
-				if (wo[data.who] && wo[data.who]['api'] && wo[data.who]['api'][data.act] && typeof wo[data.who]['api'][data.act] === 'function') {
-					let res = await wo[data.who]['api'][data.act](data.param)
-					return echo(res)
-				} else echo({ Error: 'Invalid API' })
-			}
-		})
-	})
+  wo.Socket = socket.listen(webServer)
+  wo.Socket.sockets.on('connection', (socket) => {
+    mylog.info('New Client Connected')
+    socket.on('call', async (data, echo) => {
+      if (data.who && data.act && echo && typeof echo === 'function') {
+        if (wo[data.who] && wo[data.who]['api'] && wo[data.who]['api'][data.act] && typeof wo[data.who]['api'][data.act] === 'function') {
+          let res = await wo[data.who]['api'][data.act](data.param)
+          return echo(res)
+        } else echo({ Error: 'Invalid API' })
+      }
+    })
+  })
   return webServer
 }
 
 (async function start () {
   if (config().thread === 'single') {
-		// 单进程模式启动
+    // 单进程模式启动
     mylog.info('单进程模式启动......')
     await initSingle()
     initServer()
@@ -355,7 +354,7 @@ function initServer () { // 配置并启动 Web 服务
       mylog.warn(`区块链部署程序启动失败`)
     }
   } else {
-		// cluster模式启动
+    // cluster模式启动
     if (cluster.isMaster) {
       cluster.fork()
       cluster.on('message', async (worker, message) => {
