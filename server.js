@@ -147,7 +147,7 @@ async function initSingle () {
 
   wo.Store = await require('./modules/util/Store.js')('redis', { db: wo.Config.redisIndex })._init()
   wo.Peer = await require('./modules/peer/index.js')(wo.Config.swarm)._init()
-  wo.Account = await require('./modules/Token/Account.js')
+  wo.Account = require('./modules/Token/Account.js')
   wo.Action = await require('./modules/Action/Action.js')._init()
   wo.ActTransfer = require('./modules/Action/ActTransfer.js')
   wo.ActStorage = require('./modules/Action/ActStorage.js')
