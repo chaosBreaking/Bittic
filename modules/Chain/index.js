@@ -18,7 +18,7 @@ module.exports = {
   getTopBlock: async () => {
     return await wo.EventBus.call('Chain', '', 'getTopBlock')
   },
-  updateChainFromPeer: async () => {
-    return await wo.EventBus.call('Chain', '', 'updateChainFromPeer')
+  updateChainFromPeer: async (target) => {
+    return await wo.EventBus.call('Chain', '', 'updateChainFromPeer', target)
   }
 }

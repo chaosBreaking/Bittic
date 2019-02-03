@@ -41,7 +41,7 @@ async function calibrate () {
   if (needUpdate) {
     mylog.info(`此时刻应该到达的高度：[${Date.time2height()}]  当前本机链的最高块高度：[${(await wo.Chain.getTopBlock()).height}]`)
     mylog.info('>===== 开始进行区块更新和同步 =====>')
-    await wo.Chain.updateChainFromPeer()
+    await wo.Chain.updateChainFromPeer(Date.time2height())
     let topBlock = await wo.Chain.getTopBlock()
     mylog.info(`>===== 当前更新到高度：${topBlock.height} =====>`)
     if (topBlock.height === Date.time2height() && getTimeSlot() === 'mineTime') {
@@ -134,7 +134,7 @@ POT._init = async function () {
   } else {
     mylog.info(`此时刻应该到达的高度：[${Date.time2height()}]  当前本机链的最高块高度：[${(await wo.Chain.getTopBlock()).height}]`)
     mylog.info('>===== 开始进行区块更新和同步 =====>')
-    await wo.Chain.updateChainFromPeer()
+    await wo.Chain.updateChainFromPeer(Date.time2height())
     let topBlock = await wo.Chain.getTopBlock()
     mylog.info(`>===== 当前更新到高度：${topBlock.height} =====>`)
     if (topBlock.height === Date.time2height() && getTimeSlot() === 'mineTime') {
@@ -180,6 +180,8 @@ POT._init = async function () {
   my.scheduleJobs[0] = Schedule.scheduleJob({ second: [0, wo.Config.BLOCK_PERIOD] }, POT.signOnce) // 每分钟的第0秒
   my.scheduleJobs[1] = Schedule.scheduleJob({ second: [electTime, wo.Config.BLOCK_PERIOD + electTime] }, POT.electOnce)
   my.scheduleJobs[2] = Schedule.scheduleJob({ second: [mineTime, wo.Config.BLOCK_PERIOD + mineTime] }, POT.mineOnce)
+  wo.Peer.on('electWatcher', POT.api.electWatcher)
+  wo.Peer.on('mineWatcher', POT.api.mineWatcher)
   return this
 }
 
@@ -386,8 +388,7 @@ POT.stopScheduleJob = function () {
 POT.api.test = async function (target) {
   return 'success'
 }
-wo.Peer.on('electWatcher', POT.api.electWatcher)
-wo.Peer.on('mineWatcher', POT.api.mineWatcher)
+
 /** ******************** Private in class *********************/
 
 const my = {}

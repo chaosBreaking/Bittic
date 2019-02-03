@@ -17,7 +17,7 @@ const myself = new Peer({
 const INIT_TIMEOUT = 5000
 const PEER_CHECKING_TIMEOUT = wo.Config.PEER_CHECKING_TIMEOUT
 const MAX_CALL_TIMEOUT = 1000
-const MAX_RECALL_TIME = 2
+const MAX_RECALL_TIME = 10
 const MAX_PEER = 50
 const MSG_TTL = 3
 
@@ -374,7 +374,6 @@ SocCluster.prototype.addEventHandler = function (socket) {
       try {
         let [obj, fn] = route.startsWith('/') ? route.slice(1).split('/') : route.split('/')
         if (wo[obj] && wo[obj]['api'] && wo[obj]['api'][fn] && typeof wo[obj]['api'][fn] === 'function') {
-          mylog.info('触发调用', route)
           return echo(await wo[obj]['api'][fn](param))
         }
       } catch (error) {

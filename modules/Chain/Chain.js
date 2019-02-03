@@ -74,12 +74,17 @@ Chain.verifyChainFromDb = async function () {
   return my.topBlock
 }
 
-Chain.updateChainFromPeer = async function () { // 向其他节点获取自己缺少的区块；如果取不到最高区块，就创建虚拟块填充。
+Chain.updateChainFromPeer = async function (targetHeight) { // 向其他节点获取自己缺少的区块；如果取不到最高区块，就创建虚拟块填充。
   if (my.addingLock) return 0
   my.addingLock = 1
-  mylog.info('开始向邻居节点同步区块')
-  for (let count = 0; count < 3; count++) { // 确保更新到截至当前时刻的最高区块。
-    mylog.info(`向全网广播同步请求-->开始第${count}轮同步`)
+  let errorCount = 0
+  if (!targetHeight) {
+    let peerTopBlock = await wo.Peer.call('/Chain/getTopBlock')
+    if (peerTopBlock && peerTopBlock.height) targetHeight = peerTopBlock.height
+  }
+  mylog.info(`开始向邻居节点同步区块 ------ aim to [${targetHeight}]`)
+  while (errorCount <= 10 && targetHeight > my.topBlock.height) { // 确保更新到截至当前时刻的最高区块。
+    mylog.info(`<------ 从全网节点同步区块 ------>`)
     let blockList = await wo.Peer.call('/Block/getBlockList', { Block: { height: '>' + my.topBlock.height }, config: { limit: 100, order: 'height ASC' } })
     if (Array.isArray(blockList) && blockList.length > 0) {
       for (let block of blockList) {
@@ -104,16 +109,21 @@ Chain.updateChainFromPeer = async function () { // 向其他节点获取自己�
           mylog.info(`高度${block.height}区块同步成功`)
         } else { // 碰到一个错的区块，立刻退出
           mylog.info(`高度${block.height}区块同步错误!`)
+          errorCount += 1
           break
         }
       }
-      blockList = await wo.Peer.call('/Block/getBlockList', { Block: { height: '>' + my.topBlock.height }, config: { limit: 100, order: 'height ASC' } })
+      await new Promise((resolve, reject) => { setTimeout(() => { resolve('sleep') }, 200) })
+    } else {
+      errorCount += 1
+      mylog.info(`<------ 未获取到区块列表 ------>`)
     }
-    mylog.info(`全网无最新区块-->停止第${count}轮同步`)
   }
-  mylog.info('区块同步完毕')
-  my.addingLock = 0
-  return my.topBlock
+  if (my.topBlock.height === targetHeight) {
+    mylog.info('区块同步完毕')
+    my.addingLock = 0
+    return my.topBlock
+  } else await Chain.updateChainFromPeer()
 }
 
 Chain.createBlock = async function (block) {
