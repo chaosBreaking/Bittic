@@ -81,6 +81,10 @@ Chain.updateChainFromPeer = async function (targetHeight) { // 向其他节点�
   if (!targetHeight) {
     let peerTopBlock = await wo.Peer.call('/Chain/getTopBlock')
     if (peerTopBlock && peerTopBlock.height) targetHeight = peerTopBlock.height
+    else {
+      my.addingLock = 0
+      return false
+    }
   }
   mylog.info(`开始向邻居节点同步区块 ------ aim to [${targetHeight}]`)
   while (errorCount <= 10 && targetHeight > my.topBlock.height) { // 确保更新到截至当前时刻的最高区块。
@@ -119,11 +123,9 @@ Chain.updateChainFromPeer = async function (targetHeight) { // 向其他节点�
       mylog.info(`<------ 未获取到区块列表 ------>`)
     }
   }
-  if (my.topBlock.height === targetHeight) {
-    mylog.info('区块同步完毕')
-    my.addingLock = 0
-    return my.topBlock
-  } else await Chain.updateChainFromPeer()
+  mylog.info('区块同步完毕')
+  my.addingLock = 0
+  return my.topBlock
 }
 
 Chain.createBlock = async function (block) {
