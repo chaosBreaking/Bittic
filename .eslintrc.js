@@ -12,6 +12,9 @@ module.exports = {
 	'extends': 'standard',
 	"globals": {
     "wo": true,
-    "mylog": false
-	}
+    "mylog": false,
+  },
+  "rules": {
+    "no-return-await": "off"
+  }
 }

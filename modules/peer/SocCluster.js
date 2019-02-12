@@ -119,8 +119,9 @@ SocCluster.prototype.checkValid = function (peer) {
  * @returns {boolean}
  */
 SocCluster.prototype.addNewPeer = function (peerInfo, connect) {
-  if (!this.checkValid(peerInfo) || !connect || this.peerBook.size > MAX_PEER) return false
-  mylog.info('收到节点echo：', peerInfo.ownerAddress)
+  let existedPeer = this.peerBook.get(peerInfo.ownerAddress)
+  if (existedPeer || !this.checkValid(peerInfo) || !connect || this.peerBook.size > MAX_PEER) return false
+  mylog.info('加入新节点： ', peerInfo.ownerAddress)
   connect.id = peerInfo.ownerAddress
   this.peerBook.set(peerInfo.ownerAddress, connect)
   this.addEventHandler(connect)
@@ -172,24 +173,7 @@ SocCluster.prototype.delPeer = async function (ownerAddress) {
   }
   return null
 }
-/**
- *
- * @desc 响应邻居节点发来的ping请求,如果是新节点则加入自身节点池
- * @param {*} option
- * @returns {Peer} myself
- */
-SocCluster.prototype.pingHandler = async function (peerInfo, connect) {
-  if (peerInfo && this.checkValid(peerInfo)) {
-    let isNewPeer = !this.peerBook.get(peerInfo.ownerAddress)
-    if (isNewPeer) { // 是新邻居发来的ping？把新邻居加入节点池
-      await this.addNewPeer(peerInfo, connect)
-      mylog.info(`加入新节点 -- ${peerInfo.ownerAddress}-${peerInfo.accessPoint}:${peerInfo.port}`)
-    }
-    return myself // 把远方节点的信息添加一些资料后，返回给远方节点
-  }
-  mylog.warn('节点记录失败：错误的节点信息')
-  return null
-}
+
 SocCluster.prototype.sharePeersHandler = async function (peers = []) {
   if (typeof peers !== 'object' || !Array.isArray(peers)) return 0
   if (typeof peers === 'object') { peers = Object.values(peers) }
@@ -197,7 +181,11 @@ SocCluster.prototype.sharePeersHandler = async function (peers = []) {
   mylog.info('收到共享的节点信息...')
   peers = [...peers]
   for (let peer of peers) {
-    peer = JSON.parse(peer)
+    if (typeof peer === 'string') {
+      try {
+        peer = JSON.parse(peer)
+      } catch (error) {}
+    }
     if (this.peerBook.size >= wo.Config.PEER_POOL_CAPACITY) { return 0 }
     if (!this.checkValid(peer)) { continue }
     let connect = io(getUrl(peer))
@@ -340,10 +328,12 @@ SocCluster.prototype.broadcast = function (data, socket) {
 SocCluster.prototype.addEventHandler = function (socket) {
   // 给新的节点挂载事件监听器
   socket.on('Ping', async (nodeInfo, echo) => {
-    if (nodeInfo && echo && typeof echo === 'function') {
-      this.pingHandler(nodeInfo, socket)
-      let myPeers = await this.getPeersFromDB() || {}
-      return echo(myself, myPeers)
+    if (nodeInfo) {
+      this.addNewPeer(nodeInfo, socket)
+      if (echo && typeof echo === 'function') {
+        let myPeers = await this.getPeersFromDB() || {}
+        return echo(myself, myPeers)
+      }
     }
   })
   socket.on('heartBeat', (message, echo) => {

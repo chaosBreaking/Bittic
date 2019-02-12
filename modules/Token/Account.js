@@ -1,3 +1,4 @@
+'use strict'
 var Ling = require('fon.ling')
 
 /** ****************** Public of instance ********************/

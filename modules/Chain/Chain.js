@@ -41,7 +41,7 @@ Chain.verifyChainFromDb = async function () {
   await wo.Block.dropAll({ Block: { height: '<=' + wo.Config.GENESIS_HEIGHT } }) // 极端罕见的可能，有错误的（为了测试，手工加入的）height<创世块的区块，也删掉它。
   let blockList = await wo.Block.getAll({ Block: { height: '>' + my.topBlock.height }, config: { limit: 100, order: 'height ASC' } })
   let errorFlag = false
-  while (Array.isArray(blockList) && blockList.length > 0) {
+  while (Array.isArray(blockList) && blockList.length > 0 && !errorFlag) {
     mylog.info('取出' + blockList.length + '个区块')
     for (let block of blockList) {
       if (block.height === my.topBlock.height + 1 && block.lastBlockHash === my.topBlock.hash && block.verifySig() && block.verifyHash()) {
@@ -110,6 +110,7 @@ Chain.updateChainFromPeer = async function (targetHeight) { // 向其他节点�
           await Chain.addReward(block)
           await block.addMe()
           await Chain.pushTopBlock(block)
+          errorCount = 0
           mylog.info(`高度${block.height}区块同步成功`)
         } else { // 碰到一个错的区块，立刻退出
           mylog.info(`高度${block.height}区块同步错误!`)
@@ -160,8 +161,10 @@ Chain.pushTopBlock = async function (topBlock) { // 保留最高和次高的区�
   my.lastBlock = my.topBlock
   my.topBlock = topBlock
   await wo.Store.pushTopBlock(topBlock)
-  if (wo.Socket && wo.Socket.emit) // 启动初始化时，先启动链后启动服务器，所以一开始没有socket直接调用会程序崩溃
-  { wo.Socket.emit('newBlock', JSON.stringify(topBlock)) }
+  if (wo.Socket && wo.Socket.emit) {
+    // 启动初始化时，先启动链后启动服务器，所以一开始没有socket直接调用会程序崩溃
+    wo.Socket.emit('newBlock', JSON.stringify(topBlock))
+  }
   return topBlock
 }
 
@@ -180,6 +183,14 @@ Chain.getTopBlock = Chain.api.getTopBlock = function () {
   return my.topBlock
 }
 
+Chain.api.chainStat = function () {
+  return {
+    version: wo.Config.VERSION,
+    net: wo.Config.netType,
+    height: my.topBlock.height,
+    genesis: my.genesis
+  }
+}
 /** ******************** Private in class *******************/
 
 const my = {

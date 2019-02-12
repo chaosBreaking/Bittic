@@ -147,7 +147,7 @@ async function initSingle () {
 
   wo.Store = await require('./modules/util/Store.js')('redis', { db: wo.Config.redisIndex })._init()
   wo.Peer = await require('./modules/peer/index.js')(wo.Config.swarm)._init()
-  wo.Account = await require('./modules/Token/Account.js')
+  wo.Account = await require('./modules/Token/Account.js')._init()
   wo.Action = await require('./modules/Action/Action.js')._init()
   wo.ActTransfer = require('./modules/Action/ActTransfer.js')
   wo.ActStorage = require('./modules/Action/ActStorage.js')
@@ -200,7 +200,7 @@ async function initWorker () {
   wo.EventBus = require('./modules/util/EventBus.js')(process)
   wo.Store = await require('./modules/util/Store.js')('redis', { db: wo.Config.redisIndex })._init()
   wo.Peer = await require('./modules/peer/index.js')('simple')._init()
-  wo.Account = await require('./modules/Token/Account.js')
+  wo.Account = await require('./modules/Token/Account.js')._init()
   wo.Action = await require('./modules/Action/Action.js')._init()
   wo.Tac = await require('./modules/Token/Tac.js')._init()
   wo.ActTransfer = require('./modules/Action/ActTransfer.js')
@@ -217,7 +217,7 @@ async function initWorker () {
 }
 
 function initServer () { // 配置并启动 Web 服务
-  mylog.info('★★★★★★★★ Starting Server......')
+  mylog.info('★★★★★★★★ Starting Server ★★★★★★★★')
 
   const Express = require('express')
   const Cors = require('cors')
@@ -325,7 +325,7 @@ function initServer () { // 配置并启动 Web 服务
       mylog.info('Server listening on %s://%s:%d for %s environment', wo.Config.protocol, wo.Config.host, portHttps, server.settings.env)
     })
   }
-
+  // 启动socket服务
   wo.Socket = socket.listen(webServer)
   wo.Socket.sockets.on('connection', (socket) => {
     mylog.info('New Client Connected')
@@ -334,11 +334,19 @@ function initServer () { // 配置并启动 Web 服务
         if (wo[data.who] && wo[data.who]['api'] && wo[data.who]['api'][data.act] && typeof wo[data.who]['api'][data.act] === 'function') {
           let res = await wo[data.who]['api'][data.act](data.param)
           return echo(res)
-        } else echo({ Error: 'Invalid API' })
+        } else echo({ error: 'Invalid API' })
       }
     })
   })
   return webServer
+}
+
+function initDeployer () {
+  try {
+    (require('./deployer/util.js').execAsync)('node ./deployer/listener.js')
+  } catch (error) {
+    mylog.warn(`区块链部署程序启动失败`)
+  }
 }
 
 (async function start () {
@@ -348,11 +356,6 @@ function initServer () { // 配置并启动 Web 服务
     await initSingle()
     initServer()
     // 启动区块链部署程序
-    try {
-      (require('./deployer/util.js').execAsync)('node ./deployer/listener.js')
-    } catch (error) {
-      mylog.warn(`区块链部署程序启动失败`)
-    }
   } else {
     // cluster模式启动
     if (cluster.isMaster) {
@@ -370,11 +373,7 @@ function initServer () { // 配置并启动 Web 服务
       initServer()
       wo.EventBus.send(200, '链进程初始化完毕')
       // 启动区块链部署程序
-      try {
-        (require('./deployer/util.js').execAsync)('node ./deployer/listener.js')
-      } catch (error) {
-        mylog.warn(`区块链部署程序启动失败`)
-      }
     }
   }
+  initDeployer()
 })()
